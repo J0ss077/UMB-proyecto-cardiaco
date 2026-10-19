@@ -1,5 +1,6 @@
 """Pruebas del esquema relacional del registro clínico."""
 
+import psycopg
 import pytest
 
 from hta.db.migrate import apply_migrations
@@ -69,14 +70,50 @@ def test_migrations_are_idempotent(db):
     assert applied_once == applied_twice
 
 
-def test_failed_migration_leaves_no_partial_tables(db, tmp_path):
-    bad = tmp_path / "9999_broken.sql"
-    bad.write_text("create table should_not_exist (id int); select 1/0;", encoding="utf-8")
-    with pytest.raises(Exception):
-        apply_migrations(db, extra_directory=tmp_path)
-    assert (
-        db.execute(
-            "select 1 from information_schema.tables where table_name = 'should_not_exist'"
-        ).fetchone()
-        is None
+def test_failed_migration_leaves_no_partial_tables(db, second_connection, tmp_path):
+    """Un archivo que falla no deja ni su tabla ni su registro.
+
+    El archivo roto no falla con ``select 1/0``: PostgreSQL envuelve una cadena
+    de sentencias sin parámetros en una transacción implícita propia, así que
+    ese error se revertiría aunque el ejecutor no abriera transacción alguna.
+    Para probar la transacción del ejecutor, el archivo crea la tabla y se
+    registra a sí mismo, y el fallo lo produce el ``insert`` posterior del
+    ejecutor, al chocar con la clave primaria que el archivo ya escribió. Sin
+    la transacción del ejecutor, la tabla y el registro quedarían confirmados.
+
+    Las comprobaciones se hacen por una segunda conexión, la que observa lo que
+    quedó confirmado y no lo que la sesión que migró todavía recuerda.
+    """
+    broken = tmp_path / "9999_broken.sql"
+    broken.write_text(
+        "create table should_not_exist (id int);\n"
+        "insert into schema_migrations (filename) values ('9999_broken.sql');\n",
+        encoding="utf-8",
     )
+
+    with pytest.raises(RuntimeError) as failure:
+        apply_migrations(db, extra_directory=tmp_path)
+
+    assert isinstance(failure.value.__cause__, psycopg.errors.UniqueViolation)
+
+    second_connection.execute("set lock_timeout = '5s'")
+    assert second_connection.execute(
+        "select to_regclass('public.should_not_exist')"
+    ).fetchone() == (None,)
+    assert second_connection.execute(
+        "select count(*) from schema_migrations where filename = '9999_broken.sql'"
+    ).fetchone() == (0,)
+    # El archivo del proyecto corrió antes y conserva su registro: el fallo es
+    # del archivo de prueba, no de la migración real.
+    assert second_connection.execute(
+        "select count(*) from schema_migrations where filename = '0001_initial.sql'"
+    ).fetchone() == (1,)
+
+    # La base quedó utilizable: la segunda conexión escribe y deshace sin rastro.
+    with second_connection.transaction():
+        second_connection.execute(
+            "insert into schema_migrations (filename) values ('recovery_probe')"
+        )
+        second_connection.execute(
+            "delete from schema_migrations where filename = 'recovery_probe'"
+        )

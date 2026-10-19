@@ -109,6 +109,17 @@ def db() -> Iterator[psycopg.Connection]:
         yield connection
 
 
+@pytest.fixture
+def second_connection() -> Iterator[psycopg.Connection]:
+    """Conexión independiente, para ver lo que otra sesión ya ve confirmado.
+
+    La conexión que ejecutó una migración revertida no puede testificar sobre
+    sus efectos: esta conexión los consulta desde fuera.
+    """
+    with psycopg.connect(_postgres_conninfo(), autocommit=True) as connection:
+        yield connection
+
+
 def _mutable_tables(connection: psycopg.Connection) -> list[str]:
     """Tablas públicas que no forman parte del registro de migraciones."""
     rows = connection.execute(
