@@ -45,17 +45,17 @@ Al cerrar la sesión se actualiza `.agents/STATE.md`. Un estado que no está en 
 
 ## Dónde vive cada cosa
 
-| Ruta                | Contenido                                                                  |
-| ------------------- | -------------------------------------------------------------------------- |
-| `README.md`         | qué es el sistema y cómo se levanta, en una pantalla                       |
-| `docs/`             | capa humana: manual, ADRs, contrato de la API, diagramas e investigaciones |
-| `docs/superpowers/` | capa de agente: diseño, planes y notas de trabajo                          |
-| `backend/`          | lógica clínica, autenticación, alertas, reportes y API                     |
-| `web/`              | interfaz de paciente, médico, cuidador y administrador                     |
-| `db/`               | migraciones del registro clínico y colecciones del flujo crudo             |
-| `ml/`               | entrenamiento, evaluación y modelo serializado                             |
-| `iot/`              | contrato de ingesta y simulador de dispositivo                             |
-| `deploy/`           | imágenes y orquestación de los servicios                                   |
-| `scripts/`          | generadores y verificadores ejecutables por personas                       |
-| `.agents/`          | estado, backlog y mapa de trazabilidad: capa de agente                     |
-| `.github/`          | integración continua                                                       |
+| Ruta                                                    | Contenido                                                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `README.md`                                             | qué es el sistema y cómo se levanta, en una pantalla                                                         |
+| `docs/`                                                 | capa humana: manual, ADRs, contrato de la API, diagramas e investigaciones                                   |
+| `docs/superpowers/`                                     | capa de agente: diseño, planes y notas de trabajo                                                            |
+| `backend/`                                              | lógica clínica, autenticación, alertas, reportes y API                                                       |
+| `web/`                                                  | interfaz de paciente, médico, cuidador y administrador                                                       |
+| `db/`                                                   | migraciones del registro clínico y colecciones del flujo crudo                                               |
+| `ml/`                                                   | entrenamiento, evaluación y modelo serializado                                                               |
+| `iot/`                                                  | contrato de ingesta y simulador de dispositivo                                                               |
+| `compose.yaml` y `backend/Dockerfile`, `web/Dockerfile` | orquestación de los servicios e imágenes; `deploy/` se reserva para el despliegue de un incremento posterior |
+| `scripts/`                                              | generadores y verificadores ejecutables por personas                                                         |
+| `.agents/`                                              | estado, backlog y mapa de trazabilidad: capa de agente                                                       |
+| `.github/`                                              | integración continua                                                                                         |

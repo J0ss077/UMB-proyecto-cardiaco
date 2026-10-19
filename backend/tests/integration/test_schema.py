@@ -26,12 +26,26 @@ EXPECTED_TABLES = {
     "refresh_tokens",
 }
 
+# El registro interno del ejecutor no es una tabla clínica, pero existe en toda
+# base migrada y la comparación exacta tiene que contarlo.
+MIGRATION_REGISTRY = "schema_migrations"
+
+EXPECTED_ENUMS = {
+    "alert_severity": ["low", "medium", "high", "critical"],
+    "alert_status": ["open", "acknowledged", "validated", "dismissed"],
+    "reading_source": ["device", "manual"],
+    "reminder_kind": ["medication", "measurement"],
+    "teleconsultation_mode": ["sync", "async"],
+    "user_role": ["patient", "physician", "caregiver", "admin"],
+    "validation_status": ["valid", "out_of_range", "flagged"],
+}
+
 
 def test_all_tables_exist(db):
     rows = db.execute(
         "select table_name from information_schema.tables where table_schema = 'public'"
     ).fetchall()
-    assert EXPECTED_TABLES <= {row[0] for row in rows}
+    assert {row[0] for row in rows} == EXPECTED_TABLES | {MIGRATION_REGISTRY}
 
 
 def test_enums_have_expected_values(db):
@@ -42,8 +56,7 @@ def test_enums_have_expected_values(db):
     actual = {}
     for name, label in rows:
         actual.setdefault(name, []).append(label)
-    assert actual["alert_severity"] == ["low", "medium", "high", "critical"]
-    assert actual["user_role"] == ["patient", "physician", "caregiver", "admin"]
+    assert actual == EXPECTED_ENUMS
 
 
 def test_profile_delete_is_restricted(db):

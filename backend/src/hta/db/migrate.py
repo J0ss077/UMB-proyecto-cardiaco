@@ -9,12 +9,11 @@ registra, de modo que la siguiente ejecución lo vuelve a intentar.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 import psycopg
 from psycopg import Connection
-
-from hta.config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +101,18 @@ def apply_migrations(
 
 
 def main() -> int:
-    """Aplica las migraciones con la conexión que describe el entorno."""
-    settings = Settings()
-    with psycopg.connect(settings.database_url, autocommit=True) as connection:
+    """Aplica las migraciones con la URL de PostgreSQL que describe el entorno.
+
+    El punto de entrada solo necesita ``HTA_DATABASE_URL``: no exige la URL de
+    Mongo ni la clave JWT, que esta operación no usa. Esa es también la variable
+    que define el contenedor del backend.
+    """
+    database_url = os.environ.get("HTA_DATABASE_URL")
+    if not database_url:
+        raise SystemExit(
+            "Falta HTA_DATABASE_URL: define la conexión a PostgreSQL para migrar."
+        )
+    with psycopg.connect(database_url, autocommit=True) as connection:
         applied = apply_migrations(connection)
     if applied:
         print(f"Migraciones aplicadas: {', '.join(applied)}")

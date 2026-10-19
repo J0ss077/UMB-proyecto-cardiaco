@@ -230,7 +230,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 **Texto:** Cumplir la Ley 1581 de 2012 y la Ley 1266 de 2008 sobre consentimiento, habeas data y tratamiento de datos sensibles.
 
-**Motivo:** El consentimiento informado con aceptación y revocación está implementado, y el acceso a las cuentas se limita por rol; no hay procedimiento de habeas data para consulta, corrección o supresión de datos personales.
+**Motivo:** El consentimiento informado con aceptación y revocación está implementado, y el acceso a las cuentas se limita por rol; no hay procedimiento de habeas data para consulta, corrección o supresión de datos personales. El registro de un correo ya existente responde 409 y con ello revela que esa dirección está registrada; es un compromiso aceptado de esta ventana, no un descuido.
 
 ## RNF-08 Seudonimización y minimización
 

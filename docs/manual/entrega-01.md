@@ -292,9 +292,8 @@ están allí, y este documento no repite el estado fila por fila.
 Dos decisiones no dependen del equipo técnico y bloquean el incremento 3, no este:
 
 - **Firma clínica de los umbrales.** Los umbrales de `alert_config` son una propuesta
-  documentada en
-  [`docs/research/2026-10-18-umbrales-clinicos-hta.md`](../research/2026-10-18-umbrales-clinicos-hta.md),
-  sembrados con su fuente, y no cuentan como evidencia hasta que un clínico los firme.
+  documentada en [`umbrales-clinicos.md`](umbrales-clinicos.md), sembrados con su fuente, y
+  no cuentan como evidencia hasta que un clínico los firme.
   Fecha de corte: **30 de noviembre de 2026**. Mientras no exista la firma, RF-10 y RF-14
   no pueden presentarse como implementados ni como evidencia clínica.
 - **Elección del banco de datos público para el adaptador de modelo.** La investigación de

@@ -2,15 +2,18 @@
 
 ## Qué entrega este incremento
 
-La interfaz web es todavía un esqueleto en construcción. Lo que existe hoy son los endpoints
-de autenticación (`/api/auth/login`, `/api/auth/refresh` y `/api/auth/logout`), de cuentas y
-roles (`/api/accounts` y el registro público `/api/accounts/register`), de consentimiento
-(`/api/consent`) y los datos que siembra `make seed`. Las pantallas de lecturas, alertas,
-umbrales, auditoría y telemonitoreo llegan con los incrementos que las construyan; la tabla
-dice qué se puede comprobar hoy y qué queda pendiente. El token de acceso se obtiene con
-`POST /api/auth/login`; el registro de pacientes en `POST /api/accounts/register` es público,
-mientras que listar cuentas, cambiar un rol y desactivar una cuenta exigen rol de
-administración; las rutas de consentimiento exigen rol de paciente.
+La interfaz web es todavía un esqueleto en construcción. Lo que existe hoy son la salud
+(`/api/health`, la ruta que se puede llamar antes de tener cualquier sesión y sin cuerpo), los
+endpoints de autenticación (`/api/auth/login`, `/api/auth/refresh` y `/api/auth/logout`), de
+cuentas y roles (`/api/accounts` y el registro público `/api/accounts/register`), de
+consentimiento (`/api/consent`) y los datos que siembra `make seed`. Los endpoints de
+autenticación y el registro público son las otras rutas que no exigen sesión. Las pantallas
+de lecturas, alertas, umbrales, auditoría y telemonitoreo llegan con los incrementos que las
+construyan; la tabla dice qué se puede comprobar hoy y qué queda pendiente. El token de
+acceso se obtiene con `POST /api/auth/login`; el registro de pacientes en
+`POST /api/accounts/register` es público, mientras que listar cuentas, cambiar un rol y
+desactivar una cuenta exigen rol de administración; las rutas de consentimiento exigen rol de
+paciente.
 
 Todas las cuentas usan la contraseña `Demo2026!`. Los datos son de demostración: no
 corresponden a personas reales ni a mediciones tomadas en un domicilio, y no sustituyen una
@@ -31,9 +34,9 @@ paciente 4 con el cuidador están en la base. Sus pantallas llegarán con los in
 las construyan.
 
 La alerta del escenario crítico queda abierta y pendiente de revisión médica. Los umbrales
-de `alert_config` son una propuesta documentada en la investigación clínica del proyecto y
-siguen pendientes de firma: ninguna alerta es evidencia clínica hasta que un clínico los
-firme.
+de `alert_config` son una propuesta documentada en
+[`umbrales-clinicos.md`](umbrales-clinicos.md) y siguen pendientes de firma: ninguna alerta
+es evidencia clínica hasta que un clínico los firme.
 
 ## Cómo cargar los datos
 

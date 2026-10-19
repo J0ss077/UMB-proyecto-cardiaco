@@ -52,6 +52,22 @@ Si ya hay otra pila levantada, define los cuatro puertos en `.env` (`BACKEND_POR
 `POSTGRES_PORT`, `MONGO_PORT` y `WEB_PORT`) y levanta con `make up`; así `make` usa el mismo
 `BACKEND_PORT` en la espera de salud y en las pruebas de integración.
 
+## Credenciales locales y conexión a PostgreSQL
+
+Las credenciales locales son deliberadamente débiles: `POSTGRES_PASSWORD` conserva el valor
+de ejemplo, los puertos publicados de PostgreSQL y MongoDB quedan al alcance de la red y
+MongoDB no lleva credenciales en esta configuración, mientras las siete cuentas de
+demostración comparten una contraseña publicada. Eso solo es aceptable porque los datos son
+sintéticos y la pila está pensada para una máquina local. Antes de desplegar en cualquier
+host compartido o público hay que cambiar la contraseña de PostgreSQL y la de las cuentas de
+demostración, y no dejar el puerto de MongoDB abierto; el repositorio no incorpora todavía
+una protección que lo haga por ti.
+
+Para abrir la base desde una herramienta externa como DBeaver o pgAdmin, usa los valores de
+`.env`: host `localhost`, puerto `POSTGRES_PORT` (5432 por omisión), base `POSTGRES_DB`,
+usuario `POSTGRES_USER` y la contraseña `POSTGRES_PASSWORD`. La contraseña de ejemplo de
+`.env.example` es pública y no sirve para un host compartido.
+
 ## Cómo correr las pruebas
 
 Antes de la primera corrida, instala las dependencias de desarrollo:
