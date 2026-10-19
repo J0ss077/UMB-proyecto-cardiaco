@@ -13,7 +13,7 @@ def _client(monkeypatch, mongo_url: str) -> TestClient:
     """Construye un cliente con ambas dependencias apuntando a un puerto cerrado."""
     monkeypatch.setenv("HTA_DATABASE_URL", CLOSED_DATABASE_URL)
     monkeypatch.setenv("HTA_MONGO_URL", mongo_url)
-    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba")
+    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba-para-las-pruebas-unitarias")
     return TestClient(create_app())
 
 

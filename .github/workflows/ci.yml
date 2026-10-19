@@ -38,7 +38,7 @@ jobs:
     env:
       HTA_DATABASE_URL: postgresql://hta:hta@localhost:5432/hta
       HTA_MONGO_URL: mongodb://localhost:27017/hta
-      HTA_JWT_SECRET: secreto-de-integracion-continua
+      HTA_JWT_SECRET: secreto-de-integracion-continua-para-las-pruebas
       HTA_ENVIRONMENT: ci
 
     steps:

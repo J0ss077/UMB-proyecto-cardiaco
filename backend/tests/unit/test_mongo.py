@@ -108,7 +108,7 @@ def _client(monkeypatch: pytest.MonkeyPatch, mongo_url: str) -> TestClient:
     """Construye un cliente con ambas dependencias apuntando a un puerto cerrado."""
     monkeypatch.setenv("HTA_DATABASE_URL", "postgresql://usuario:clave@127.0.0.1:1/hta")
     monkeypatch.setenv("HTA_MONGO_URL", mongo_url)
-    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba")
+    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba-para-las-pruebas-unitarias")
     return TestClient(create_app())
 
 
@@ -171,7 +171,7 @@ def test_create_app_does_not_connect_when_constructed(monkeypatch):
     monkeypatch.setattr("hta.app.get_database", fail)
     monkeypatch.setenv("HTA_DATABASE_URL", "postgresql://usuario:clave@127.0.0.1:1/hta")
     monkeypatch.setenv("HTA_MONGO_URL", "mongodb://127.0.0.1:1/hta")
-    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba")
+    monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba-para-las-pruebas-unitarias")
 
     create_app()
 
