@@ -60,17 +60,7 @@ make check
 
 ## Cuentas de demostración
 
-La siembra de `make seed` crea siete cuentas, todas con la contraseña `Demo2026!`.
-
-| Correo               | Rol           | Qué demuestra                                                   |
-| -------------------- | ------------- | --------------------------------------------------------------- |
-| `admin@hta.demo`     | Administrador | Gestión de cuentas, roles y catálogos                           |
-| `medico@hta.demo`    | Médico        | Validación y cierre de alertas de sus pacientes                 |
-| `cuidador@hta.demo`  | Cuidador      | Acceso solo al paciente que lo autorizó                         |
-| `paciente1@hta.demo` | Paciente      | Lecturas fuera de rango conservadas con su estado de validación |
-| `paciente2@hta.demo` | Paciente      | Alerta abierta a la espera de validación médica                 |
-| `paciente3@hta.demo` | Paciente      | Consentimiento revocado: no se procesan datos clínicos          |
-| `paciente4@hta.demo` | Paciente      | Cuidador autorizado sobre su seguimiento                        |
+La tabla autoritativa de las siete cuentas, su contraseña común y lo que se puede comprobar hoy con cada una está en [`docs/manual/cuentas-demo.md`](docs/manual/cuentas-demo.md); `make seed` las crea.
 
 ## Dónde seguir leyendo
 

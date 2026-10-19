@@ -38,12 +38,14 @@ _PSEUDONYM_NAME = "Cuenta desactivada"
 _PSEUDONYM_PASSWORD = "!"
 
 
-def _normalize_email(email: str) -> str:
+def normalize_email(email: str) -> str:
     """Quita los espacios de los extremos y pasa el correo a minúsculas.
 
     La unicidad de ``users.email`` distingue mayúsculas, así que normalizar
     antes de insertar es lo que hace que el mismo correo escrito de otra forma
-    choque contra la misma fila y se rechace como duplicado.
+    choque contra la misma fila y se rechace como duplicado. Es la única regla
+    de normalización del proyecto: el inicio de sesión y la siembra de
+    demostración la usan en lugar de repetirla.
     """
     return email.strip().lower()
 
@@ -90,7 +92,7 @@ async def register_patient(
     nada más en esa transacción: el grupo de conexiones la revierte al ver la
     excepción.
     """
-    normalized_email = _normalize_email(email)
+    normalized_email = normalize_email(email)
     try:
         user_id = (
             await (

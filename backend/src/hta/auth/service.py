@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict
 
+from hta.accounts.service import normalize_email
 from hta.audit import record
 from hta.auth.passwords import verify_password
 from hta.auth.tokens import issue_access, new_refresh_token
@@ -139,7 +140,7 @@ async def login(
     normalizada: sin esto, quien se registró con mayúsculas o con espacios no
     podría iniciar sesión con el correo que escribió.
     """
-    email = email.strip().lower()
+    email = normalize_email(email)
     row = await (
         await conn.execute(
             "select id, password_hash, role, active from users where email = %s",
