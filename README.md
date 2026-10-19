@@ -27,8 +27,12 @@ Cada carpeta aparece cuando empieza la parte del trabajo que le corresponde.
 
 ```bash
 cp .env.example .env
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+# pega el resultado en HTA_JWT_SECRET dentro de .env
 make up
 ```
+
+El backend se niega a arrancar si `HTA_JWT_SECRET` conserva el valor de ejemplo o mide menos de 32 bytes: con una clave conocida, cualquiera puede firmar un token válido. El comando de arriba genera una.
 
 `make up` usa `podman-compose` si está instalado y, si no, cae a `docker compose`. Los comandos equivalentes sin `make` son:
 
