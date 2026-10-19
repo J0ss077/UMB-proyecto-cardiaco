@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pymongo.errors import PyMongoError
 
+from hta.accounts.router import router as accounts_router
 from hta.api.health import router as health_router
 from hta.auth.router import router as auth_router
 from hta.config import Settings
@@ -70,4 +71,5 @@ def create_app() -> FastAPI:
     app.state.settings = settings
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(accounts_router)
     return app

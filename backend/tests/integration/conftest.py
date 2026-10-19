@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import UUID
@@ -192,6 +193,109 @@ def logged_in(client: httpx.Client, active_user: ActiveUser) -> dict[str, Any]:
     response = client.post(
         "/api/auth/login",
         json={"email": active_user.email, "password": "s3cret"},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+# Contraseña de las cuentas de paciente que crean las fixtures, para que una
+# prueba pueda iniciar sesión sin pasar por el registro público.
+PATIENT_PASSWORD = "s3cret"
+PATIENT_EMAIL = "paciente@hta.demo"
+OTHER_PATIENT_EMAIL = "otro-paciente@hta.demo"
+READING_PATIENT_EMAIL = "lectura@hta.demo"
+
+
+def _create_patient(connection: psycopg.Connection, email: str) -> UUID:
+    """Inserta una cuenta de paciente con contraseña conocida y devuelve su id."""
+    (user_id,) = connection.execute(
+        "insert into users (email, password_hash, role, full_name) "
+        "values (%s, %s, 'patient', %s) returning id",
+        (email, hash_password(PATIENT_PASSWORD), "Paciente de prueba"),
+    ).fetchone()
+    return user_id
+
+
+def _login_headers(client: httpx.Client, email: str) -> dict[str, str]:
+    """Inicia sesión y devuelve el encabezado Authorization con el token de acceso."""
+    response = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": PATIENT_PASSWORD},
+    )
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+def admin_id(active_user: ActiveUser) -> UUID:
+    """Identificador de la cuenta administradora activa."""
+    return active_user.id
+
+
+@pytest.fixture
+def admin_headers(logged_in: dict[str, Any]) -> dict[str, str]:
+    """Encabezado de la sesión del administrador ya iniciada."""
+    return {"Authorization": f"Bearer {logged_in['access_token']}"}
+
+
+@pytest.fixture
+def patient_id(db: psycopg.Connection, clean_db: None) -> UUID:
+    """Crea una cuenta de paciente y devuelve su identificador."""
+    return _create_patient(db, PATIENT_EMAIL)
+
+
+@pytest.fixture
+def other_patient_id(db: psycopg.Connection, clean_db: None) -> UUID:
+    """Crea una segunda cuenta de paciente, sin sesión, y devuelve su id."""
+    return _create_patient(db, OTHER_PATIENT_EMAIL)
+
+
+@pytest.fixture
+def patient_headers(client: httpx.Client, patient_id: UUID) -> dict[str, str]:
+    """Encabezado de la sesión del paciente de prueba."""
+    return _login_headers(client, PATIENT_EMAIL)
+
+
+@pytest.fixture
+def patient_login(client: httpx.Client, patient_id: UUID) -> dict[str, str]:
+    """Encabezado de la sesión del paciente, para la prueba de desactivación."""
+    return _login_headers(client, PATIENT_EMAIL)
+
+
+@pytest.fixture
+def patient_with_reading(db: psycopg.Connection, clean_db: None) -> tuple[UUID, UUID]:
+    """Crea un paciente con perfil y una lectura manual.
+
+    Devuelve ``(user_id, reading_id)``: el primero es la cuenta y el segundo la
+    lectura, que cuelga del perfil y debe sobrevivir a la desactivación.
+    """
+    user_id = _create_patient(db, READING_PATIENT_EMAIL)
+    (profile_id,) = db.execute(
+        "insert into patient_profiles (user_id, birth_date) values (%s, %s) returning id",
+        (user_id, date(1960, 3, 14)),
+    ).fetchone()
+    (reading_id,) = db.execute(
+        "insert into readings "
+        "(patient_id, systolic, diastolic, heart_rate, source, measured_at) "
+        "values (%s, %s, %s, %s, 'manual', now()) returning id",
+        (profile_id, 138, 88, 72),
+    ).fetchone()
+    return user_id, reading_id
+
+
+@pytest.fixture
+def reading_patient_login(
+    client: httpx.Client,
+    patient_with_reading: tuple[UUID, UUID],
+) -> dict[str, Any]:
+    """Inicia sesión con el paciente que tiene una lectura y entrega el cuerpo.
+
+    La prueba de desactivación necesita un refresco emitido antes de desactivar
+    para comprobar que la desactivación lo revoca y que ya no se puede rotar.
+    """
+    response = client.post(
+        "/api/auth/login",
+        json={"email": READING_PATIENT_EMAIL, "password": PATIENT_PASSWORD},
     )
     assert response.status_code == 200
     return response.json()

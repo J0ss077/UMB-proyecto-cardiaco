@@ -134,7 +134,12 @@ async def login(
     respuesta y el mismo coste de verificación. La cuenta inactiva se rechaza
     con ese mismo error en lugar de anunciar que existe. Todo intento fallido
     queda auditado con actor nulo porque no hay identidad demostrada.
+
+    El correo se normaliza antes de buscar porque el registro guarda la versión
+    normalizada: sin esto, quien se registró con mayúsculas o con espacios no
+    podría iniciar sesión con el correo que escribió.
     """
+    email = email.strip().lower()
     row = await (
         await conn.execute(
             "select id, password_hash, role, active from users where email = %s",
