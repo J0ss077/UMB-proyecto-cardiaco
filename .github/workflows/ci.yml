@@ -36,6 +36,9 @@ jobs:
           --health-retries 5
 
     env:
+      POSTGRES_USER: hta
+      POSTGRES_PASSWORD: hta
+      POSTGRES_DB: hta
       HTA_DATABASE_URL: postgresql://hta:hta@localhost:5432/hta
       HTA_MONGO_URL: mongodb://localhost:27017/hta
       HTA_JWT_SECRET: secreto-de-integracion-continua-para-las-pruebas

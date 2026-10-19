@@ -1,17 +1,20 @@
 """Fixtures compartidas por las pruebas de integración.
 
 Las pruebas corren desde el host contra la pila levantada con `make up`: la API
-en http://localhost:8000 y PostgreSQL en el puerto publicado del compose. Las
-credenciales se leen de `.env`, el mismo archivo que lee la pila, para no
-duplicar secretos en el código de las pruebas.
+en http://localhost:8000 y PostgreSQL en el puerto publicado del compose. La URL
+de la API se puede cambiar con `API_BASE_URL`, por ejemplo para probar un
+backend levantado en el host. Las credenciales se leen de `.env`, el mismo
+archivo que lee la pila, para no duplicar secretos en el código de las pruebas.
 """
 
 from __future__ import annotations
 
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Iterator
+from uuid import UUID
 
 import httpx
 import psycopg
@@ -19,6 +22,8 @@ import pytest
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
+
+from hta.auth.passwords import hash_password
 
 BASE_URL = "http://localhost:8000"
 ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
@@ -70,9 +75,10 @@ def _postgres_conninfo() -> str:
 @pytest.fixture(scope="session")
 def client() -> Iterator[httpx.Client]:
     """Cliente HTTP contra el backend de la pila, tras esperar a que responda."""
+    base_url = _setting("API_BASE_URL", BASE_URL)
     last_error: Exception | None = None
     deadline = time.monotonic() + WAIT_SECONDS
-    with httpx.Client(base_url=BASE_URL, timeout=10.0) as http:
+    with httpx.Client(base_url=base_url, timeout=10.0) as http:
         while time.monotonic() < deadline:
             try:
                 if http.get("/api/health").status_code == 200:
@@ -82,7 +88,7 @@ def client() -> Iterator[httpx.Client]:
             time.sleep(WAIT_INTERVAL)
         else:
             pytest.fail(
-                f"El backend no respondió en {BASE_URL} tras {WAIT_SECONDS:.0f} segundos. "
+                f"El backend no respondió en {base_url} tras {WAIT_SECONDS:.0f} segundos. "
                 "Levanta la pila con 'make up' antes de correr las pruebas de integración. "
                 f"Último error: {last_error}"
             )
@@ -154,6 +160,41 @@ def second_connection() -> Iterator[psycopg.Connection]:
     """
     with psycopg.connect(_postgres_conninfo(), autocommit=True) as connection:
         yield connection
+
+
+@dataclass(frozen=True)
+class ActiveUser:
+    """Cuenta activa creada para una prueba, con su identificador y su correo."""
+
+    id: UUID
+    email: str
+
+
+@pytest.fixture
+def active_user(db: psycopg.Connection, clean_db: None) -> ActiveUser:
+    """Crea una cuenta activa con rol de administrador y contraseña conocida.
+
+    Depende de ``clean_db`` para que el alta ocurra después del vaciado
+    automático: la prueba recibe las tablas vacías y esta cuenta ya creada.
+    """
+    email = "admin@hta.demo"
+    (user_id,) = db.execute(
+        "insert into users (email, password_hash, role, full_name) "
+        "values (%s, %s, 'admin', %s) returning id",
+        (email, hash_password("s3cret"), "Administradora de prueba"),
+    ).fetchone()
+    return ActiveUser(id=user_id, email=email)
+
+
+@pytest.fixture
+def logged_in(client: httpx.Client, active_user: ActiveUser) -> dict[str, Any]:
+    """Inicia sesión con la cuenta activa y entrega el cuerpo de la respuesta."""
+    response = client.post(
+        "/api/auth/login",
+        json={"email": active_user.email, "password": "s3cret"},
+    )
+    assert response.status_code == 200
+    return response.json()
 
 
 def _mutable_tables(connection: psycopg.Connection) -> list[str]:
