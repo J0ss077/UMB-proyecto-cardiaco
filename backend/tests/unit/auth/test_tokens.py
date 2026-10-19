@@ -14,16 +14,16 @@ from hta.auth.tokens import (
     new_refresh_token,
 )
 
-SECRETO_DE_PRUEBA = "secreto-de-prueba-para-tokens-del-backend"
-OTRO_SECRETO_DE_PRUEBA = "otro-secreto-de-prueba-para-tokens-del-backend"
+TEST_SECRET = "secreto-de-prueba-para-tokens-del-backend"
+OTHER_TEST_SECRET = "otro-secreto-de-prueba-para-tokens-del-backend"
 
 
 @pytest.fixture(autouse=True)
-def _entorno(monkeypatch):
+def _environment(monkeypatch):
     """Fija el entorno que ``Settings`` exige para emitir y verificar tokens."""
     monkeypatch.setenv("HTA_DATABASE_URL", "postgresql://usuario:clave@127.0.0.1:5432/hta")
     monkeypatch.setenv("HTA_MONGO_URL", "mongodb://127.0.0.1:27017")
-    monkeypatch.setenv("HTA_JWT_SECRET", SECRETO_DE_PRUEBA)
+    monkeypatch.setenv("HTA_JWT_SECRET", TEST_SECRET)
 
 
 def test_access_token_roundtrip():
@@ -52,7 +52,7 @@ def test_token_signed_with_another_secret_is_rejected():
             "iat": now,
             "exp": now + timedelta(minutes=15),
         },
-        OTRO_SECRETO_DE_PRUEBA,
+        OTHER_TEST_SECRET,
         algorithm="HS256",
     )
     with pytest.raises(InvalidToken):
@@ -62,8 +62,8 @@ def test_token_signed_with_another_secret_is_rejected():
 def test_refresh_token_returns_raw_value_and_sha256_digest():
     """El refresco entrega un valor aleatorio y solo su huella SHA-256 se guarda."""
     raw, digest = new_refresh_token()
-    otro_raw, otro_digest = new_refresh_token()
-    assert raw != otro_raw
+    other_raw, other_digest = new_refresh_token()
+    assert raw != other_raw
     assert digest != raw
     assert digest == hashlib.sha256(raw.encode("utf-8")).hexdigest()
-    assert digest != otro_digest
+    assert digest != other_digest
