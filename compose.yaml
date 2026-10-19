@@ -33,6 +33,10 @@ services:
       - "${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo_data:/data/db
+      # El script de inicialización crea las colecciones del flujo crudo y sus
+      # índices cuando el volumen se inicializa. Es idempotente, de modo que
+      # ejecutarlo otra vez no falla. Solo lectura para el contenedor.
+      - ./db/mongo/init.js:/docker-entrypoint-initdb.d/init.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
       interval: 5s

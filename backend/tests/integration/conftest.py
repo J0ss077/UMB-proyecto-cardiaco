@@ -16,6 +16,9 @@ from typing import Iterator
 import httpx
 import psycopg
 import pytest
+from pymongo import MongoClient
+from pymongo.database import Database
+from pymongo.errors import PyMongoError
 
 BASE_URL = "http://localhost:8000"
 ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
@@ -107,6 +110,39 @@ def db() -> Iterator[psycopg.Connection]:
         )
     with connection:
         yield connection
+
+
+@pytest.fixture(scope="session")
+def mongo_db() -> Iterator[Database]:
+    """Base del flujo crudo en el MongoDB de la pila, tras esperar su ping.
+
+    Los detalles de conexión salen de ``.env`` con los mismos valores por
+    omisión que el compose: el host local, el puerto publicado y la base que
+    usa el backend. El cliente se cierra al terminar la sesión de pruebas.
+    """
+    client = MongoClient(
+        host=_setting("MONGO_HOST", "localhost"),
+        port=int(_setting("MONGO_PORT", "27017")),
+        serverSelectionTimeoutMS=2000,
+    )
+    last_error: Exception | None = None
+    deadline = time.monotonic() + WAIT_SECONDS
+    while time.monotonic() < deadline:
+        try:
+            client.admin.command("ping")
+            break
+        except PyMongoError as error:
+            last_error = error
+            time.sleep(WAIT_INTERVAL)
+    else:
+        client.close()
+        pytest.fail(
+            "MongoDB no respondió tras "
+            f"{WAIT_SECONDS:.0f} segundos. Levanta la pila con 'make up'. "
+            f"Último error: {last_error}"
+        )
+    with client:
+        yield client[_setting("MONGO_DB", "hta")]
 
 
 @pytest.fixture
