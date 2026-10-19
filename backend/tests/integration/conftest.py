@@ -12,7 +12,6 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import UUID
@@ -207,12 +206,21 @@ READING_PATIENT_EMAIL = "lectura@hta.demo"
 
 
 def _create_patient(connection: psycopg.Connection, email: str) -> UUID:
-    """Inserta una cuenta de paciente con contraseña conocida y devuelve su id."""
+    """Inserta una cuenta de paciente con su perfil y devuelve su id.
+
+    Todo paciente del sistema tiene perfil, así que la fixture los crea juntos:
+    un paciente sin perfil no sería un caso de prueba válido sino una fixture
+    inconsistente, y el consentimiento no tendría a qué apuntar.
+    """
     (user_id,) = connection.execute(
         "insert into users (email, password_hash, role, full_name) "
         "values (%s, %s, 'patient', %s) returning id",
         (email, hash_password(PATIENT_PASSWORD), "Paciente de prueba"),
     ).fetchone()
+    connection.execute(
+        "insert into patient_profiles (user_id) values (%s)",
+        (user_id,),
+    )
     return user_id
 
 
@@ -271,8 +279,8 @@ def patient_with_reading(db: psycopg.Connection, clean_db: None) -> tuple[UUID, 
     """
     user_id = _create_patient(db, READING_PATIENT_EMAIL)
     (profile_id,) = db.execute(
-        "insert into patient_profiles (user_id, birth_date) values (%s, %s) returning id",
-        (user_id, date(1960, 3, 14)),
+        "select id from patient_profiles where user_id = %s",
+        (user_id,),
     ).fetchone()
     (reading_id,) = db.execute(
         "insert into readings "

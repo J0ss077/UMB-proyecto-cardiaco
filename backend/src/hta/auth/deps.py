@@ -22,7 +22,7 @@ from hta.auth.tokens import InvalidToken, decode_access
 from hta.db.pool import get_pool
 
 _INVALID_SESSION = "Sesión inválida o expirada"
-_FORBIDDEN = "Permiso denegado"
+FORBIDDEN = "Permiso denegado"
 
 
 @dataclass(frozen=True)
@@ -105,7 +105,7 @@ def require_role(*roles: str) -> Callable[..., Awaitable[CurrentUser]]:
     ) -> CurrentUser:
         """Devuelve la cuenta si su rol está permitido y rechaza con 403 si no."""
         if user.role not in roles:
-            raise HTTPException(status_code=403, detail=_FORBIDDEN)
+            raise HTTPException(status_code=403, detail=FORBIDDEN)
         return user
 
     return dependency
