@@ -1,0 +1,14 @@
+# Proyecto anterior: se conserva como referencia, nunca se versiona
+.legacy-project/
+
+# Texto extraído de los PDF para consulta de trabajo
+.recon/
+
+# Entorno
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+dist/
