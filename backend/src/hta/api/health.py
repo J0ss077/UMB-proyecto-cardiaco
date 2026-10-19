@@ -1,0 +1,50 @@
+"""Comprobación de salud del servicio y de sus dependencias."""
+
+import logging
+
+import psycopg
+from fastapi import APIRouter, Request
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+
+def _check_postgres(database_url: str) -> str:
+    """Devuelve "ok" si PostgreSQL responde a una consulta trivial, o "fail" si no."""
+    try:
+        with psycopg.connect(database_url, connect_timeout=2) as connection:
+            connection.execute("SELECT 1")
+        return "ok"
+    except psycopg.Error as error:
+        logger.warning("La comprobación de PostgreSQL falló: %s", error)
+        return "fail"
+
+
+def _check_mongo(mongo_url: str) -> str:
+    """Devuelve "ok" si MongoDB responde a un ping, o "fail" si no."""
+    client = MongoClient(mongo_url, serverSelectionTimeoutMS=1500)
+    try:
+        client.admin.command("ping")
+        return "ok"
+    except PyMongoError as error:
+        logger.warning("La comprobación de MongoDB falló: %s", error)
+        return "fail"
+    finally:
+        client.close()
+
+
+@router.get("/api/health")
+def health(request: Request) -> dict[str, str]:
+    """Informa el estado de cada dependencia sin lanzar excepción.
+
+    Responde 200 aunque una dependencia falle: el cuerpo distingue la
+    dependencia degradada y el campo ``status`` queda en ``degraded``.
+    """
+    settings = request.app.state.settings
+    database = _check_postgres(settings.database_url)
+    mongo = _check_mongo(settings.mongo_url)
+    status = "ok" if database == "ok" and mongo == "ok" else "degraded"
+    return {"status": status, "database": database, "mongo": mongo}

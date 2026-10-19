@@ -9,6 +9,7 @@
 .venv/
 __pycache__/
 *.pyc
+*.egg-info/
 .pytest_cache/
 node_modules/
 dist/
