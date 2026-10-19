@@ -12,5 +12,6 @@ class Settings(BaseSettings):
     mongo_url: str
     jwt_secret: str
     access_ttl_seconds: int = 900
+    # 604800 segundos son siete días: la vida del token de refresco.
     refresh_ttl_seconds: int = 604800
     environment: str = "local"

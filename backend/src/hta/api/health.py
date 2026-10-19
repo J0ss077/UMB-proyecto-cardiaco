@@ -4,12 +4,21 @@ import logging
 
 import psycopg
 from fastapi import APIRouter, Request
+from pydantic import BaseModel
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class HealthResponse(BaseModel):
+    """Estado del servicio y de cada dependencia, con los nombres del contrato."""
+
+    status: str
+    database: str
+    mongo: str
 
 
 def _check_postgres(database_url: str) -> str:
@@ -24,20 +33,28 @@ def _check_postgres(database_url: str) -> str:
 
 
 def _check_mongo(mongo_url: str) -> str:
-    """Devuelve "ok" si MongoDB responde a un ping, o "fail" si no."""
-    client = MongoClient(mongo_url, serverSelectionTimeoutMS=1500)
+    """Devuelve "ok" si MongoDB responde a un ping, o "fail" si no.
+
+    El cliente se construye dentro del ``try``: una URL vacía lanza
+    ``ConfigurationError``, una malformada ``InvalidURI`` y un puerto inválido
+    ``ValueError``. Las dos primeras heredan de ``PyMongoError``; la tercera se
+    captura aparte para que el handler nunca propague la excepción.
+    """
+    client: MongoClient | None = None
     try:
+        client = MongoClient(mongo_url, serverSelectionTimeoutMS=1500)
         client.admin.command("ping")
         return "ok"
-    except PyMongoError as error:
+    except (PyMongoError, ValueError) as error:
         logger.warning("La comprobación de MongoDB falló: %s", error)
         return "fail"
     finally:
-        client.close()
+        if client is not None:
+            client.close()
 
 
-@router.get("/api/health")
-def health(request: Request) -> dict[str, str]:
+@router.get("/api/health", response_model=HealthResponse)
+def health(request: Request) -> HealthResponse:
     """Informa el estado de cada dependencia sin lanzar excepción.
 
     Responde 200 aunque una dependencia falle: el cuerpo distingue la
@@ -47,4 +64,4 @@ def health(request: Request) -> dict[str, str]:
     database = _check_postgres(settings.database_url)
     mongo = _check_mongo(settings.mongo_url)
     status = "ok" if database == "ok" and mongo == "ok" else "degraded"
-    return {"status": status, "database": database, "mongo": mongo}
+    return HealthResponse(status=status, database=database, mongo=mongo)
