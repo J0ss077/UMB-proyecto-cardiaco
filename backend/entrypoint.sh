@@ -2,12 +2,14 @@
 # Entrada del contenedor del backend: espera a PostgreSQL, aplica las
 # migraciones del registro clínico y arranca la API.
 #
-# La migración es obligatoria por omisión: si el módulo no existe o la
-# migración falla, el contenedor sale con código distinto de cero para que el
-# fallo sea visible. Mientras `hta.db.migrate` no exista (llega en la tarea 5
-# del plan), el compose declara HTA_MIGRATIONS_OPTIONAL=1 y el entrypoint avisa
-# y continúa, de modo que la pila se pueda levantar y probar antes de esa
-# tarea. La bandera se retira cuando la migración esté implementada.
+# La migración es obligatoria y sus dos fallos se distinguen:
+#   - hta.db.migrate no existe: código 1, con un mensaje que nombra la tarea
+#     que lo implementa.
+#   - hta.db.migrate existe pero falla al importarse o al ejecutarse: código 2,
+#     con su propia traza en stderr.
+# La existencia se consulta con importlib.util.find_spec, que devuelve None sin
+# ejecutar el módulo; así una ausencia no se puede confundir con un error de
+# importación. La importación real va después y no silencia stderr.
 
 set -eu
 
@@ -48,19 +50,52 @@ if ! esperar_postgres; then
     exit 1
 fi
 
-if python -c 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("hta.db.migrate") is not None else 1)' 2>/dev/null; then
-    if ! python -m hta.db.migrate; then
-        echo "Error: la migración del registro clínico falló; el contenedor no arranca." >&2
-        exit 1
-    fi
-else
-    if [ "${HTA_MIGRATIONS_OPTIONAL:-0}" != "1" ]; then
-        echo "Error: el módulo hta.db.migrate no existe y la migración es obligatoria." >&2
-        echo "La migración del registro clínico llega en la tarea 5 del plan." >&2
-        exit 1
-    fi
-    echo "Aviso: hta.db.migrate no existe todavía; no se aplican migraciones." >&2
-    echo "Aviso: HTA_MIGRATIONS_OPTIONAL=1 es temporal y se retira con la tarea 5." >&2
+# ¿Existe hta.db.migrate? Se consulta el especificador del módulo, que no lo
+# ejecuta. Códigos: 0 existe, 1 no existe, 2 el paquete hta.db está roto.
+estado_modulo=0
+python - <<'PY' || estado_modulo=$?
+import importlib.util
+import sys
+import traceback
+
+MODULO = "hta.db.migrate"
+
+try:
+    especificacion = importlib.util.find_spec(MODULO)
+except ModuleNotFoundError as error:
+    # Solo la ausencia del propio módulo o de un paquete que lo contiene
+    # significa que no existe. La ausencia de cualquier otra dependencia que
+    # hta.db importe deja el paquete roto y su traza debe verse.
+    nombre = error.name or ""
+    if nombre and (MODULO == nombre or MODULO.startswith(nombre + ".")):
+        sys.exit(1)
+    traceback.print_exc()
+    sys.exit(2)
+except Exception:
+    traceback.print_exc()
+    sys.exit(2)
+
+sys.exit(0 if especificacion is not None else 1)
+PY
+
+if [ "$estado_modulo" -eq 1 ]; then
+    echo "Error: el módulo hta.db.migrate no existe y la migración es obligatoria." >&2
+    echo "La migración del registro clínico llega en la tarea 5 del plan." >&2
+    exit 1
+fi
+
+if [ "$estado_modulo" -ne 0 ]; then
+    echo "Error: el paquete hta.db no se pudo importar; el contenedor no arranca." >&2
+    exit 2
+fi
+
+# El módulo existe: importarlo y ejecutarlo. Un fallo aquí conserva su propia
+# traza y sale con un código distinto del de la ausencia.
+estado_migracion=0
+python -m hta.db.migrate || estado_migracion=$?
+if [ "$estado_migracion" -ne 0 ]; then
+    echo "Error: hta.db.migrate existe pero falló con código $estado_migracion; el contenedor no arranca." >&2
+    exit 2
 fi
 
 exec uvicorn hta.app:create_app --factory --host 0.0.0.0 --port 8000

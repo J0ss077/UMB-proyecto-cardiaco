@@ -58,9 +58,6 @@ services:
       # El montaje de ./backend/src solo se usa si el paquete se busca primero
       # en el árbol montado; la imagen ya trae una copia instalada.
       PYTHONPATH: /app/src
-      # Temporal: hta.db.migrate llega en la tarea 5. Sin esta bandera el
-      # entrypoint se detiene, tal como exige la migración obligatoria.
-      HTA_MIGRATIONS_OPTIONAL: "1"
     volumes:
       - ./backend/src:/app/src:ro
     ports:
