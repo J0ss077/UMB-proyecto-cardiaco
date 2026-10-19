@@ -16,55 +16,123 @@ se guardan enteras, llevan las operaciones que el manual describe en sus casos d
 
 ## 7. Diagrama de clases
 
-Las dieciséis entidades del registro clínico, los siete tipos enumerados y las clases de
-dominio que sostienen el análisis, las alertas y los reportes. Las asociaciones con
-multiplicidad son las del modelo relacional; las clases de dominio no se persisten y existen
-para que las operaciones del sistema tengan dueño.
+Dos diagramas en lugar de uno: el de las clases del dominio y, aparte, el de los tipos
+enumerados. El original tenía todo junto y no se podía leer.
+
+Lo deliberado es que las clases no muestran atributos. Las columnas de las dieciséis tablas
+están en `docs/manual/modelo-de-datos.md` y repetirlas aquí sería escribir dos veces el mismo
+hecho: el diagrama aporta la estructura de clases y sus relaciones, que es lo que el modelo
+relacional no muestra. Por la misma razón no aparecen en todas las clases los métodos que
+tienen: el comportamiento de cada proceso está en los diagramas de secuencia de la sección 10.
+Se conservan los métodos de las tres clases de análisis, porque no son entidades guardadas y
+su comportamiento no aparece en ningún otro diagrama.
+
+### 7.1 Clases del dominio
+
+Las dieciséis entidades del registro clínico y las tres clases que sostienen el análisis,
+agrupadas por su responsabilidad y dibujadas de izquierda a derecha para que la estructura se
+lea como una jerarquía y no como una maraña. Solo llevan etiqueta las asociaciones que sin
+ella serían ambiguas: quién atiende, quién cuida, quién autoriza y quién tiene el perfil.
 
 ```plantuml
 @startuml
-title Diagrama de clases del sistema
+title Diagrama de clases del dominio
 
+left to right direction
 skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam nodesep 15
+skinparam ranksep 35
+hide empty members
 
 package "Identidad y acceso" {
+  class User
+  class RefreshToken
+  class AuditLog
+}
 
-  class User <<entidad>> {
-    - id : UUID
-    - email : String
-    - passwordHash : String
-    - role : UserRole
-    - fullName : String
-    - active : Boolean
-    - createdAt : Timestamp
-    - updatedAt : Timestamp
-    + authenticate(password : String) : Boolean
-    + changeRole(role : UserRole, actor : User) : void
-    + deactivate(actor : User) : void
+package "Paciente y seguimiento" {
+  class PatientProfile
+  class PatientPhysician
+  class CaregiverLink
+  class Consent
+  class Reminder
+}
+
+package "Registro clínico" {
+  class Reading
+  class SymptomMood
+  class Medication
+  class AdherenceEvent
+}
+
+package "Alertas y atención" {
+  class Alert
+  class AlertRule
+  class Report
+  class Teleconsultation
+}
+
+package "Análisis" {
+  class VitalSignsWindow {
+    + validCount() : Integer
+    + isSufficient() : Boolean
+    + meanSystolic() : Decimal
+    + meanDiastolic() : Decimal
   }
-
-  class RefreshToken <<entidad>> {
-    - id : UUID
-    - tokenHash : String
-    - expiresAt : Timestamp
-    - revokedAt : Timestamp
-    - createdAt : Timestamp
-    + isValid() : Boolean
-    + rotate() : RefreshToken
-    + revoke() : void
+  class RiskAssessment {
+    + explain() : RiskFactor[]
+    + triggersAlert() : Boolean
   }
-
-  class AuditLog <<entidad>> {
-    - id : UUID
-    - action : String
-    - entity : String
-    - entityId : UUID
-    - ip : String
-    - occurredAt : Timestamp
-    - details : JSON
-    + describe() : String
+  class ModelScorer <<interfaz>> {
+    + score(window, history) : RiskAssessment
   }
+}
 
+User "1" -- "0..1" PatientProfile : perfil
+User "1" -- "0..*" RefreshToken
+User "1" -- "0..*" AuditLog
+User "1" -- "0..*" CaregiverLink : cuida
+User "1" -- "0..*" PatientPhysician : atiende
+
+PatientProfile "1" -- "0..*" Consent
+PatientProfile "1" -- "0..*" Reading
+PatientProfile "1" -- "0..*" SymptomMood
+PatientProfile "1" -- "0..*" Medication
+PatientProfile "1" -- "0..*" Alert
+PatientProfile "1" -- "0..*" Report
+PatientProfile "1" -- "0..*" Reminder
+PatientProfile "1" -- "0..*" Teleconsultation
+PatientProfile "1" -- "0..*" CaregiverLink : autoriza
+PatientProfile "1" -- "0..*" PatientPhysician
+
+Medication "1" -- "0..*" AdherenceEvent
+VitalSignsWindow "1" o-- "0..*" Reading : agrupa
+
+AlertRule ..> VitalSignsWindow
+ModelScorer ..> RiskAssessment
+Alert ..> RiskAssessment
+Report ..> Reading
+
+@enduml
+```
+
+Las columnas y las llaves foráneas de cada clase están en el diccionario de datos; aquí se
+dibuja la estructura. La explicación de una evaluación de riesgo es una lista de factores con
+su peso, que se obtiene con `explain()` y no se guarda como tabla.
+
+### 7.2 Tipos enumerados
+
+Los siete enumerados del esquema, cada uno con sus valores. Van aparte porque su función es
+servir de vocabulario a las clases anteriores, no competir con ellas por el espacio.
+
+```plantuml
+@startuml
+title Tipos enumerados del dominio
+
+skinparam packageStyle rectangle
+
+package "Identidad y acceso" {
   enum UserRole {
     patient
     physician
@@ -73,100 +141,11 @@ package "Identidad y acceso" {
   }
 }
 
-package "Paciente y seguimiento" {
-
-  class PatientProfile <<entidad>> {
-    - id : UUID
-    - birthDate : Date
-    - sex : String
-    - diagnosisDate : Date
-    - heightCm : Decimal
-    - weightKg : Decimal
-    + ageAt(date : Date) : Integer
-    + bodyMassIndex() : Decimal
-  }
-
-  class PatientPhysician <<entidad>> {
-    - assignedAt : Timestamp
-  }
-
-  class CaregiverLink <<entidad>> {
-    - id : UUID
-    - authorizedScope : String
-    - createdAt : Timestamp
-    + permits(action : String) : Boolean
-  }
-
-  class Consent <<entidad>> {
-    - id : UUID
-    - version : Integer
-    - acceptedAt : Timestamp
-    - contentRef : String
-    - revokedAt : Timestamp
-    + isActive() : Boolean
-    + revoke() : void
-  }
-
-  class Reminder <<entidad>> {
-    - id : UUID
-    - kind : ReminderKind
-    - schedule : String
-    - enabled : Boolean
-    - lastSentAt : Timestamp
-    + due(at : Timestamp) : Boolean
-  }
-
-  enum ReminderKind {
-    medication
-    measurement
-  }
-}
-
 package "Registro clínico" {
-
-  class Reading <<entidad>> {
-    - id : UUID
-    - systolic : Integer
-    - diastolic : Integer
-    - heartRate : Integer
-    - source : ReadingSource
-    - deviceId : String
-    - measuredAt : Timestamp
-    - validationStatus : ValidationStatus
-    + classify(validator : VitalSignsValidator) : ValidationStatus
-    + isOutOfRange() : Boolean
-  }
-
-  class SymptomMood <<entidad>> {
-    - id : UUID
-    - freeText : String
-    - mood : String
-    - recordedAt : Timestamp
-    + alarmSymptoms() : Boolean
-  }
-
-  class Medication <<entidad>> {
-    - id : UUID
-    - name : String
-    - dose : String
-    - unit : String
-    - frequency : String
-    - startDate : Date
-    - endDate : Date
-    + isActiveAt(date : Date) : Boolean
-  }
-
-  class AdherenceEvent <<entidad>> {
-    - id : UUID
-    - takenAt : Timestamp
-    - confirmed : Boolean
-  }
-
   enum ReadingSource {
     device
     manual
   }
-
   enum ValidationStatus {
     valid
     out_of_range
@@ -174,71 +153,13 @@ package "Registro clínico" {
   }
 }
 
-package "Análisis y alertas" {
-
-  class VitalSignsWindow {
-    - readings : Reading[]
-    - from : Timestamp
-    - to : Timestamp
-    + validCount() : Integer
-    + daysWithReadings() : Integer
-    + meanSystolic() : Decimal
-    + meanDiastolic() : Decimal
-    + isSufficient() : Boolean
-  }
-
-  class VitalSignsValidator {
-    + validate(reading : Reading) : ValidationStatus
-  }
-
-  class RiskAssessment {
-    - probability : Decimal
-    - severity : AlertSeverity
-    - assessmentDate : Timestamp
-    + explain() : RiskFactor[]
-    + triggersAlert() : Boolean
-  }
-
-  class RiskFactor {
-    - name : String
-    - weight : Decimal
-    - description : String
-  }
-
-  class ModelScorer <<interfaz>> {
-    + score(window : VitalSignsWindow, history : Reading[]) : RiskAssessment
-  }
-
-  class AlertRule <<entidad>> {
-    - metric : String
-    - lowThreshold : Decimal
-    - highThreshold : Decimal
-    - criticalLow : Decimal
-    - criticalHigh : Decimal
-    - recipients : JSON
-    + evaluate(window : VitalSignsWindow) : AlertSeverity
-  }
-
-  class Alert <<entidad>> {
-    - id : UUID
-    - type : String
-    - severity : AlertSeverity
-    - status : AlertStatus
-    - note : String
-    - createdAt : Timestamp
-    - validatedAt : Timestamp
-    + acknowledge() : void
-    + validate(physician : User) : void
-    + dismiss(physician : User, reason : String) : void
-  }
-
+package "Alertas" {
   enum AlertSeverity {
     low
     medium
     high
     critical
   }
-
   enum AlertStatus {
     open
     acknowledged
@@ -247,76 +168,22 @@ package "Análisis y alertas" {
   }
 }
 
-package "Reportes y comunicación" {
-
-  class Report <<entidad>> {
-    - id : UUID
-    - periodStart : Date
-    - periodEnd : Date
-    - generatedAt : Timestamp
-    - contentRef : String
-    + toCsv() : String
-    + toPdf() : Binary
+package "Seguimiento" {
+  enum ReminderKind {
+    medication
+    measurement
   }
-
-  class Teleconsultation <<entidad>> {
-    - id : UUID
-    - scheduledAt : Timestamp
-    - mode : TeleconsultationMode
-    - status : String
-    - notes : String
-    + start() : void
-    + close(notes : String) : void
-  }
-
-  class AdherenceSummary {
-    - taken : Integer
-    - missed : Integer
-    - periodDays : Integer
-    + adherenceRate() : Decimal
-  }
-
   enum TeleconsultationMode {
     sync
     async
   }
 }
 
-User "1" -- "0..1" PatientProfile : tiene perfil
-User "1" -- "0..*" RefreshToken : abre sesiones
-User "1" -- "0..*" AuditLog : es actor
-PatientProfile "1" -- "0..*" Consent : otorga
-PatientProfile "1" -- "0..*" Reading : registra
-PatientProfile "1" -- "0..*" SymptomMood : reporta
-PatientProfile "1" -- "0..*" Medication : recibe
-PatientProfile "1" -- "0..*" Alert : recibe
-PatientProfile "1" -- "0..*" AlertRule : configura
-PatientProfile "1" -- "0..*" Report : acumula
-PatientProfile "1" -- "0..*" Reminder : programa
-PatientProfile "1" -- "0..*" Teleconsultation : agenda
-PatientProfile "1" -- "0..*" CaregiverLink : autoriza
-User "1" -- "0..*" CaregiverLink : cuida
-PatientProfile "1" -- "0..*" PatientPhysician
-User "1" -- "0..*" PatientPhysician : atiende
-User "1" -- "0..*" Alert : valida
-User "1" -- "0..*" Teleconsultation : atiende
-Medication "1" -- "0..*" AdherenceEvent : registra
-PatientProfile "1" -- "0..*" AdherenceEvent : reporta
-
-VitalSignsValidator ..> Reading : clasifica
-VitalSignsWindow "1" *-- "0..*" Reading : agrupa
-AlertRule ..> VitalSignsWindow : evalúa
-RiskAssessment "1" *-- "0..*" RiskFactor : explica
-ModelScorer ..> RiskAssessment : produce
-Alert ..> RiskAssessment : deriva
-Alert ..> AlertRule : aplica
-Report ..> Reading : resume
-Report ..> AdherenceSummary : incluye
-Report ..> Alert : incluye
-AdherenceSummary ..> AdherenceEvent : calcula
-
 @enduml
 ```
+
+Los usan `User` (rol), `Reading` (origen y estado de validación), `Alert` (severidad y
+estado), `Reminder` (tipo) y `Teleconsultation` (modalidad).
 
 ## 8. Diagramas de estados por clase
 
