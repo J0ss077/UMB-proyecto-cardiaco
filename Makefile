@@ -21,6 +21,13 @@ PYTHON ?= python3
 
 POSTGRES_HOST ?= localhost
 POSTGRES_PORT ?= 5432
+BACKEND_PORT ?= 8000
+
+# Las pruebas de integración hablan con el backend publicado. Se atan al mismo
+# puerto que publica el compose para que cambiar BACKEND_PORT no las desvíe a
+# otra pila que ya estuviera escuchando en el puerto por omisión.
+API_BASE_URL ?= http://localhost:$(BACKEND_PORT)
+export API_BASE_URL
 
 ifneq ($(strip $(POSTGRES_USER)),)
 HTA_DATABASE_URL := postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)
@@ -89,10 +96,10 @@ up:
 		echo "Aviso: curl no está instalado; no se espera la salud del backend."; \
 		exit 0; \
 	fi; \
-	echo "Esperando a que el backend responda en http://localhost:8000/api/health ..."; \
+	echo "Esperando a que el backend responda en http://localhost:$(BACKEND_PORT)/api/health ..."; \
 	intento=0; \
 	while [ $$intento -lt 30 ]; do \
-		if curl -fsS http://localhost:8000/api/health 2>/dev/null | grep -q '"status":"ok"'; then \
+		if curl -fsS http://localhost:$(BACKEND_PORT)/api/health 2>/dev/null | grep -q '"status":"ok"'; then \
 			echo "Backend listo: la salud responde ok."; \
 			exit 0; \
 		fi; \
