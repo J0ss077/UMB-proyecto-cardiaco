@@ -332,3 +332,39 @@ acceso. Los siguientes:
 El siguiente paso es el incremento 2. El incremento 1 cierra el 2 de noviembre de 2026; la
 ventana de ejecución del proyecto llega al 18 de diciembre de 2026. El piloto con pacientes
 reales y la entrega final son posteriores.
+
+## 6. Verificación ejecutada al cierre
+
+Esta sección registra lo que se corrió para cerrar el incremento y lo que se observó, porque
+una afirmación sin su comprobación no sirve de nada en la revisión.
+
+**Sobre este árbol de trabajo**, con la pila levantada:
+
+- `python3 scripts/check_style.py --root .` y `python3 scripts/check_authorship.py --root .`:
+  sin violaciones.
+- `backend/.venv/bin/python -m pytest scripts/tests -q`: 30 pruebas en verde.
+- `backend/.venv/bin/python -m pytest tests/unit -q`: 24 pruebas en verde.
+- `backend/.venv/bin/python -m pytest tests/integration -q`: 52 pruebas en verde contra la
+  pila.
+- `make docs`: los dos archivos generados quedan idénticos, sin cambios pendientes en el
+  árbol.
+- `make seed` sobre la base vacía: siete cuentas, y esta consulta devuelve
+  `7|80|1|4|2|4` para usuarios, lecturas, alertas, consentimientos, umbrales y recordatorios.
+
+**Sobre un clon limpio**, clonado en otra carpeta y levantado en puertos alternos para no
+chocar con la pila de trabajo (`BACKEND_PORT=8011`, `WEB_PORT=3011`, `POSTGRES_PORT=55442`,
+`MONGO_PORT=27028`), con un `.env` copiado del ejemplo y la clave de firma generada:
+
+- la pila arrancó sana y `GET /api/health` respondió `{"status": "ok", "database": "ok",
+  "mongo": "ok"}` en el puerto alterno;
+- `python -m hta.db.seed` dentro del contenedor creó las siete cuentas;
+- con el token de `admin@hta.demo`, `GET /api/accounts` devolvió las siete cuentas;
+- desde fuera, con `psql` contra el puerto alterno: diecisiete relaciones, los siete
+  enumerados, `alert_config` con `critical_low` y `critical_high`, y los mismos recuentos de
+  datos;
+- las dos suites del clon, ejecutadas contra esa pila: 24 unitarias y 52 de integración en
+  verde.
+
+Después de esa comprobación el clon se eliminó y la pila de trabajo se volvió a sembrar. Lo
+que no se ha ejecutado nunca es la integración continua: el flujo está escrito y corre
+autoría, estilo y las dos suites, pero no se ha visto correr en un servidor todavía.
