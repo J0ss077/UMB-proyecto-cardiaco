@@ -1,0 +1,83 @@
+# Pila de la plataforma de telemonitoreo de hipertensión arterial.
+#
+# El archivo sigue la especificación de Compose que comparten `podman-compose`
+# y `docker compose`: no lleva `version:` ni campos de un motor concreto.
+#
+# Los secretos vienen únicamente de `.env`. Este archivo no trae valores por
+# omisión para las contraseñas: si faltan, Compose se detiene y lo dice.
+#
+# Los puertos publicados se pueden cambiar sin tocar el archivo, por ejemplo:
+#   POSTGRES_PORT=55432 MONGO_PORT=27018 make up
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB en .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 })"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    environment:
+      HTA_DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+      HTA_MONGO_URL: "mongodb://mongo:27017/hta"
+      HTA_JWT_SECRET: ${HTA_JWT_SECRET:?define HTA_JWT_SECRET en .env}
+      HTA_ACCESS_TTL_SECONDS: ${HTA_ACCESS_TTL_SECONDS:-900}
+      HTA_REFRESH_TTL_SECONDS: ${HTA_REFRESH_TTL_SECONDS:-604800}
+      HTA_ENVIRONMENT: ${HTA_ENVIRONMENT:-local}
+      # El montaje de ./backend/src solo se usa si el paquete se busca primero
+      # en el árbol montado; la imagen ya trae una copia instalada.
+      PYTHONPATH: /app/src
+      # Temporal: hta.db.migrate llega en la tarea 5. Sin esta bandera el
+      # entrypoint se detiene, tal como exige la migración obligatoria.
+      HTA_MIGRATIONS_OPTIONAL: "1"
+    volumes:
+      - ./backend/src:/app/src:ro
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  web:
+    build:
+      context: ./web
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+
+volumes:
+  db_data:
+  mongo_data:

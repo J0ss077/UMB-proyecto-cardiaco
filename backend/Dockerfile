@@ -10,10 +10,13 @@ RUN useradd --create-home --uid 10001 hta
 COPY pyproject.toml ./
 COPY src ./src
 
-RUN pip install --no-cache-dir .
+RUN chmod -R a+rX ./src && pip install --no-cache-dir .
+
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod 755 ./entrypoint.sh
 
 USER hta
 
 EXPOSE 8000
 
-CMD ["uvicorn", "hta.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./entrypoint.sh"]

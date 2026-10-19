@@ -13,6 +13,20 @@ SHELL := /bin/sh
 
 PYTHON ?= python3
 
+# El archivo .env es la única fuente de secretos y credenciales de la pila. Se
+# incluye si existe para que `make` y `psql` vean lo mismo que el compose; si
+# falta, los objetivos que lo necesitan se detienen con un mensaje claro.
+# El archivo usa líneas simples CLAVE=valor, sin `export` ni comillas.
+-include .env
+
+POSTGRES_HOST ?= localhost
+POSTGRES_PORT ?= 5432
+
+ifneq ($(strip $(POSTGRES_USER)),)
+HTA_DATABASE_URL := postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POSTGRES_HOST):$(POSTGRES_PORT)/$(POSTGRES_DB)
+export HTA_DATABASE_URL
+endif
+
 # Detección perezosa: solo se evalúa en los objetivos que usan contenedores, de
 # modo que `make brief` funciona sin motor de contenedores instalado.
 COMPOSE = $(shell if command -v podman-compose >/dev/null 2>&1; then echo podman-compose; elif docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
@@ -36,7 +50,7 @@ help:
 	@echo "Objetivos disponibles:"
 	@echo "  make help     Muestra esta ayuda."
 	@echo "  make brief    Imprime el estado, el backlog y el mapa de la capa de agente."
-	@echo "  make up       Levanta los servicios con podman-compose o docker compose."
+	@echo "  make up       Levanta los servicios y espera a que la API responda."
 	@echo "  make down     Detiene los servicios."
 	@echo "  make logs     Sigue los registros de los servicios."
 	@echo "  make migrate  Aplica las migraciones del registro clínico."
@@ -71,10 +85,27 @@ brief:
 up:
 	$(require_compose)
 	$(COMPOSE) up -d --build
+	@if ! command -v curl >/dev/null 2>&1; then \
+		echo "Aviso: curl no está instalado; no se espera la salud del backend."; \
+		exit 0; \
+	fi; \
+	echo "Esperando a que el backend responda en http://localhost:8000/api/health ..."; \
+	intento=0; \
+	while [ $$intento -lt 30 ]; do \
+		if curl -fsS http://localhost:8000/api/health 2>/dev/null | grep -q '"status":"ok"'; then \
+			echo "Backend listo: la salud responde ok."; \
+			exit 0; \
+		fi; \
+		intento=$$((intento + 1)); \
+		sleep 2; \
+	done; \
+	echo "El backend no alcanzó un estado saludable en 60 segundos."; \
+	$(COMPOSE) logs --tail=80 backend; \
+	exit 1
 
 down:
 	$(require_compose)
-	$(COMPOSE) down
+	$(COMPOSE) down --remove-orphans
 
 logs:
 	$(require_compose)
@@ -91,6 +122,7 @@ test:
 
 migrate:
 	$(require_compose)
+	@echo "Aplicando las migraciones del registro clínico..."
 	$(COMPOSE) exec -T backend python -m hta.db.migrate
 
 seed:
