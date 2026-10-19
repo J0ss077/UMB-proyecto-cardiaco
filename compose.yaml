@@ -60,6 +60,9 @@ services:
       PYTHONPATH: /app/src
     volumes:
       - ./backend/src:/app/src:ro
+      # El ejecutor de migraciones busca db/migrations subiendo desde el
+      # paquete; este montaje de solo lectura lo deja en /app/db.
+      - ./db:/app/db:ro
     ports:
       - "8000:8000"
     healthcheck:

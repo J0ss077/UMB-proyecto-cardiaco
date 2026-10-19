@@ -1,0 +1,23 @@
+"""Grupo de conexiones asíncronas a PostgreSQL, construido bajo demanda."""
+
+from __future__ import annotations
+
+from psycopg_pool import AsyncConnectionPool
+
+from hta.config import Settings
+
+_pool: AsyncConnectionPool | None = None
+
+
+def get_pool() -> AsyncConnectionPool:
+    """Devuelve el grupo compartido y lo construye en la primera llamada.
+
+    El grupo se crea cerrado: abrirlo corresponde al ciclo de vida de la
+    aplicación. Así importar este módulo, o construir la aplicación, no abre
+    conexiones ni exige que PostgreSQL esté disponible.
+    """
+    global _pool
+    if _pool is None:
+        settings = Settings()
+        _pool = AsyncConnectionPool(conninfo=settings.database_url, open=False)
+    return _pool
