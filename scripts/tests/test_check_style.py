@@ -1,4 +1,7 @@
-"""Pruebas del verificador de estilo."""
+"""@requirement none
+
+Pruebas del verificador de estilo.
+"""
 
 import importlib.util
 import sys

@@ -1,4 +1,7 @@
-"""Emisión y verificación de tokens de acceso y de refresco."""
+"""@requirement RF-01
+
+Emisión y verificación de tokens de acceso y de refresco.
+"""
 
 from __future__ import annotations
 

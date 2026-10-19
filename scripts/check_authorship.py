@@ -1,4 +1,6 @@
-"""Verificador de autoría: rechaza declaraciones de autoría asistida.
+"""@requirement none
+
+Verificador de autoría: rechaza declaraciones de autoría asistida.
 
 Recorre la capa humana del repositorio y termina con código 1 cuando encuentra
 una fórmula que atribuya el trabajo a una herramienta. La palabra "IA" por sí

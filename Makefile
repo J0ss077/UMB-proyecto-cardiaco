@@ -140,9 +140,9 @@ check:
 	$(MAKE) test
 
 docs:
-	@if [ ! -f scripts/build_map.py ]; then \
-		echo "Error: scripts/build_map.py no existe todavía."; \
-		echo "El mapa de trazabilidad y la matriz de estado llegan con el generador."; \
+	@if [ ! -f scripts/build_map.py ] || [ ! -f scripts/build_status.py ]; then \
+		echo "Error: faltan el generador del mapa o el de la matriz de estado."; \
+		echo "Llegan con la tarea que los implementa."; \
 		exit 2; \
 	fi
 	$(PYTHON) scripts/build_map.py --root . --out .agents/MAP.md --status-out docs/estado-requerimientos.md

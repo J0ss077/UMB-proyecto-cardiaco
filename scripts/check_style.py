@@ -1,4 +1,6 @@
-"""Verificador de estilo: rechaza emojis y flechas decorativas.
+"""@requirement none
+
+Verificador de estilo: rechaza emojis y flechas decorativas.
 
 Recorre los mismos archivos de texto que el verificador de autoría y termina
 con código 1 cuando encuentra un carácter de las tablas de emoji. En Markdown

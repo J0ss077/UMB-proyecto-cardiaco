@@ -1,4 +1,7 @@
-"""Pruebas del verificador de autoría."""
+"""@requirement none
+
+Pruebas del verificador de autoría.
+"""
 
 import importlib.util
 import sys

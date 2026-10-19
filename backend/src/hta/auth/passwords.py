@@ -1,4 +1,7 @@
-"""Almacenamiento y verificación de contraseñas con scrypt."""
+"""@requirement RF-01
+
+Almacenamiento y verificación de contraseñas con scrypt.
+"""
 
 from __future__ import annotations
 
