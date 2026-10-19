@@ -1,0 +1,96 @@
+name: Integración continua
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verificacion:
+    name: Verificación
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hta
+          POSTGRES_PASSWORD: hta
+          POSTGRES_DB: hta
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hta -d hta"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      HTA_DATABASE_URL: postgresql://hta:hta@localhost:5432/hta
+      HTA_MONGO_URL: mongodb://localhost:27017/hta
+      HTA_JWT_SECRET: secreto-de-integracion-continua
+      HTA_ENVIRONMENT: ci
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias del backend
+        run: pip install -e "./backend[dev]"
+
+      - name: Pruebas unitarias
+        run: cd backend && python -m pytest tests/unit -v
+
+      - name: Aplicar migraciones al PostgreSQL del job
+        run: python -m hta.db.migrate
+
+      - name: Preparar colecciones de MongoDB
+        run: >-
+          docker run --rm --network host
+          -v "$PWD/db/mongo:/init:ro"
+          mongo:7
+          mongosh "$HTA_MONGO_URL" --file /init/init.js
+
+      - name: Pruebas de integración
+        run: |
+          cd backend
+          python -m uvicorn hta.app:create_app --factory --host 127.0.0.1 --port 8000 &
+          servidor=$!
+          listo=0
+          for intento in $(seq 1 30); do
+            if curl -sf http://localhost:8000/api/health > /dev/null; then
+              listo=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$listo" -ne 1 ]; then
+            echo "El backend no respondió en 60 segundos."
+            kill "$servidor" || true
+            exit 1
+          fi
+          python -m pytest tests/integration -v
+          estado=$?
+          kill "$servidor" || true
+          exit "$estado"
+
+      - name: Verificador de autoría
+        run: python scripts/check_authorship.py --root .
+
+      - name: Verificador de estilo
+        run: python scripts/check_style.py --root .

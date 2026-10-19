@@ -13,5 +13,12 @@ __pycache__/
 node_modules/
 dist/
 
-# Espacio de trabajo de desarrollo con subagentes
+# Espacio de trabajo local, no forma parte del entregable
 .superpowers/
+
+# Notas locales de la capa de agente
+.agents/*.local.md
+
+# Datos y modelos de aprendizaje automático: se regeneran, no se versionan
+ml/data/
+ml/models/*.joblib
