@@ -47,3 +47,32 @@ def test_ignores_agent_layer(tmp_path):
     (agents / "STATE.md").write_text("Sesion asistida por IA.", encoding="utf-8")
     (agents / "NOTES.md").write_text("Este documento fue generado por " "IA.", encoding="utf-8")
     assert run_check(tmp_path) == 0
+
+
+def test_does_not_flag_llm_inside_fullmatch(tmp_path):
+    # re.fullmatch es idioma estándar en Python; no declara autoría.
+    module = tmp_path / "matcher.py"
+    module.write_text("matched = re.fullmatch(pattern, text)\n", encoding="utf-8")
+    assert run_check(tmp_path) == 0
+
+
+def test_still_flags_authorship_formula_with_word_boundary(tmp_path):
+    doc = tmp_path / "manual.md"
+    doc.write_text("Este documento fue asistido por " "IA.", encoding="utf-8")
+    assert run_check(tmp_path) == 1
+
+
+def test_rejects_a_root_that_is_not_a_directory(tmp_path):
+    assert run_check(tmp_path / "no-existe") == 2
+
+
+def test_exempts_only_the_top_level_agents_guide(tmp_path):
+    # La capa de agente admite la mención en el AGENTS.md de la raíz, no en
+    # cualquier AGENTS.md del árbol.
+    claim = "Este documento fue generado por " "IA."
+    (tmp_path / "AGENTS.md").write_text(claim, encoding="utf-8")
+    assert run_check(tmp_path) == 0
+    nested = tmp_path / "docs"
+    nested.mkdir()
+    (nested / "AGENTS.md").write_text(claim, encoding="utf-8")
+    assert run_check(tmp_path) == 1

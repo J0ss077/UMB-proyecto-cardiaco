@@ -30,3 +30,7 @@ def test_flags_emoji_in_markdown(tmp_path):
 def test_allows_plain_text(tmp_path):
     (tmp_path / "doc.md").write_text("Estado: implementado.", encoding="utf-8")
     assert run_style(tmp_path) == 0
+
+
+def test_rejects_a_root_that_is_not_a_directory(tmp_path):
+    assert run_style(tmp_path / "no-existe") == 2

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +45,17 @@ EXCLUDED_SUBPATHS = (("docs", "superpowers"), ("ml", "data"))
 # El verificador no se escanea a sí mismo: este archivo nombra las fórmulas
 # prohibidas como datos de trabajo, no declara autoría.
 SELF_PATH = Path(__file__).resolve()
+
+# AGENTS.md de la raíz es capa de agente: es uno de los tres lugares donde cabe
+# la mención de autoría, junto con .agents/ y docs/superpowers/. Se exime la
+# ruta exacta, no un patrón, para no excusar cualquier AGENTS.md del árbol.
+AGENTS_FILE = "AGENTS.md"
+
+# El límite de palabra inicial evita que "llm" coincida dentro de fullmatch y
+# que "claude", "gemini" o "copilot" coincidan al final de un identificador más
+# largo. La lista de patrones no cambia y el límite final no se exige: "llm"
+# debe casar con "LLMs".
+_COMPILED = tuple(re.compile(r"\b" + re.escape(pattern)) for pattern in PATTERNS)
 
 
 @dataclass(frozen=True)
@@ -84,15 +97,17 @@ def _iter_files(root: Path) -> Iterator[Path]:
 def scan(root: Path) -> list[Violation]:
     """Devuelve las violaciones de autoría que hay bajo la raíz dada."""
     root = root.resolve()
+    agents_guide = root / AGENTS_FILE
     violations: list[Violation] = []
     for path in _iter_files(root):
-        if path.name == SELF_PATH.name and path.resolve() == SELF_PATH:
+        resolved = path.resolve()
+        if resolved == SELF_PATH or resolved == agents_guide:
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         for number, line in enumerate(text.splitlines(), start=1):
             lowered = line.lower()
-            for pattern in PATTERNS:
-                if pattern in lowered:
+            for pattern, compiled in zip(PATTERNS, _COMPILED, strict=True):
+                if compiled.search(lowered):
                     violations.append(Violation(path, number, pattern))
     return violations
 
@@ -110,6 +125,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     root = args.root.resolve()
+    if not root.is_dir():
+        print(f"Error: la raíz indicada no es un directorio: {args.root}", file=sys.stderr)
+        return 2
     violations = scan(root)
     for violation in violations:
         print(

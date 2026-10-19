@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -107,6 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     root = args.root.resolve()
+    if not root.is_dir():
+        print(f"Error: la raíz indicada no es un directorio: {args.root}", file=sys.stderr)
+        return 2
     violations = check(root)
     for violation in violations:
         print(
