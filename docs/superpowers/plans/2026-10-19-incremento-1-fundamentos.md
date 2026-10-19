@@ -778,9 +778,9 @@ git commit -m "feat(consent): versioned informed consent with revocation and mon
 ```python
 def test_seed_creates_four_scenarios(db):
     ids = seed(db)
-    assert set(ids) == {"admin", "physician", "patient_out_of_range", "patient_alert",
-                        "patient_revoked", "patient_caregiver"}
-    assert db.execute("select count(*) from users").fetchone()[0] == 6
+    assert set(ids) == {"admin", "physician", "caregiver", "patient_out_of_range",
+                        "patient_alert", "patient_revoked", "patient_caregiver"}
+    assert db.execute("select count(*) from users").fetchone()[0] == 7
 
 def test_seed_is_idempotent(db):
     seed(db)
@@ -796,7 +796,7 @@ Expected: FAIL, `ImportError`.
 
 - [ ] **Step 3: Implementar la siembra**
 
-Seis cuentas con contraseña `Demo2026!`: una administradora, un médico, y cuatro pacientes en los escenarios acordados —lecturas fuera de rango, alerta abierta, consentimiento revocado y cuidador autorizado—. Cada paciente con perfil clínico, consentimiento en el estado que corresponda, entre ocho y veinte lecturas repartidas en los últimos treinta días con fechas deterministas, y el vínculo con el médico. Los valores de las lecturas se eligen para producir los escenarios descritos, no al azar. Idempotente por correo: si la cuenta existe, no se recrea.
+Siete cuentas con contraseña `Demo2026!`: una administradora, un médico, un cuidador, y cuatro pacientes en los escenarios acordados —lecturas fuera de rango, alerta abierta, consentimiento revocado y cuidador autorizado—. El cuidador existe porque el recorrido de demostración entra con los cuatro roles, y sin una cuenta de cuidador ese rol no se puede mostrar: va vinculado al paciente que lo autorizó. Cada paciente con perfil clínico, consentimiento en el estado que corresponda, entre ocho y veinte lecturas repartidas en los últimos treinta días con fechas deterministas, y el vínculo con el médico. Los valores de las lecturas se eligen para producir los escenarios descritos, no al azar. Idempotente por correo: si la cuenta existe, no se recrea.
 
 - [ ] **Step 4: Escribir `docs/manual/cuentas-demo.md`**
 
