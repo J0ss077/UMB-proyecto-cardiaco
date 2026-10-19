@@ -4,9 +4,12 @@
 # Los objetivos que usan contenedores detectan podman-compose y, si no está,
 # caen a docker compose. Ningún objetivo hace silenciosamente nada: si la pieza
 # que necesita todavía no existe, se detiene con un mensaje y código de salida 2.
+#
+# El objetivo por omisión es `help`, que no depende de la capa de agente: el
+# proyecto se puede usar con `.agents/` borrado.
 
 SHELL := /bin/sh
-.DEFAULT_GOAL := brief
+.DEFAULT_GOAL := help
 
 PYTHON ?= python3
 
@@ -27,25 +30,42 @@ define require_compose
 	fi
 endef
 
-.PHONY: up down logs test migrate seed brief check docs
+.PHONY: help up down logs test migrate seed brief check docs
+
+help:
+	@echo "Objetivos disponibles:"
+	@echo "  make help     Muestra esta ayuda."
+	@echo "  make brief    Imprime el estado, el backlog y el mapa de la capa de agente."
+	@echo "  make up       Levanta los servicios con podman-compose o docker compose."
+	@echo "  make down     Detiene los servicios."
+	@echo "  make logs     Sigue los registros de los servicios."
+	@echo "  make migrate  Aplica las migraciones del registro clínico."
+	@echo "  make seed     Siembra los datos de demostración."
+	@echo "  make test     Corre las pruebas unitarias y de integración."
+	@echo "  make check    Corre autoría, estilo y pruebas."
+	@echo "  make docs     Genera el mapa de trazabilidad y la matriz de estado."
 
 brief:
-	@if [ ! -f .agents/STATE.md ] || [ ! -f .agents/BACKLOG.md ]; then \
-		echo "Error: faltan .agents/STATE.md o .agents/BACKLOG.md."; \
-		exit 2; \
-	fi
-	@echo "== Estado =="
-	@cat .agents/STATE.md
-	@echo
-	@echo "== Backlog =="
-	@cat .agents/BACKLOG.md
-	@echo
-	@if [ -f .agents/MAP.md ]; then \
+	@if [ ! -d .agents ]; then \
+		echo "La capa de agente no está instalada: no existe .agents/."; \
+		exit 0; \
+	fi; \
+	if [ -f .agents/STATE.md ]; then \
+		echo "== Estado =="; \
+		cat .agents/STATE.md; \
+		echo; \
+	fi; \
+	if [ -f .agents/BACKLOG.md ]; then \
+		echo "== Backlog =="; \
+		cat .agents/BACKLOG.md; \
+		echo; \
+	fi; \
+	if [ -f .agents/MAP.md ]; then \
 		echo "== Mapa =="; \
 		cat .agents/MAP.md; \
 	else \
 		echo "== Mapa =="; \
-		echo "El mapa no existe todavía: se genera con 'make docs' cuando el generador esté disponible."; \
+		echo "El mapa no existe todavía: se genera con 'make docs'."; \
 	fi
 
 up:

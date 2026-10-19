@@ -13,7 +13,7 @@ No diagnostica ni trata: ninguna alerta se cierra sin una persona.
 1. `AGENTS.md`, este archivo.
 2. `.agents/STATE.md`: qué está terminado, qué está en curso, el siguiente paso y los bloqueos.
 3. `.agents/BACKLOG.md`: trabajo pendiente con su requerimiento y su estado.
-4. `.agents/MAP.md`: mapa de requerimiento a archivos y pruebas. Se genera; nunca se escribe a mano. Si no existe, el generador todavía no está y se deja como está.
+4. `.agents/MAP.md`: mapa de requerimiento a archivos y pruebas. Se genera; nunca se escribe a mano. Si no existe, se genera con `make docs`.
 
 Al cerrar la sesión se actualiza `.agents/STATE.md`. Un estado que no está en un archivo del repositorio no existe.
 
