@@ -18,6 +18,7 @@ Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El coman
 - Consentimiento versionado con aceptación aditiva, revocación que cierra todas las vigencias e `is_active` como compuerta del monitoreo.
 - Datos de demostración: siete cuentas, cuatro escenarios, ochenta lecturas deterministas, alerta crítica abierta, vínculo de cuidador, recordatorios y dos filas de umbrales. Documento para personas en `docs/manual/cuentas-demo.md`.
 - Trazabilidad generada: catálogo de 47 requerimientos en `docs/manual/requerimientos.md`, mapa en `.agents/MAP.md` y matriz de estado en `docs/estado-requerimientos.md`, todo con `make docs`.
+- Diagramas UML del manual en `docs/manual/diagramas-uml.md`: clases, estados por clase, colaboración y secuencia de los doce casos de uso, componentes y distribución, en PlantUML. Los treinta y siete bloques compilan con el verificador de PlantUML.
 - Verificación del clon limpio ejecutada: clon nuevo, `.env` desde el ejemplo, pila en puertos alternos, siembra, siete cuentas por la API, esquema inspeccionado desde fuera y las dos suites en verde contra esa pila. El procedimiento está en el `README.md`.
 
 ## En curso
