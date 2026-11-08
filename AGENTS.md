@@ -25,7 +25,7 @@ Al cerrar la sesión se actualiza `.agents/STATE.md`. Un estado que no está en 
 - El registro relacional tiene dieciséis tablas con los nombres exactos del manual y siete tipos enumerados. No se añade una decimoséptima tabla: una necesidad nueva se resuelve dentro de las dieciséis.
 - `alert_config` incluye dos columnas nullable aprobadas, `critical_low` y `critical_high`, porque el enum de severidad tiene cuatro niveles. Se justifican en un ADR.
 - Identificadores UUID con `gen_random_uuid()`, marcas de tiempo `TIMESTAMPTZ` con `now()`, snake_case, tablas en plural, llave foránea con sufijo `_id` y acción de borrado explícita en toda relación.
-- Ningún dato clínico se procesa sin consentimiento vigente.
+- Ningún dato clínico se escribe ni se analiza sin consentimiento vigente; la lectura del historial es la excepción que registra el ADR 0003.
 - La IA no diagnostica ni trata y ninguna alerta se cierra de forma autónoma.
 - La desactivación de una cuenta no borra historial clínico: seudonimiza la identidad, conserva los registros y revoca los tokens de refresco.
 - Los valores fuera de rango se conservan con `validation_status = 'out_of_range'`; la validación fisiológica vive en la aplicación, no en la base de datos.
