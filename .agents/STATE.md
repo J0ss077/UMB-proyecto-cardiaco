@@ -1,46 +1,41 @@
 # Estado del proyecto
 
-Fecha de actualización: 2026-10-19
+Fecha de actualización: 2026-11-08
 
 Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El comando `make brief` imprime este estado, el backlog y el mapa de trazabilidad en una pantalla.
 
 ## Terminado
 
-- **Incremento 1 cerrado.** Las trece tareas del plan están implementadas, revisadas y en la rama `incremento-1`. El paquete de la revisión del 2 de noviembre de 2026 es `docs/manual/entrega-01.md`.
-- Repositorio con historial, rama de trabajo y `main` que solo contiene documentos. Diseño, plan e investigaciones en `docs/superpowers/` y `docs/research/`.
-- Esqueleto: `README.md`, `AGENTS.md`, `.gitignore`, `Makefile` con diez objetivos, capa de agente en `.agents/` e integración continua que corre autoría, estilo, unitarias e integración.
-- Verificadores de autoría y de estilo con sus pruebas, conectados a `make check`.
-- Backend FastAPI con configuración validada, fábrica de aplicación y salud que informa PostgreSQL y MongoDB por separado. El ADR del stack es `docs/adr/0001-python-fastapi-stack.md`.
-- Pila de contenedores con PostgreSQL 16, MongoDB 7, backend y web; las migraciones se aplican al arrancar y las colecciones del flujo crudo se garantizan en el mismo arranque. Los cuatro puertos se cambian desde `.env`.
-- Esquema clínico completo: dieciséis tablas, siete enumerados, las dos columnas `critical_low` y `critical_high` en `alert_config`, diccionario en `docs/manual/modelo-de-datos.md` y ADR en `docs/adr/0002-alert-config-critical-thresholds.md`.
-- Sesión: inicio con mensaje único, rotación del refresco con detección de reutilización y revocación de toda la cuenta, cierre idempotente y auditoría de cinco eventos. El grupo de conexiones se abre y se cierra con el ciclo de vida de la aplicación.
-- Cuentas: registro público de pacientes, autorización por rol con la base como autoridad, cambio de rol y desactivación que seudonimiza, revoca los refrescos y conserva la historia clínica.
-- Consentimiento versionado con aceptación aditiva, revocación que cierra todas las vigencias e `is_active` como compuerta del monitoreo.
-- Datos de demostración: siete cuentas, cuatro escenarios, ochenta lecturas deterministas, alerta crítica abierta, vínculo de cuidador, recordatorios y dos filas de umbrales. Documento para personas en `docs/manual/cuentas-demo.md`.
-- Trazabilidad generada: catálogo de 47 requerimientos en `docs/manual/requerimientos.md`, mapa en `.agents/MAP.md` y matriz de estado en `docs/estado-requerimientos.md`, todo con `make docs`.
-- Diagramas UML del manual en `docs/manual/diagramas-uml.md`: clases, estados por clase, colaboración y secuencia de los doce casos de uso, componentes y distribución, en PlantUML. Los treinta y siete bloques compilan con el verificador de PlantUML.
-- Verificación del clon limpio ejecutada: clon nuevo, `.env` desde el ejemplo, pila en puertos alternos, siembra, siete cuentas por la API, esquema inspeccionado desde fuera y las dos suites en verde contra esa pila. El procedimiento está en el `README.md`.
+- **Incremento 1 cerrado**: esquema clínico de dieciséis tablas y siete enumerados, pila de contenedores, sesión con rotación de refresco, cuentas y roles, consentimiento versionado, datos de demostración y trazabilidad generada. El paquete de esa revisión es `docs/manual/entrega-01.md`.
+- **Incremento 2 del backend cerrado**: el contrato HTTP está congelado y publicado en `docs/api/openapi.json`, con CORS para el origen de desarrollo del frontend y el documento `docs/api/api-para-el-frontend.md` escrito para quien lo consume.
+- Rutas clínicas: alta de lectura con síntomas, compuerta de consentimiento y validación fisiológica; directorio de pacientes; consulta paginada de lecturas y síntomas con filtros de fecha; resumen de la ventana domiciliaria de siete días.
+- Alertas: bandeja con filtros, detalle con el motivo del descarte leído del rastro y las tres transiciones humanas, exclusivas del rol médico.
+- Ingesta de dispositivos: `POST /api/ingest/readings` con clave compartida, escritura en los dos almacenes, deduplicación por paciente, dispositivo e instante con cerrojo consultivo, y `iot/simulator.py`.
+- La suite completa corre contra el contenedor: 153 pruebas de integración, 56 unitarias y 30 de los scripts, sin violaciones de autoría ni de estilo. La base quedó sembrada con las siete cuentas, ochenta lecturas, la alerta abierta y el síntoma de demostración.
+- Sin cambios de esquema: ninguna migración nueva en todo el incremento.
 
 ## En curso
 
-- Ninguno. El incremento 1 cerró y la rama espera la revisión final y la integración a `main`.
+- Ninguno. La rama `incremento-2-backend` está completa y verificada contra la pila; falta la revisión final de la rama y la fusión a `main`.
 
 ## Siguiente paso
 
-- Planificar el incremento 2: lecturas, síntomas, ingesta desde el simulador y tableros de paciente y médico. La compuerta de consentimiento ya existe y debe consultarse en cada ruta que toque datos clínicos; la validación fisiológica de las lecturas vive en la aplicación, no en la base.
-- Antes de tocar código, leer `docs/manual/requerimientos.md` para los requerimientos que abre el incremento y `.agents/BACKLOG.md` para lo que quedó pendiente.
+- Revisión final de la rama y fusión a `main`, y publicación en el espejo de GitHub para que el integrante de frontend empiece sobre el contrato congelado.
+- Después, el frente del frontend: pantallas de sesión, cuentas, consentimiento, registro de lectura, tableros y bandeja de alertas, consumiendo `docs/api/api-para-el-frontend.md`.
+- El siguiente incremento del backend lo decide lo que el frontend necesite y los bloqueos de abajo.
 
 ## Bloqueos
 
-- **Firma clínica de los umbrales de `alert_config`.** Fecha de corte: 30 de noviembre de 2026. Mientras no exista, RF-10 y RF-14 no se presentan como evidencia clínica y los umbrales sembrados son una propuesta documentada.
+- **Firma clínica de los umbrales de `alert_config`.** Fecha de corte: 30 de noviembre de 2026. Mientras no exista, RF-10 y RF-14 no se presentan como evidencia clínica.
 - **Elección del banco de datos público para el adaptador de modelo.** Fecha de corte: 30 de noviembre de 2026. Sin elección, RF-09 se sostiene con reglas y el adaptador queda parcial.
+- **La clave del dispositivo es de despliegue, no por dispositivo.** Una clave filtrada puede escribir para cualquier paciente con consentimiento. Necesita credenciales por dispositivo y una decisión de esquema que hoy no está tomada.
 
 ## Notas operativas
 
-- El backend se niega a arrancar si `HTA_JWT_SECRET` conserva el valor de ejemplo o mide menos de 32 bytes. El `README.md` explica cómo generar uno.
-- El contenedor del backend no recarga código: después de modificarlo hay que reiniciarlo. Mientras tanto, las pruebas de integración aceptan `API_BASE_URL` para apuntar a un backend levantado en el host.
-- Las pruebas de integración vacían todas las tablas mutables entre una prueba y la siguiente, así que una base sembrada queda vacía después de correrlas. La siembra es idempotente por correo y se repite con `make seed`.
-- La siembra no mueve datos existentes: un paciente que ya tiene lecturas no recibe más. Para regenerar los datos hay que borrar los volúmenes y volver a levantar la pila, como explica `docs/manual/cuentas-demo.md`.
-- Los cuatro documentos fuente del socio están en `docs/fuentes/`, versionados y fuera de la raíz: la primera y la segunda versión del manual técnico y las dos documentaciones de semestre. El v02 conserva las mismas dieciséis tablas y los mismos siete enumerados que el v01.
-- La sección 2.2 del manual sigue sin las dos columnas críticas ni las tres acciones de borrado explícitas. El diccionario del repositorio ya las tiene y es una de las entregas en Markdown pendientes para el documento académico.
-- Los hallazgos menores diferidos de este incremento quedaron en `.agents/BACKLOG.md`. La carpeta de trabajo del plan era material de agente y no se conserva.
+- El contenedor del backend no recarga código y `compose up --build` no siempre lo recrea: después de cambiar código hay que recrearlo con `compose up -d --force-recreate --no-deps backend` o reiniciarlo, o la pila sigue sirviendo la versión anterior aunque la imagen se haya reconstruido. Pasó y costó dos pruebas en rojo.
+- Las pruebas de integración vacían las tablas mutables entre una prueba y la siguiente, así que una base sembrada queda vacía después de correrlas. Después de cualquier corrida completa hay que resembrar con `make seed`.
+- El backend se niega a arrancar si `HTA_JWT_SECRET` conserva el valor de ejemplo o mide menos de 32 bytes.
+- `docs/api/openapi.json` se genera con `make contract` y una prueba compara el archivo con lo que produce el código: si una ruta cambia y no se regenera, la suite lo dice.
+- Toda tarea que añada o cambie una ruta actualiza `docs/api/api-para-el-frontend.md` en la misma tarea. El documento no puede quedar desfasado entre tareas.
+- La demo que un tutor puede recorrer hoy es por API: `http://localhost:8000/docs`, con las siete cuentas de `docs/manual/cuentas-demo.md`. La interfaz web sigue siendo un esqueleto.
+- `docs/fuentes/` guarda los cuatro documentos del socio. La sección 2.2 del manual sigue sin las dos columnas críticas ni las tres acciones de borrado explícitas; el diccionario del repositorio ya las tiene.
