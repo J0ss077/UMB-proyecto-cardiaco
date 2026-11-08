@@ -345,20 +345,28 @@ def test_symptoms_are_listed_for_the_patient(client, patient_headers, db, patien
 Run: `cd backend && .venv/bin/python -m pytest tests/integration/clinical -v`
 Expected: FAIL, 404 en las rutas nuevas.
 
-- [ ] **Step 3: Añadir las fixtures de médico y cuidador**
+- [ ] **Step 3: Añadir las fixtures de médico, cuidador y lecturas**
+
+En `conftest.py`: `physician_id` y `physician_headers` crean un médico vinculado en `patient_physician` al **paciente con consentimiento**; `caregiver_headers` un cuidador con alcance `readings` y `caregiver_minimal_headers` con `minimal`, ambos con su `caregiver_links` hacia ese mismo paciente; `home_readings` inserta doce lecturas válidas repartidas en tres fechas UTC del paciente con consentimiento, para que la ventana tenga un día que descartar. Todas dependen de `clean_db`.
+
+- [ ] **Step 4: Añadir las pruebas de la matriz de acceso**
+
+Una por fila, en `test_patients.py`: el paciente se ve a sí mismo en el directorio; el cuidador con alcance `readings` ve al paciente y con alcance `minimal` recibe una página vacía, no un 403; el administrador recibe 403 en el directorio y en las lecturas; un paciente no puede leer las lecturas de otro; el médico lee directorio, lecturas, resumen y síntomas de su paciente; el resumen sin consentimiento responde 403 para el médico vinculado también; y ninguna respuesta contiene un identificador de `patient_profiles`.
+
+- [ ] **Step 5: Implementar el directorio, la consulta y la ventana**
 
 En `conftest.py`: `physician_id` y `physician_headers` crean un médico vinculado al paciente de la fixture en `patient_physician`; `caregiver_headers` crea un cuidador con `authorized_scope='readings'` y `caregiver_minimal_headers` con `'minimal'`, ambos con su `caregiver_links` hacia `patient_id`. Todas dependen de `clean_db`.
 
-- [ ] **Step 4: Implementar el directorio, la consulta y la ventana**
+- [ ] **Step 5: Implementar el directorio, la consulta y la ventana**
 
 `patients.visible` devuelve los pacientes cuyo perfil corresponde a la cuenta, o los vinculados en `patient_physician`, o los autorizados en `caregiver_links` con alcance `readings`; el administrador recibe 403. `access.patient_profile_id` se extiende para resolver esos tres casos y devolver 403 en el resto. La ventana toma las lecturas desde `now() - interval '7 days'` hasta ahora, descarta el primer día completo y cuenta solo `valid`; con menos de ocho lecturas válidas en menos de dos días devuelve `sufficient: false` y las medias en `null`.
 
-- [ ] **Step 5: Ejecutar y ver que pasa**
+- [ ] **Step 6: Ejecutar y ver que pasa**
 
 Run: `cd backend && .venv/bin/python -m pytest tests/integration/clinical -v`
-Expected: PASS, diecisiete pruebas.
+Expected: PASS, todas las de la carpeta.
 
-- [ ] **Step 6: Confirmar**
+- [ ] **Step 7: Confirmar**
 
 ```bash
 git add backend/src/hta/clinical backend/tests
@@ -420,7 +428,7 @@ Expected: FAIL, 404.
 
 - [ ] **Step 3: Añadir las fixtures de alerta**
 
-En `conftest.py`: `open_alert_id` inserta una alerta `critical` en estado `open` para `patient_id` y devuelve su id; `validated_alert_id` inserta una ya `validated`. Ambas dependen de `clean_db` y de `patient_id`.
+En `conftest.py`: `open_alert_id` inserta una alerta `critical` en estado `open` para el paciente con consentimiento y devuelve su id; `validated_alert_id` inserta una ya `validated`. Ambas dependen de `clean_db` y de `consented_patient_id`, porque `physician_headers` está vinculado a ese paciente y no al de `patient_headers`.
 
 - [ ] **Step 4: Implementar la consulta y las transiciones**
 
