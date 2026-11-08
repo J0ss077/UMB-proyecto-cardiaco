@@ -25,6 +25,7 @@ PATIENT_EMAILS = {
 # Tablas que la siembra escribe y que no deben cambiar en una segunda pasada.
 IDEMPOTENT_TABLES = (
     "readings",
+    "symptoms_mood",
     "consents",
     "alerts",
     "caregiver_links",
@@ -161,6 +162,27 @@ def test_alert_scenario_has_open_critical_alert(db):
         ("paciente2@hta.demo",),
     ).fetchone()[0]
     assert critical_readings >= 1
+
+
+def test_alert_scenario_has_a_seeded_symptom(db):
+    """El escenario crítico deja un síntoma con el texto fijo de la siembra.
+
+    La fila cuelga del paciente que tiene la alerta abierta y conserva el texto
+    y el estado de ánimo que documenta el contrato. Es la única fila sembrada:
+    el resto de pacientes empieza sin síntomas.
+    """
+    seed(db)
+    rows = db.execute(
+        "select u.email, s.free_text, s.mood "
+        "from symptoms_mood s "
+        "join patient_profiles p on p.id = s.patient_id "
+        "join users u on u.id = p.user_id "
+        "join alerts a on a.patient_id = p.id and a.status = 'open'"
+    ).fetchall()
+    assert rows == [
+        ("paciente2@hta.demo", "mareo y dolor de cabeza desde la tarde", "ansioso")
+    ]
+    assert db.execute("select count(*) from symptoms_mood").fetchone()[0] == 1
 
 
 def test_revoked_scenario_keeps_one_revoked_consent(db):
