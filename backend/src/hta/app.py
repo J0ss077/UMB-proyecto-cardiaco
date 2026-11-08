@@ -7,9 +7,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 
 from hta.accounts.router import router as accounts_router
+from hta.api.cors import allowed_origins
 from hta.api.health import router as health_router
 from hta.auth.router import router as auth_router
 from hta.config import Settings
@@ -66,10 +68,20 @@ def create_app() -> FastAPI:
     La configuración se lee del entorno, pero ninguna dependencia se conecta
     aquí: el grupo de PostgreSQL se abre en el arranque y cada comprobación de
     salud ocurre dentro de la petición que la pide.
+
+    La política CORS se arma con los orígenes de la configuración y se declara
+    sin credenciales: la sesión viaja en el encabezado ``Authorization`` y no
+    en una cookie, así que el navegador no tiene nada que enviar por su cuenta.
     """
     settings = Settings()
     app = FastAPI(title="Plataforma HTA", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins(settings),
+        allow_methods=["*"],
+        allow_headers=["Authorization", "Content-Type"],
+    )
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(accounts_router)

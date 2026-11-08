@@ -59,6 +59,7 @@ services:
       HTA_ACCESS_TTL_SECONDS: ${HTA_ACCESS_TTL_SECONDS:-900}
       HTA_REFRESH_TTL_SECONDS: ${HTA_REFRESH_TTL_SECONDS:-604800}
       HTA_ENVIRONMENT: ${HTA_ENVIRONMENT:-local}
+      HTA_ALLOWED_ORIGINS: ${HTA_ALLOWED_ORIGINS:-}
       # El montaje de ./backend/src solo se usa si el paquete se busca primero
       # en el árbol montado; la imagen ya trae una copia instalada.
       PYTHONPATH: /app/src

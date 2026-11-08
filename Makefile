@@ -13,6 +13,11 @@ SHELL := /bin/sh
 
 PYTHON ?= python3
 
+# La generación del contrato importa FastAPI, que no está en el python3 del
+# sistema. Si existe el entorno virtual del backend se usa su intérprete; si no,
+# se cae a $(PYTHON), que fallará con un mensaje claro de importación.
+CONTRACT_PYTHON ?= $(if $(wildcard backend/.venv/bin/python),backend/.venv/bin/python,$(PYTHON))
+
 # El archivo .env es la única fuente de secretos y credenciales de la pila. Se
 # incluye si existe para que `make` y `psql` vean lo mismo que el compose; si
 # falta, los objetivos que lo necesitan se detienen con un mensaje claro.
@@ -51,7 +56,7 @@ define require_compose
 	fi
 endef
 
-.PHONY: help up down logs test migrate seed brief check docs
+.PHONY: help up down logs test migrate seed brief check docs contract
 
 help:
 	@echo "Objetivos disponibles:"
@@ -65,6 +70,7 @@ help:
 	@echo "  make test     Corre las pruebas unitarias y de integración."
 	@echo "  make check    Corre autoría, estilo y pruebas."
 	@echo "  make docs     Genera el mapa de trazabilidad y la matriz de estado."
+	@echo "  make contract Genera docs/api/openapi.json con el contrato de la API."
 
 brief:
 	@if [ ! -d .agents ]; then \
@@ -153,3 +159,11 @@ docs:
 		exit 2; \
 	fi
 	$(PYTHON) scripts/build_map.py --root . --out .agents/MAP.md --status-out docs/estado-requerimientos.md
+
+contract:
+	@if [ ! -f scripts/export_openapi.py ]; then \
+		echo "Error: falta scripts/export_openapi.py."; \
+		echo "Llega con la tarea que publica el contrato."; \
+		exit 2; \
+	fi
+	$(CONTRACT_PYTHON) scripts/export_openapi.py

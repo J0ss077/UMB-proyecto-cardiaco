@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # 604800 segundos son siete días: la vida del token de refresco.
     refresh_ttl_seconds: int = 604800
     environment: str = "local"
+    # Orígenes que el navegador puede llamar, separados por comas. Vacío deja
+    # los puertos de desarrollo de la interfaz web que fija ``api.cors``.
+    allowed_origins: str = ""
 
     @field_validator("jwt_secret")
     @classmethod

@@ -14,7 +14,7 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,6 +22,11 @@ from hta.accounts import service
 from hta.auth.deps import CurrentUser, get_conn, require_role
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+
+# Página por omisión del listado, máximo que acepta una petición y mínimo de
+# ambos parámetros. El máximo evita que una petición se lleve la tabla entera.
+DEFAULT_LIMIT = 50
+MAX_LIMIT = 200
 
 
 class RegisterRequest(BaseModel):
@@ -65,6 +70,20 @@ class AccountSummary(BaseModel):
     active: bool
 
 
+class PaginatedAccounts(BaseModel):
+    """Envoltura de los listados: la página de cuentas y el total de filas.
+
+    Es la forma que el contrato fija para todo listado: ``items`` lleva los
+    elementos y ``total`` las filas que existen, para que el cliente sepa
+    cuántas páginas faltan sin pedir una de más.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[AccountSummary]
+    total: int
+
+
 @router.post("/register", status_code=201, response_model=RegisteredAccount)
 async def register(
     body: RegisterRequest,
@@ -102,18 +121,31 @@ async def deactivate(
     await service.deactivate(conn, actor.user_id, user_id)
 
 
-@router.get("", response_model=list[AccountSummary])
+@router.get("", response_model=PaginatedAccounts)
 async def list_accounts(
     conn: Annotated[AsyncConnection, Depends(get_conn)],
     _admin: Annotated[CurrentUser, Depends(require_role("admin"))],
-) -> list[AccountSummary]:
-    """Lista las cuentas ordenadas por correo; solo para administradores."""
+    limit: Annotated[int, Query(ge=0, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedAccounts:
+    """Lista las cuentas ordenadas por correo; solo para administradores.
+
+    Devuelve una página de la envoltura del contrato. ``total`` cuenta todas las
+    filas de ``users`` antes de recortar la página, de modo que el cliente sepa
+    cuántas faltan; ``limit`` y ``offset`` se aplican en la consulta y no en
+    memoria.
+    """
+    (total,) = await (
+        await conn.execute("select count(*) from users")
+    ).fetchone()
     rows = await (
         await conn.execute(
-            "select id, email, full_name, role, active from users order by email"
+            "select id, email, full_name, role, active from users "
+            "order by email limit %s offset %s",
+            (limit, offset),
         )
     ).fetchall()
-    return [
+    items = [
         AccountSummary(
             id=row[0],
             email=row[1],
@@ -123,3 +155,4 @@ async def list_accounts(
         )
         for row in rows
     ]
+    return PaginatedAccounts(items=items, total=total)
