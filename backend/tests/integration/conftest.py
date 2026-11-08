@@ -24,6 +24,7 @@ from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
 from hta.auth.passwords import hash_password
+from hta.consent.service import CURRENT_VERSION
 
 BASE_URL = "http://localhost:8000"
 ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
@@ -203,6 +204,7 @@ PATIENT_PASSWORD = "s3cret"
 PATIENT_EMAIL = "paciente@hta.demo"
 OTHER_PATIENT_EMAIL = "otro-paciente@hta.demo"
 READING_PATIENT_EMAIL = "lectura@hta.demo"
+CONSENTED_PATIENT_EMAIL = "consentido@hta.demo"
 
 
 def _create_patient(connection: psycopg.Connection, email: str) -> UUID:
@@ -259,9 +261,35 @@ def other_patient_id(db: psycopg.Connection, clean_db: None) -> UUID:
 
 
 @pytest.fixture
+def consented_patient_id(db: psycopg.Connection, clean_db: None) -> UUID:
+    """Crea un paciente con perfil y una aceptación vigente de la versión actual.
+
+    Las pruebas clínicas necesitan un paciente que pase la compuerta de
+    consentimiento. Los fixtures anteriores se conservan sin aceptación para no
+    alterar las pruebas de consentimiento del incremento anterior, que cuentan
+    filas de ``consents``.
+    """
+    user_id = _create_patient(db, CONSENTED_PATIENT_EMAIL)
+    db.execute(
+        "insert into consents (patient_id, version) "
+        "select id, %s from patient_profiles where user_id = %s",
+        (CURRENT_VERSION, user_id),
+    )
+    return user_id
+
+
+@pytest.fixture
 def patient_headers(client: httpx.Client, patient_id: UUID) -> dict[str, str]:
     """Encabezado de la sesión del paciente de prueba."""
     return _login_headers(client, PATIENT_EMAIL)
+
+
+@pytest.fixture
+def consented_patient_headers(
+    client: httpx.Client, consented_patient_id: UUID
+) -> dict[str, str]:
+    """Encabezado de la sesión del paciente con consentimiento vigente."""
+    return _login_headers(client, CONSENTED_PATIENT_EMAIL)
 
 
 @pytest.fixture

@@ -14,6 +14,7 @@ from hta.accounts.router import router as accounts_router
 from hta.api.cors import allowed_origins
 from hta.api.health import router as health_router
 from hta.auth.router import router as auth_router
+from hta.clinical.router import router as clinical_router
 from hta.config import Settings
 from hta.consent.router import router as consent_router
 from hta.db.mongo import ensure_collections, get_database
@@ -86,4 +87,5 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(accounts_router)
     app.include_router(consent_router)
+    app.include_router(clinical_router)
     return app

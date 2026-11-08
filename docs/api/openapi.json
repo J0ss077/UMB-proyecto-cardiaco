@@ -96,6 +96,21 @@
         "title": "ConsentStatus",
         "type": "object"
       },
+      "CreatedSymptom": {
+        "description": "Identificador del síntoma recién registrado.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "CreatedSymptom",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -174,6 +189,130 @@
         "title": "PaginatedAccounts",
         "type": "object"
       },
+      "ReadingRequest": {
+        "additionalProperties": false,
+        "description": "Datos de una lectura manual de presión arterial.\n\n``patient_id`` es opcional y, cuando llega, es el identificador de la cuenta\ndel paciente: solo se admite el propio. ``measured_at`` es opcional y sin\nella se registra el instante actual; con valor debe ser ISO 8601 con\ndesplazamiento horario y no puede estar en el futuro.",
+        "properties": {
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
+          },
+          "heart_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate"
+          },
+          "measured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured At"
+          },
+          "patient_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Id"
+          },
+          "symptom": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SymptomRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "systolic",
+          "diastolic"
+        ],
+        "title": "ReadingRequest",
+        "type": "object"
+      },
+      "ReadingResponse": {
+        "description": "Lectura recién guardada, con el identificador de cuenta como paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil: es el único\nidentificador de paciente que el contrato publica. ``validation_status``\ninforma si la cifra es plausible sin que eso cambie el código de estado.",
+        "properties": {
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
+          },
+          "heart_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "measured_at": {
+            "format": "date-time",
+            "title": "Measured At",
+            "type": "string"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "integer"
+          },
+          "validation_status": {
+            "title": "Validation Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "systolic",
+          "diastolic",
+          "heart_rate",
+          "source",
+          "measured_at",
+          "validation_status"
+        ],
+        "title": "ReadingResponse",
+        "type": "object"
+      },
       "RefreshRequest": {
         "description": "Token de refresco que el cliente presenta para rotarlo o revocarlo.",
         "properties": {
@@ -247,6 +386,36 @@
           "role"
         ],
         "title": "RoleRequest",
+        "type": "object"
+      },
+      "SymptomRequest": {
+        "additionalProperties": false,
+        "description": "Texto libre y estado de ánimo que acompañan a una lectura.\n\nLos dos campos son opcionales, pero al menos uno debe traer texto: un\nobjeto vacío no es un síntoma. La regla la aplica el servicio, que es quien\ntambién atiende el alta de un síntoma suelto.",
+        "properties": {
+          "free_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Text"
+          },
+          "mood": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mood"
+          }
+        },
+        "title": "SymptomRequest",
         "type": "object"
       },
       "TokenPair": {
@@ -849,6 +1018,126 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/api/readings": {
+      "post": {
+        "description": "Registra una lectura manual y, si viene, su síntoma en la misma operación.\n\nEl perfil se resuelve desde la cuenta autenticada; el servicio comprueba el\nconsentimiento antes de insertar. La marca normalizada se calcula también\naquí para devolverla en la respuesta: es la misma función pura que usa el\nservicio, que vuelve a comprobarla antes de insertar. El estado de\nvalidación de la respuesta sale del mismo validador que clasificó la fila.",
+        "operationId": "create_reading_api_readings_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Reading",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/symptoms": {
+      "post": {
+        "description": "Registra un síntoma suelto del paciente con consentimiento vigente.\n\nEs el alta que no viene acompañada de una lectura. El perfil se resuelve\ndesde la cuenta autenticada y el servicio comprueba el consentimiento,\ninserta el síntoma, audita el hecho y confirma antes de responder.",
+        "operationId": "create_symptom_api_symptoms_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SymptomRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedSymptom"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Symptom",
+        "tags": [
+          "clinical"
+        ]
       }
     }
   }

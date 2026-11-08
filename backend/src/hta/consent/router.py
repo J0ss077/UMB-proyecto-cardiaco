@@ -23,10 +23,6 @@ from hta.consent import service
 
 router = APIRouter(prefix="/api/consent", tags=["consent"])
 
-# Versión del documento que entrega este incremento: el cliente que no pide
-# una versión concreta consulta por esta.
-_CURRENT_VERSION = 1
-
 
 class AcceptRequest(BaseModel):
     """Versión y referencia del documento que el paciente acepta."""
@@ -80,7 +76,7 @@ async def _profile_id(conn: AsyncConnection, user_id: UUID) -> UUID:
 async def read_status(
     conn: Annotated[AsyncConnection, Depends(get_conn)],
     user: Annotated[CurrentUser, Depends(require_role("patient"))],
-    required_version: int = _CURRENT_VERSION,
+    required_version: int = service.CURRENT_VERSION,
 ) -> ConsentStatus:
     """Informa si el paciente tiene consentimiento vigente para una versión."""
     profile_id = await _profile_id(conn, user.user_id)

@@ -24,6 +24,11 @@ from psycopg import AsyncConnection
 from hta.audit import record
 from hta.auth.deps import FORBIDDEN
 
+# Versión del documento de consentimiento que exige este incremento. La
+# consulta de vigencia y la compuerta de las rutas clínicas preguntan por esta
+# misma versión: una aceptación de otra versión no habilita el monitoreo.
+CURRENT_VERSION = 1
+
 
 async def _account_id(conn: AsyncConnection, patient_id: UUID) -> UUID:
     """Devuelve la cuenta dueña del perfil y rechaza con 403 si ya no existe.
