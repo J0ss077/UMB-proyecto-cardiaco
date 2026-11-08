@@ -6,7 +6,8 @@ Cubren el camino que no pasa por una sesión: el dispositivo se autentica con la
 clave compartida, la lectura se guarda en los dos almacenes con su estado de
 plausibilidad y un reintento no duplica ni la lectura ni el documento crudo.
 También comprueban que ningún rechazo escribe: sin clave, con clave equivocada,
-sin consentimiento o con un paciente desconocido no queda lectura ni documento.
+sin consentimiento, con una cuenta desactivada o con un paciente desconocido no
+queda lectura ni documento.
 
 La base de MongoDB es la misma de la demostración, así que la suite no la vacía:
 borra únicamente los documentos de su propio ``device_id``, antes y después de
@@ -163,6 +164,24 @@ def test_without_consent_nothing_is_stored(
     )
     assert response.status_code == 403
     assert "consentimiento" in response.json()["detail"].lower()
+    assert db.execute("select count(*) from readings").fetchone()[0] == 0
+    assert _raw_count(mongo_db) == 0
+
+
+def test_deactivated_patient_is_rejected(
+    client, db, mongo_db, device_headers, consented_patient_id
+):
+    db.execute(
+        "update users set active = false where id = %s",
+        (consented_patient_id,),
+    )
+    response = client.post(
+        "/api/ingest/readings",
+        json=_payload(consented_patient_id),
+        headers=device_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "La cuenta del paciente está desactivada"
     assert db.execute("select count(*) from readings").fetchone()[0] == 0
     assert _raw_count(mongo_db) == 0
 

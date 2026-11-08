@@ -93,21 +93,23 @@ puede tratar 200 como éxito y dejar de reintentar.
 La clave de deduplicación es la pareja `device_id` y `measured_at`, con la marca
 ya normalizada a UTC. El servidor:
 
-1. Inserta el documento crudo en `raw_readings` con `$setOnInsert`, de modo que
+1. Toma un bloqueo de transacción con `pg_advisory_xact_lock` sobre una clave
+   derivada de la pareja, antes de mirar si la lectura ya existe.
+2. Inserta el documento crudo en `raw_readings` con `$setOnInsert`, de modo que
    un reintento no reescribe la primera recepción.
-2. Busca una lectura con `source = 'device'` para esa pareja. Si existe,
+3. Busca una lectura con `source = 'device'` para esa pareja. Si existe,
    responde 200 y no inserta.
-3. Si no existe, inserta la lectura con `source = 'device'`, audita
+4. Si no existe, inserta la lectura con `source = 'device'`, audita
    `reading.ingested` y confirma la transacción.
 
-La comprobación del paso 2 vive en la aplicación: la tabla `readings` no tiene
-una restricción única sobre la pareja y este incremento no puede añadir una
-migración. Dos peticiones simultáneas con la misma pareja pueden ver las dos que
-no existe y duplicar la fila. La ventana es estrecha y se acepta mientras la
-restricción no exista; cerrarla exige un índice único parcial sobre
-`(device_id, measured_at)` para las filas de dispositivo, que es un cambio de
-esquema de un incremento posterior. El reintento secuencial, que es el que
-producen los dispositivos reales, sí queda cubierto.
+La tabla `readings` no tiene una restricción única sobre la pareja y este
+incremento no puede añadir una migración, así que el bloqueo es lo que serializa
+las entregas concurrentes: un segundo reintento de la misma pareja espera a que
+la primera transacción termine y encuentra la fila que esta dejó. El bloqueo es
+de transacción, no de sesión: PostgreSQL lo libera solo al confirmar o revertir.
+Otro escritor que no tome el bloqueo, por ejemplo un `insert` manual, no queda
+cubierto; la ruta de ingesta es el único camino que escribe lecturas de
+dispositivo.
 
 Un reintento con la misma pareja pero valores distintos devuelve la lectura
 original, no la nueva: el dispositivo no debe corregir una medición reenviándola
@@ -136,6 +138,9 @@ reintento no repite la auditoría.
 ## Errores
 
 - 401 con `Clave de dispositivo inválida` si falta `X-Device-Key` o no coincide.
+- 403 con `La cuenta del paciente está desactivada` si la cuenta fue
+  desactivada. Se comprueba antes del consentimiento: una cuenta desactivada no
+  acumula lecturas nuevas aunque conserve su aceptación.
 - 403 con `No hay consentimiento informado vigente` si el paciente no tiene una
   aceptación vigente. Sin consentimiento no se escribe ni el documento crudo.
 - 422 con `El paciente indicado no existe` si el paciente no tiene cuenta de

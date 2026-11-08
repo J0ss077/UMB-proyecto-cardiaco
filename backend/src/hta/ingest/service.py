@@ -12,8 +12,10 @@ original es peor que dejar un documento huérfano.
 La deduplicación usa la pareja ``device_id`` y ``measured_at``. El documento
 crudo se inserta con ``$setOnInsert``, de modo que un reintento no reescribe la
 primera recepción, y la lectura relacional solo se inserta si no existe ya una
-de dispositivo con esa pareja. La comprobación vive en la aplicación porque la
-tabla no tiene una restricción única sobre la pareja.
+de dispositivo con esa pareja. La comprobación y el alta se serializan con un
+bloqueo de transacción sobre la pareja, porque la tabla no tiene una restricción
+única: dos reintentos simultáneos esperan su turno y el segundo encuentra la
+fila que dejó el primero.
 """
 
 from __future__ import annotations
@@ -37,9 +39,19 @@ from hta.db.mongo import get_database
 # no una ruta inexistente.
 UNKNOWN_PATIENT = "El paciente indicado no existe"
 
+# Mensaje del rechazo de una cuenta desactivada. La cuenta seudonimizada
+# conserva el perfil y el historial, pero no debe acumular lecturas nuevas. El
+# estado es el mismo 403 de la falta de consentimiento y el mensaje distingue la
+# causa para que el adaptador del dispositivo deje de reintentar.
+INACTIVE_PATIENT = "La cuenta del paciente está desactivada"
+
 # Acción de auditoría del alta. El reintento no la repite: no crea un hecho
 # nuevo y el documento crudo tampoco se reescribe.
 AUDIT_ACTION = "reading.ingested"
+
+# Separador de la clave del bloqueo. Evita que "ab" más "c" y "a" más "bc"
+# produzcan la misma cadena.
+_LOCK_SEPARATOR = "\x1f"
 
 
 class IngestPayload(BaseModel):
@@ -77,21 +89,28 @@ class IngestOutcome:
 
 
 async def _profile_id(conn: AsyncConnection, patient_id: UUID) -> UUID:
-    """Resuelve la cuenta del paciente a su perfil, o rechaza con 422.
+    """Resuelve la cuenta del paciente a su perfil, o rechaza.
 
     El dispositivo no tiene un alcance que resolver: nombra al paciente en el
     cuerpo. Una cuenta inexistente, o una que no es de paciente, no tiene perfil
-    y recibe el mismo 422.
+    y recibe 422. Una cuenta desactivada conserva el perfil pero ya no puede
+    recibir datos clínicos nuevos: se rechaza con 403 y un mensaje propio antes
+    de la compuerta de consentimiento, para que el dispositivo sepa que el
+    problema es la cuenta y no la aceptación.
     """
     row = await (
         await conn.execute(
-            "select id from patient_profiles where user_id = %s",
+            "select pp.id, u.active from patient_profiles pp "
+            "join users u on u.id = pp.user_id where u.id = %s",
             (patient_id,),
         )
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=422, detail=UNKNOWN_PATIENT)
-    return row[0]
+    profile_id, active = row
+    if not active:
+        raise HTTPException(status_code=403, detail=INACTIVE_PATIENT)
+    return profile_id
 
 
 async def _stored_reading(conn: AsyncConnection, reading_id: UUID) -> Reading:
@@ -130,6 +149,39 @@ async def _existing_reading_id(
     return None if row is None else row[0]
 
 
+def _lock_key(device_id: str, measured_at: datetime) -> str:
+    """Devuelve la cadena estable que identifica la pareja de deduplicación.
+
+    La marca se normaliza a UTC para que dos desplazamientos horarios del mismo
+    instante produzcan la misma clave. El bloqueo la convierte a un entero con
+    ``hashtextextended``: una colisión solo serializa dos parejas distintas de
+    más, nunca permite un duplicado.
+    """
+    return (
+        f"{device_id}{_LOCK_SEPARATOR}"
+        f"{measured_at.astimezone(timezone.utc).isoformat()}"
+    )
+
+
+async def _lock_pair(
+    conn: AsyncConnection,
+    device_id: str,
+    measured_at: datetime,
+) -> None:
+    """Serializa las entregas concurrentes de la misma pareja.
+
+    El bloqueo es de transacción: lo toma ``pg_advisory_xact_lock`` y PostgreSQL
+    lo libera al confirmar o revertir, de modo que no hay un desbloqueo que
+    olvidar. La comprobación de la pareja y el ``insert`` quedan dentro de la
+    misma transacción, así que dos reintentos simultáneos no pueden ver los dos
+    que la lectura no existe.
+    """
+    await conn.execute(
+        "select pg_advisory_xact_lock(hashtextextended(%s, 0))",
+        (_lock_key(device_id, measured_at),),
+    )
+
+
 def _store_raw(payload: IngestPayload, measured_at: datetime) -> None:
     """Inserta el mensaje recibido en ``raw_readings`` sin reescribirlo.
 
@@ -160,23 +212,28 @@ async def ingest(conn: AsyncConnection, payload: IngestPayload) -> IngestOutcome
     """Guarda la lectura de un dispositivo y dice si esta petición la creó.
 
     El orden es deliberado: se resuelve el paciente y se comprueba el
-    consentimiento antes de escribir nada, después se guarda el documento crudo
-    y solo entonces la lectura relacional. Una lectura fuera de rango no se
-    descarta: se guarda con el estado que devuelve ``plausibility``. Si la
-    escritura en PostgreSQL falla, el documento crudo permanece; la transacción
-    se confirma una sola vez, cuando la lectura y su auditoría ya están
-    escritas.
+    consentimiento antes de escribir nada, después se toma el bloqueo de la
+    pareja, se guarda el documento crudo y solo entonces la lectura relacional.
+    Una lectura fuera de rango no se descarta: se guarda con el estado que
+    devuelve ``plausibility``. Si la escritura en PostgreSQL falla, el documento
+    crudo permanece; la transacción se confirma una sola vez, cuando la lectura
+    y su auditoría ya están escritas.
     """
     profile_id = await _profile_id(conn, payload.patient_id)
     await require_consent(conn, profile_id)
     measured_at = measured_at_utc(payload.measured_at)
     status = plausibility(payload.systolic, payload.diastolic)
+    await _lock_pair(conn, payload.device_id, measured_at)
 
     _store_raw(payload, measured_at)
 
     existing = await _existing_reading_id(conn, payload.device_id, measured_at)
     if existing is not None:
-        return IngestOutcome(await _stored_reading(conn, existing), created=False)
+        reading = await _stored_reading(conn, existing)
+        # Cierra la transacción para liberar el bloqueo antes de responder. En
+        # el camino del reintento no hay escrituras relacionales que confirmar.
+        await conn.commit()
+        return IngestOutcome(reading, created=False)
 
     reading_id = (
         await (
