@@ -266,8 +266,15 @@ def test_caregiver_with_minimal_scope_is_rejected(
 
 
 def test_caregiver_of_another_patient_gets_403(
-    client, other_caregiver_headers, consented_patient_id
+    client, caregiver_headers, other_caregiver_headers, consented_patient_id
 ):
+    """El cuidador ajeno no entra aunque el paciente tenga otro cuidador.
+
+    ``caregiver_headers`` deja un vínculo con alcance ``readings`` hacia el
+    paciente con consentimiento. Si la resolución de alcance olvidara comparar
+    el identificador del cuidador, este otro cuidador pasaría la compuerta y la
+    petición no respondería 403.
+    """
     response = client.get(
         f"/api/readings?patient_id={consented_patient_id}",
         headers=other_caregiver_headers,

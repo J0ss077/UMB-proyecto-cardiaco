@@ -92,8 +92,19 @@ def test_caregiver_with_minimal_scope_lists_no_patients(
 
 
 def test_caregiver_of_another_patient_lists_only_their_patient(
-    client, other_caregiver_headers, other_patient_id, consented_patient_id
+    client,
+    caregiver_headers,
+    other_caregiver_headers,
+    other_patient_id,
+    consented_patient_id,
 ):
+    """El otro cuidador no ve al paciente aunque ese paciente tenga cuidador.
+
+    El paciente con consentimiento también tiene un vínculo con alcance
+    ``readings``, el de ``caregiver_headers``. Si el filtro del directorio
+    olvidara comparar el identificador del cuidador, este listado devolvería dos
+    pacientes y el total dejaría de ser uno.
+    """
     body = client.get("/api/patients", headers=other_caregiver_headers).json()
     assert body["total"] == 1
     assert body["items"][0]["user_id"] == str(other_patient_id)
