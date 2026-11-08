@@ -41,10 +41,11 @@ se reinicia. Un origen no declarado no recibe el encabezado
 - Las fechas son ISO 8601. `birth_date` es una fecha sin hora, `AAAA-MM-DD`.
 - Las marcas de tiempo son ISO 8601 en UTC, por ejemplo
   `2026-11-08T19:25:07Z`. La API devuelve todas las marcas de tiempo en UTC y
-  el cliente las presenta en la zona horaria de quien usa la aplicación. Hoy
-  ninguna respuesta existente devuelve una.
+  el cliente las presenta en la zona horaria de quien usa la aplicación.
 - Los identificadores son UUID en texto, por ejemplo
-  `bf652215-8ac5-4c95-b884-a293cc1477af`.
+  `bf652215-8ac5-4c95-b884-a293cc1477af`. El identificador de paciente que
+  viaja en la API es siempre el de la cuenta de usuario; el de
+  `patient_profiles` no sale del servidor.
 
 ## La sesión
 
@@ -184,20 +185,25 @@ valor recibido. Este es un cuerpo real:
 
 Códigos que el cliente debe manejar:
 
-| Código | Cuándo                                                                 | `detail`                                                                 |
-| ------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 200    | Petición atendida                                                      | No aplica                                                                |
-| 201    | Recurso creado                                                         | No aplica                                                                |
-| 204    | Operación sin cuerpo de respuesta                                      | No hay cuerpo                                                            |
-| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
-| 403    | Sesión válida con un rol que no permite la ruta                        | `Permiso denegado`                                                       |
-| 404    | La cuenta indicada no existe                                           | `La cuenta no existe`                                                    |
-| 409    | Correo ya registrado o desactivación de la propia cuenta               | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
-| 422    | Rol desconocido, cuerpo inválido o `limit` fuera de rango              | Un mensaje o una lista de errores de validación                          |
-| 500    | Error no previsto                                                      | Forma no garantizada; no se muestra al usuario                           |
+| Código | Cuándo                                                                                                                   | `detail`                                                                 |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| 200    | Petición atendida                                                                                                        | No aplica                                                                |
+| 201    | Recurso creado                                                                                                           | No aplica                                                                |
+| 204    | Operación sin cuerpo de respuesta                                                                                        | No hay cuerpo                                                            |
+| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                   | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
+| 403    | Sesión válida con un rol que no permite la ruta, o cuenta sin perfil                                                     | `Permiso denegado`                                                       |
+| 403    | Escritura clínica sin consentimiento informado vigente                                                                   | `No hay consentimiento informado vigente`                                |
+| 404    | La cuenta indicada no existe                                                                                             | `La cuenta no existe`                                                    |
+| 409    | Correo ya registrado o desactivación de la propia cuenta                                                                 | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
+| 422    | Rol desconocido, cuerpo inválido, `limit` fuera de rango, fecha de medición futura o sin desplazamiento, o síntoma vacío | Un mensaje o una lista de errores de validación                          |
+| 500    | Error no previsto                                                                                                        | Forma no garantizada; no se muestra al usuario                           |
 
-Un 403 también aparece cuando la cuenta es de paciente pero no tiene perfil:
-esa inconsistencia no se anuncia con un código distinto.
+Un 403 con `Permiso denegado` también aparece cuando la cuenta es de paciente
+pero no tiene perfil: esa inconsistencia no se anuncia con un código distinto.
+El otro 403 no es de permisos: las rutas clínicas de escritura responden
+`No hay consentimiento informado vigente` cuando el paciente no tiene una
+aceptación vigente. El cliente distingue los dos por `detail` y solo en el
+segundo lleva al paciente a aceptar el consentimiento.
 
 ## Rutas
 
@@ -465,6 +471,125 @@ Respuesta 204, sin cuerpo.
 Después de revocar, la consulta vuelve a informar la versión pendiente de
 aceptación. Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la
 cuenta no tiene perfil.
+
+### `POST /api/readings`
+
+Exige sesión con rol `patient` y consentimiento informado vigente. Registra una
+lectura manual de presión arterial y, si viene, el síntoma que la acompañó. La
+lectura se guarda siempre: un valor fisiológicamente imposible no se descarta, se
+guarda con `validation_status` en `out_of_range` y la respuesta sigue siendo 201.
+
+Petición:
+
+```json
+{
+    "systolic": 138,
+    "diastolic": 88,
+    "heart_rate": 72,
+    "measured_at": "2026-11-08T10:00:00-05:00",
+    "symptom": {
+        "free_text": "dolor de cabeza leve",
+        "mood": "ansioso"
+    }
+}
+```
+
+Campos:
+
+- `systolic` y `diastolic` son enteros obligatorios y no llevan límite en el
+  cuerpo: el servidor decide la plausibilidad.
+- `heart_rate` es opcional.
+- `measured_at` es opcional. Sin él se registra el instante actual; con él debe
+  ser ISO 8601 con desplazamiento horario y no puede estar en el futuro. La API
+  lo devuelve en UTC: la petición de ejemplo, `2026-11-08T10:00:00-05:00`, sale
+  como `2026-11-08T15:00:00Z`. Una marca futura responde 422 con
+  `La fecha de la medición no puede estar en el futuro`; una sin desplazamiento,
+  422 con `La fecha de la medición debe incluir el desplazamiento horario`. Las
+  fechas pasadas se aceptan sin límite.
+- `patient_id` es opcional y, si llega, es el identificador de la cuenta del
+  paciente: solo se admite el propio. Cualquier otro responde 403.
+- `symptom` es opcional; sus dos campos, `free_text` y `mood`, son opcionales,
+  pero al menos uno debe traer texto. Un objeto vacío o de solo espacios responde
+  422 con `El síntoma necesita un texto o un estado de ánimo`.
+
+Respuesta 201 real de la petición anterior:
+
+```json
+{
+    "id": "708e4261-d2e5-4ef9-9f68-de99c400e173",
+    "patient_id": "b785c512-dbbd-4e9d-8b97-d5a41ffbd693",
+    "systolic": 138,
+    "diastolic": 88,
+    "heart_rate": 72,
+    "source": "manual",
+    "measured_at": "2026-11-08T15:00:00Z",
+    "validation_status": "valid"
+}
+```
+
+`patient_id` es el de la cuenta de usuario, no el del perfil. `source` es siempre
+`manual` en esta ruta. `validation_status` vale `valid` o `out_of_range`; hoy el
+alta no produce `flagged`. Una lectura imposible también responde 201:
+
+```json
+{
+    "id": "497a3391-5a38-4ab6-976a-a84d3601bfe7",
+    "patient_id": "b785c512-dbbd-4e9d-8b97-d5a41ffbd693",
+    "systolic": 300,
+    "diastolic": 200,
+    "heart_rate": null,
+    "source": "manual",
+    "measured_at": "2026-11-08T20:17:01.381345Z",
+    "validation_status": "out_of_range"
+}
+```
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
+`patient`, la cuenta no tiene perfil o `patient_id` no es el propio; 403 con
+`No hay consentimiento informado vigente` si falta la aceptación, por ejemplo:
+
+```json
+{
+    "detail": "No hay consentimiento informado vigente"
+}
+```
+
+También responde 422 con un mensaje o una lista de validación si el cuerpo no
+tiene la forma esperada, la fecha es futura o no trae desplazamiento, o el
+síntoma está vacío. Ningún rechazo escribe una lectura ni una fila de auditoría.
+
+### `POST /api/symptoms`
+
+Exige sesión con rol `patient` y consentimiento informado vigente. Registra un
+síntoma que no acompaña a una lectura.
+
+Petición:
+
+```json
+{
+    "free_text": "mareo",
+    "mood": "bien"
+}
+```
+
+Los dos campos son opcionales, pero al menos uno debe traer texto; un objeto
+vacío responde 422 con `El síntoma necesita un texto o un estado de ánimo`.
+Respuesta 201 real:
+
+```json
+{
+    "id": "97d38e8d-79d3-499f-a0fb-55869baa02ce"
+}
+```
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
+`patient` o la cuenta no tiene perfil; 403 con
+`No hay consentimiento informado vigente` si falta la aceptación; 422 si el
+síntoma está vacío. Sin consentimiento no se escribe la fila ni su auditoría.
+
+Después de aceptar el consentimiento (ver `POST /api/consent`), las dos rutas de
+escritura clínica quedan habilitadas. Si el paciente lo revoca, vuelven a
+responder 403 con `No hay consentimiento informado vigente`.
 
 ## Regenerar el contrato
 
