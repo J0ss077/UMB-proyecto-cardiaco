@@ -397,6 +397,53 @@ def physician_headers(client: httpx.Client, physician_id: UUID) -> dict[str, str
     return _login_headers(client, PHYSICIAN_EMAIL)
 
 
+@pytest.fixture
+def open_alert_id(
+    db: psycopg.Connection,
+    clean_db: None,
+    consented_patient_id: UUID,
+) -> UUID:
+    """Alerta crítica abierta del paciente con consentimiento vigente.
+
+    Es el estado inicial de la máquina de alertas y el que usan las pruebas de
+    las transiciones. Depende de ``clean_db`` para insertarse después del
+    vaciado y del paciente con consentimiento porque el médico de las fixtures
+    está vinculado a ese paciente y no al de ``patient_headers``.
+    """
+    (alert_id,) = db.execute(
+        "insert into alerts (patient_id, type, severity, status) "
+        "select id, 'crisis_hipertensiva', 'critical', 'open' "
+        "from patient_profiles where user_id = %s returning id",
+        (consented_patient_id,),
+    ).fetchone()
+    return alert_id
+
+
+@pytest.fixture
+def validated_alert_id(
+    db: psycopg.Connection,
+    clean_db: None,
+    consented_patient_id: UUID,
+    physician_id: UUID,
+) -> UUID:
+    """Alerta ya validada por el médico vinculado al paciente con consentimiento.
+
+    Sirve para comprobar que una alerta validada no se valida dos veces ni
+    cambia de estado. ``validated_by`` queda escrito con el médico de las
+    fixtures porque una alerta validada sin validador contradice la regla de
+    que ninguna alerta se cierra sin una persona.
+    """
+    (alert_id,) = db.execute(
+        "insert into alerts "
+        "(patient_id, type, severity, status, note, validated_by, validated_at) "
+        "select id, 'crisis_hipertensiva', 'high', 'validated', "
+        "'confirmada en consulta', %s, now() "
+        "from patient_profiles where user_id = %s returning id",
+        (physician_id, consented_patient_id),
+    ).fetchone()
+    return alert_id
+
+
 def _caregiver(
     connection: psycopg.Connection,
     email: str,

@@ -185,18 +185,19 @@ valor recibido. Este es un cuerpo real:
 
 Códigos que el cliente debe manejar:
 
-| Código | Cuándo                                                                                                                                                      | `detail`                                                                 |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| 200    | Petición atendida                                                                                                                                           | No aplica                                                                |
-| 201    | Recurso creado                                                                                                                                              | No aplica                                                                |
-| 204    | Operación sin cuerpo de respuesta                                                                                                                           | No hay cuerpo                                                            |
-| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                                                      | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
-| 403    | Sesión válida con un rol que no permite la ruta, cuenta de paciente sin perfil o paciente fuera del alcance de la cuenta                                    | `Permiso denegado`                                                       |
-| 403    | Escritura clínica o resumen de la ventana sin consentimiento informado vigente                                                                              | `No hay consentimiento informado vigente`                                |
-| 404    | La cuenta indicada no existe                                                                                                                                | `La cuenta no existe`                                                    |
-| 409    | Correo ya registrado o desactivación de la propia cuenta                                                                                                    | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
-| 422    | Rol desconocido, cuerpo inválido, `limit` fuera de rango, fecha de medición futura o sin desplazamiento, fecha de filtro sin desplazamiento o síntoma vacío | Un mensaje o una lista de errores de validación                          |
-| 500    | Error no previsto                                                                                                                                           | Forma no garantizada; no se muestra al usuario                           |
+| Código | Cuándo                                                                                                                                                                                                                                     | `detail`                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| 200    | Petición atendida                                                                                                                                                                                                                          | No aplica                                                                     |
+| 201    | Recurso creado                                                                                                                                                                                                                             | No aplica                                                                     |
+| 204    | Operación sin cuerpo de respuesta                                                                                                                                                                                                          | No hay cuerpo                                                                 |
+| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                                                                                                                                     | `Sesión inválida o expirada` o `Credenciales inválidas`                       |
+| 403    | Sesión válida con un rol que no permite la ruta, cuenta de paciente sin perfil o paciente fuera del alcance de la cuenta                                                                                                                   | `Permiso denegado`                                                            |
+| 403    | Escritura clínica o resumen de la ventana sin consentimiento informado vigente                                                                                                                                                             | `No hay consentimiento informado vigente`                                     |
+| 404    | La cuenta o la alerta indicadas no existen                                                                                                                                                                                                 | `La cuenta no existe` o `La alerta no existe`                                 |
+| 409    | Correo ya registrado o desactivación de la propia cuenta                                                                                                                                                                                   | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta`      |
+| 409    | Transición de alerta no permitida para su estado actual                                                                                                                                                                                    | `La alerta está en estado 'validated' y no puede pasar al estado 'validated'` |
+| 422    | Rol desconocido, cuerpo inválido, `limit` fuera de rango, fecha de medición futura o sin desplazamiento, fecha de filtro sin desplazamiento, síntoma vacío, estado o severidad de alerta fuera de los tipos enumerados o descarte sin nota | Un mensaje o una lista de errores de validación                               |
+| 500    | Error no previsto                                                                                                                                                                                                                          | Forma no garantizada; no se muestra al usuario                                |
 
 Un 403 con `Permiso denegado` también aparece cuando la cuenta es de paciente
 pero no tiene perfil, y cuando el paciente consultado no está en el alcance de
@@ -476,8 +477,8 @@ cuenta de paciente no tiene perfil.
 
 ### Alcance de los datos clínicos
 
-Estas cuatro rutas son las que alimentan los tableros. La tabla dice qué
-devuelve cada cuenta:
+Estas rutas son las que alimentan los tableros. La tabla dice qué devuelve
+cada cuenta:
 
 | Cuenta                          | `GET /api/patients`                        | `GET /api/readings` y `GET /api/symptoms`   | `GET /api/readings/summary`                                     |
 | ------------------------------- | ------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------- |
@@ -492,6 +493,13 @@ paciente inexistente: el cliente no puede distinguir los dos casos. El médico y
 el cuidador deben indicar `patient_id` en las tres rutas del paciente; sin él
 responden 403. El cuidador con alcance `minimal` no ve datos clínicos aunque el
 vínculo exista; solo el alcance `readings` lo autoriza.
+
+Las rutas de alertas siguen exactamente la misma matriz que `GET /api/readings`:
+el paciente ve sus alertas, el médico las de sus pacientes vinculados, el
+cuidador las de los autorizados con alcance `readings` y el administrador
+recibe 403. El médico y el cuidador deben indicar `patient_id` en el listado; en
+la consulta de una alerta y en sus transiciones el paciente se toma de la
+alerta y se comprueba el mismo vínculo.
 
 **La consulta de lecturas y de síntomas no exige consentimiento; el resumen de
 la ventana sí.** La historia clínica se consulta sin la compuerta. El resumen es
@@ -706,6 +714,211 @@ devuelve una página vacía en esta ruta hasta que el paciente registre alguno:
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
 si el paciente no está en el alcance o si el médico o el cuidador omiten
 `patient_id`.
+
+### Alertas y validación humana
+
+Las alertas nacen del motor de umbrales, que llega con un incremento posterior:
+ninguna ruta de este contrato crea una alerta. Las rutas de esta sección listan,
+leen y mueven una alerta existente. Siguen la misma resolución de alcance que las
+lecturas y el administrador recibe 403 en todas.
+
+La máquina de estados es la única autoridad sobre una transición. El software no
+cierra una alerta por su cuenta: cada cambio de estado lo firma una cuenta
+autenticada, queda en la auditoría con la acción `alert.acknowledged`,
+`alert.validated` o `alert.dismissed` y se confirma antes de responder.
+
+| Estado actual  | Acción        | Estado siguiente |
+| -------------- | ------------- | ---------------- |
+| `open`         | `acknowledge` | `acknowledged`   |
+| `open`         | `validate`    | `validated`      |
+| `open`         | `dismiss`     | `dismissed`      |
+| `acknowledged` | `validate`    | `validated`      |
+| `acknowledged` | `dismiss`     | `dismissed`      |
+| `validated`    | ninguna       | 409              |
+| `dismissed`    | ninguna       | 409              |
+
+Cualquier otra combinación responde 409 con el estado actual en el mensaje. Este
+es el cuerpo real de un intento de validar una alerta ya validada:
+
+```json
+{
+    "detail": "La alerta está en estado 'validated' y no puede pasar al estado 'validated'"
+}
+```
+
+`validate` escribe `validated_by` y `validated_at`. `dismiss` exige una `note` no
+vacía: sin ella, o con solo espacios, responde 422 y no cambia la alerta.
+`acknowledge` solo cambia el estado. La nota de `validate` y de `acknowledge` no
+se guarda en la alerta: viaja al detalle de auditoría; la de `dismiss` se guarda
+además en `note`. Las tres transiciones responden 204, sin cuerpo.
+
+### `GET /api/alerts`
+
+Exige sesión con rol `patient`, `physician` o `caregiver`. Lista las alertas del
+paciente visible de la más reciente a la más antigua, con la envoltura y la
+paginación de la sección de listados. El paciente que omite `patient_id` ve las
+propias; el médico y el cuidador deben indicarlo.
+
+Parámetros:
+
+- `patient_id` es opcional y es el identificador de la cuenta del paciente.
+- `status` es opcional y vale `open`, `acknowledged`, `validated` o `dismissed`.
+- `severity` es opcional y vale `low`, `medium`, `high` o `critical`.
+- `limit` y `offset` son los de la paginación general.
+
+Un valor de `status` o `severity` fuera de esos conjuntos responde 422.
+
+Petición:
+
+```http
+GET /api/alerts?limit=50&offset=0
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del paciente de demostración:
+
+```json
+{
+    "items": [
+        {
+            "id": "da916e4c-4759-4e37-9594-ab64904adca7",
+            "patient_id": "7d39cdbb-9e5d-406b-a762-bcd5369d8834",
+            "type": "crisis_hipertensiva",
+            "severity": "critical",
+            "status": "open",
+            "note": "Lecturas domiciliarias de 186/122 mmHg y 184/120 mmHg; pendiente de revisión médica.",
+            "created_at": "2026-11-07T21:00:00Z",
+            "validated_by": null,
+            "validated_at": null
+        }
+    ],
+    "total": 1
+}
+```
+
+`patient_id` es el identificador de la cuenta del paciente, nunca el del perfil.
+`type` es texto libre y la siembra usa `crisis_hipertensiva`. `validated_by` y
+`validated_at` valen `null` mientras la alerta no esté validada; `note` guarda el
+motivo del descarte y puede ser `null`.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
+si el paciente no está en el alcance o si el médico o el cuidador omiten
+`patient_id`; 422 si `status`, `severity` o `limit` quedan fuera de rango.
+
+### `GET /api/alerts/{alert_id}`
+
+Exige sesión con rol `patient`, `physician` o `caregiver`. Devuelve una alerta
+visible para la cuenta, con el mismo cuerpo que un elemento del listado y sin la
+envoltura. No se pagina.
+
+Petición:
+
+```http
+GET /api/alerts/da916e4c-4759-4e37-9594-ab64904adca7
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del paciente de demostración:
+
+```json
+{
+    "id": "da916e4c-4759-4e37-9594-ab64904adca7",
+    "patient_id": "7d39cdbb-9e5d-406b-a762-bcd5369d8834",
+    "type": "crisis_hipertensiva",
+    "severity": "critical",
+    "status": "open",
+    "note": "Lecturas domiciliarias de 186/122 mmHg y 184/120 mmHg; pendiente de revisión médica.",
+    "created_at": "2026-11-07T21:00:00Z",
+    "validated_by": null,
+    "validated_at": null
+}
+```
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si la alerta es de un paciente fuera del alcance; 404 con `La alerta no existe`
+si el identificador no corresponde a ninguna alerta. El 403 es el mismo
+`Permiso denegado` de cualquier otra negativa de alcance y no revela a quién
+pertenece la alerta.
+
+### `POST /api/alerts/{alert_id}/acknowledge`
+
+Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
+`open`. Acusa recibo y la deja en `acknowledged`.
+
+Petición real de la sesión del médico de demostración:
+
+```json
+{
+    "note": "Paciente contactado; confirma la toma."
+}
+```
+
+La `note` es opcional y viaja al detalle de auditoría; no se guarda en la
+alerta. Respuesta 204, sin cuerpo.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+estado actual no admite la transición.
+
+### `POST /api/alerts/{alert_id}/validate`
+
+Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
+`open` o `acknowledged`. La valida y escribe la persona que la validó.
+
+Petición real de la sesión del médico de demostración:
+
+```json
+{
+    "note": "Confirmada en consulta; se ajusta el tratamiento."
+}
+```
+
+La `note` es opcional y viaja al detalle de auditoría; no se guarda en la
+alerta. Respuesta 204, sin cuerpo. La consulta posterior de la misma alerta
+devuelve el estado y la persona que la firmó:
+
+```json
+{
+    "id": "da916e4c-4759-4e37-9594-ab64904adca7",
+    "patient_id": "7d39cdbb-9e5d-406b-a762-bcd5369d8834",
+    "type": "crisis_hipertensiva",
+    "severity": "critical",
+    "status": "validated",
+    "note": "Lecturas domiciliarias de 186/122 mmHg y 184/120 mmHg; pendiente de revisión médica.",
+    "created_at": "2026-11-07T21:00:00Z",
+    "validated_by": "1106cf54-2606-47f6-a368-cb15e834ca56",
+    "validated_at": "2026-11-08T21:18:18.139814Z"
+}
+```
+
+`validated_by` es el identificador de la cuenta que validó y `validated_at` la
+marca en UTC. Una alerta validada no vuelve a moverse: el intento responde 409
+con el estado actual.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+estado actual no admite la transición.
+
+### `POST /api/alerts/{alert_id}/dismiss`
+
+Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
+`open` o `acknowledged`. La descarta con un motivo obligatorio.
+
+Petición real de la sesión del médico de demostración:
+
+```json
+{
+    "note": "Lectura mal tomada; se confirmó en consulta."
+}
+```
+
+Sin `note`, o con una cadena de solo espacios, responde 422 con
+`El descarte de la alerta necesita una nota` y no cambia la alerta. Respuesta
+204, sin cuerpo. El motivo se guarda en `note` y en el detalle de auditoría.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+estado actual no admite la transición; 422 si falta la nota.
 
 ### `POST /api/readings`
 

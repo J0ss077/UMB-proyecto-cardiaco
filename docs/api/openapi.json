@@ -70,6 +70,105 @@
         "title": "AccountSummary",
         "type": "object"
       },
+      "AlertResponse": {
+        "description": "Alerta listada o consultada, con el identificador de cuenta del paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y\n``validated_at`` solo tienen valor cuando la alerta está validada y\n``note`` guarda el motivo del descarte.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "validated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated At"
+          },
+          "validated_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated By"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "type",
+          "severity",
+          "status",
+          "note",
+          "created_at",
+          "validated_by",
+          "validated_at"
+        ],
+        "title": "AlertResponse",
+        "type": "object"
+      },
+      "AlertTransitionRequest": {
+        "additionalProperties": false,
+        "description": "Nota opcional de una transición de alerta.\n\n``validate`` y ``acknowledge`` la aceptan para dejarla en la auditoría;\n``dismiss`` la exige y la guarda en la alerta. La regla del descarte la\naplica el servicio, que responde 422 si falta o está en blanco.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "title": "AlertTransitionRequest",
+        "type": "object"
+      },
       "ConsentStatus": {
         "description": "Estado del consentimiento para la versión que consulta el cliente.\n\n``requires_acceptance_of_version`` es ``None`` cuando el consentimiento\nestá vigente y, cuando no lo está, la versión cuya aceptación falta. Así el\ncliente no tiene que comparar versiones por su cuenta para saber qué\ndocumento debe presentar.",
         "properties": {
@@ -187,6 +286,28 @@
           "total"
         ],
         "title": "PaginatedAccounts",
+        "type": "object"
+      },
+      "PaginatedAlerts": {
+        "description": "Página de alertas y total de filas filtradas.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AlertResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PaginatedAlerts",
         "type": "object"
       },
       "PaginatedPatients": {
@@ -928,6 +1049,389 @@
         "summary": "Change Role",
         "tags": [
           "accounts"
+        ]
+      }
+    },
+    "/api/alerts": {
+      "get": {
+        "description": "Lista las alertas del paciente visible, de la más reciente a la más vieja.\n\nSigue la misma resolución de alcance que las lecturas: sin ``patient_id``\nel paciente ve las propias y el médico o el cuidador deben indicarlo y\ncomprobar su vínculo. ``status`` y ``severity`` son opcionales y un valor\nfuera de los tipos enumerados responde 422. El administrador recibe 403.",
+        "operationId": "list_alerts_api_alerts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "open",
+                    "acknowledged",
+                    "validated",
+                    "dismissed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "critical"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 0,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAlerts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Alerts",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}": {
+      "get": {
+        "description": "Devuelve una alerta visible para la cuenta.\n\nResponde 404 si el identificador no corresponde a ninguna alerta y 403 con\n``Permiso denegado`` si la alerta es de un paciente fuera del alcance. Ese\n403 es el mismo de cualquier otra negativa de alcance y no revela a quién\npertenece la alerta.",
+        "operationId": "read_alert_api_alerts__alert_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Alert",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}/acknowledge": {
+      "post": {
+        "description": "Acusa recibo de una alerta abierta.\n\nSolo cambia el estado a ``acknowledged``. La transición se rechaza con 409\nsi la alerta ya no está abierta y queda auditada con el actor.",
+        "operationId": "acknowledge_alert_api_alerts__alert_id__acknowledge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertTransitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Acknowledge Alert",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}/dismiss": {
+      "post": {
+        "description": "Descarta una alerta abierta o reconocida con un motivo obligatorio.\n\nSin nota, o con una nota en blanco, responde 422 y no cambia la alerta. El\nmotivo se guarda en la alerta y en la auditoría.",
+        "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertTransitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Alert",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/alerts/{alert_id}/validate": {
+      "post": {
+        "description": "Valida una alerta abierta o reconocida.\n\nEscribe ``validated_by`` y ``validated_at`` con la persona que valida. La\nnota opcional viaja a la auditoría. Responde 409 si el estado actual no\nadmite la transición.",
+        "operationId": "validate_alert_api_alerts__alert_id__validate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "alert_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Alert Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertTransitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Alert",
+        "tags": [
+          "clinical"
         ]
       }
     },

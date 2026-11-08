@@ -1,7 +1,8 @@
 """@requirement RF-19
 
 Endpoints HTTP del núcleo clínico: directorio de pacientes, consulta de
-lecturas con su ventana domiciliaria, síntomas y las dos rutas de alta.
+lecturas con su ventana domiciliaria, síntomas, las dos rutas de alta y la
+gestión humana de las alertas.
 
 Las rutas de lectura exigen una sesión de paciente, médico o cuidador; el
 administrador recibe 403. El identificador de paciente que viaja en la petición
@@ -13,18 +14,22 @@ antes de responder.
 La consulta de lecturas y síntomas no exige consentimiento: es la historia
 clínica que el médico debe poder leer. El resumen de la ventana sí lo exige,
 porque es análisis, y responde 403 con el mismo mensaje que las rutas de alta.
+Las rutas de alertas no crean alertas ni las cierran por su cuenta: solo listan,
+leen y registran una transición firmada por una persona.
 """
 
 from __future__ import annotations
 
-# Las rutas de alta siguen declarando RF-05 y el listado de síntomas declara
-# RF-21. La primera línea del docstring declara el directorio y la consulta de
-# lecturas, que son lo que agrega esta tarea.
+# Las rutas de alta siguen declarando RF-05, el listado de síntomas declara
+# RF-21 y el bloque de alertas declara RF-16. La primera línea del docstring
+# declara el directorio y la consulta de lecturas, que son lo que agrega esta
+# tarea.
 # @requirement RF-05
 # @requirement RF-21
+# @requirement RF-16
 
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -32,7 +37,7 @@ from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict
 
 from hta.auth.deps import CurrentUser, get_conn, require_role
-from hta.clinical import access, patients, readings, symptoms, validation
+from hta.clinical import access, alerts, patients, readings, symptoms, validation
 
 router = APIRouter(prefix="/api", tags=["clinical"])
 
@@ -44,6 +49,12 @@ CLINICAL_ROLES = ("patient", "physician", "caregiver")
 # máximo evita que una petición se lleve la tabla entera.
 DEFAULT_LIMIT = 50
 MAX_LIMIT = 200
+
+# Valores de los tipos enumerados ``alert_status`` y ``alert_severity``. La
+# ruta los valida y un valor fuera de ellos responde 422 sin llegar al
+# servicio de alertas.
+AlertStatus = Literal["open", "acknowledged", "validated", "dismissed"]
+AlertSeverity = Literal["low", "medium", "high", "critical"]
 
 
 class SymptomRequest(BaseModel):
@@ -153,6 +164,49 @@ class PaginatedSymptoms(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     items: list[SymptomResponse]
+    total: int
+
+
+class AlertResponse(BaseModel):
+    """Alerta listada o consultada, con el identificador de cuenta del paciente.
+
+    ``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y
+    ``validated_at`` solo tienen valor cuando la alerta está validada y
+    ``note`` guarda el motivo del descarte.
+    """
+
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    id: UUID
+    patient_id: UUID
+    type: str
+    severity: str
+    status: str
+    note: str | None
+    created_at: datetime
+    validated_by: UUID | None
+    validated_at: datetime | None
+
+
+class AlertTransitionRequest(BaseModel):
+    """Nota opcional de una transición de alerta.
+
+    ``validate`` y ``acknowledge`` la aceptan para dejarla en la auditoría;
+    ``dismiss`` la exige y la guarda en la alerta. La regla del descarte la
+    aplica el servicio, que responde 422 si falta o está en blanco.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = None
+
+
+class PaginatedAlerts(BaseModel):
+    """Página de alertas y total de filas filtradas."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[AlertResponse]
     total: int
 
 
@@ -346,3 +400,98 @@ async def list_symptoms(
         items=[SymptomResponse.model_validate(item) for item in page],
         total=total,
     )
+
+
+@router.get("/alerts", response_model=PaginatedAlerts)
+async def list_alerts(
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+    patient_id: UUID | None = None,
+    status: Annotated[AlertStatus | None, Query()] = None,
+    severity: Annotated[AlertSeverity | None, Query()] = None,
+    limit: Annotated[int, Query(ge=0, le=MAX_LIMIT)] = DEFAULT_LIMIT,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedAlerts:
+    """Lista las alertas del paciente visible, de la más reciente a la más vieja.
+
+    Sigue la misma resolución de alcance que las lecturas: sin ``patient_id``
+    el paciente ve las propias y el médico o el cuidador deben indicarlo y
+    comprobar su vínculo. ``status`` y ``severity`` son opcionales y un valor
+    fuera de los tipos enumerados responde 422. El administrador recibe 403.
+    """
+    page, total = await alerts.list_for(
+        conn,
+        user,
+        patient_id,
+        status,
+        severity,
+        limit,
+        offset,
+    )
+    return PaginatedAlerts(
+        items=[AlertResponse.model_validate(item) for item in page],
+        total=total,
+    )
+
+
+@router.get("/alerts/{alert_id}", response_model=AlertResponse)
+async def read_alert(
+    alert_id: UUID,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+) -> AlertResponse:
+    """Devuelve una alerta visible para la cuenta.
+
+    Responde 404 si el identificador no corresponde a ninguna alerta y 403 con
+    ``Permiso denegado`` si la alerta es de un paciente fuera del alcance. Ese
+    403 es el mismo de cualquier otra negativa de alcance y no revela a quién
+    pertenece la alerta.
+    """
+    alert = await alerts.get_for(conn, alert_id, user)
+    return AlertResponse.model_validate(alert)
+
+
+@router.post("/alerts/{alert_id}/acknowledge", status_code=204)
+async def acknowledge_alert(
+    alert_id: UUID,
+    body: AlertTransitionRequest,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+) -> None:
+    """Acusa recibo de una alerta abierta.
+
+    Solo cambia el estado a ``acknowledged``. La transición se rechaza con 409
+    si la alerta ya no está abierta y queda auditada con el actor.
+    """
+    await alerts.transition(conn, alert_id, user, "acknowledge", body.note)
+
+
+@router.post("/alerts/{alert_id}/validate", status_code=204)
+async def validate_alert(
+    alert_id: UUID,
+    body: AlertTransitionRequest,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+) -> None:
+    """Valida una alerta abierta o reconocida.
+
+    Escribe ``validated_by`` y ``validated_at`` con la persona que valida. La
+    nota opcional viaja a la auditoría. Responde 409 si el estado actual no
+    admite la transición.
+    """
+    await alerts.transition(conn, alert_id, user, "validate", body.note)
+
+
+@router.post("/alerts/{alert_id}/dismiss", status_code=204)
+async def dismiss_alert(
+    alert_id: UUID,
+    body: AlertTransitionRequest,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+) -> None:
+    """Descarta una alerta abierta o reconocida con un motivo obligatorio.
+
+    Sin nota, o con una nota en blanco, responde 422 y no cambia la alerta. El
+    motivo se guarda en la alerta y en la auditoría.
+    """
+    await alerts.transition(conn, alert_id, user, "dismiss", body.note)
