@@ -22,6 +22,7 @@
 - La documentación va en español; los identificadores de código, los nombres de tablas y los asuntos de confirmación van en inglés.
 - Sin emojis en archivos, confirmaciones ni mensajes de interfaz. Ningún artefacto de la capa humana menciona autoría asistida por IA.
 - Las pruebas de integración corren contra el PostgreSQL y el MongoDB de la pila; las unitarias no tocan base de datos.
+- Toda tarea que añada o cambie una ruta actualiza `docs/api/api-para-el-frontend.md` en la misma tarea. El documento es lo que lee el integrante de frontend y no puede quedar desfasado entre tareas.
 - La imagen del backend fija Python 3.12.
 
 ## Review Focus
@@ -264,6 +265,7 @@ git commit -m "feat(clinical): register readings with consent gate and physiolog
 ### Task 3: Directorio de pacientes, consulta de lecturas y ventana domiciliaria
 
 **Files:**
+- Modify: `docs/api/api-para-el-frontend.md` (rutas de pacientes, lecturas y síntomas), `docs/api/openapi.json`
 
 - Create: `backend/src/hta/clinical/patients.py`
 - Modify: `backend/src/hta/clinical/readings.py`, `router.py`, `backend/tests/integration/conftest.py`
@@ -368,6 +370,7 @@ git commit -m "feat(clinical): patient directory, reading queries and home windo
 ### Task 4: Alertas con validación humana
 
 **Files:**
+- Modify: `docs/api/api-para-el-frontend.md` (rutas de alertas), `docs/api/openapi.json`
 
 - Create: `backend/src/hta/clinical/alerts.py`
 - Modify: `backend/src/hta/clinical/router.py`
@@ -440,6 +443,7 @@ git commit -m "feat(clinical): alert listing and human validation transitions"
 ### Task 5: Contrato de ingesta y simulador
 
 **Files:**
+- Modify: `docs/api/api-para-el-frontend.md` (contrato de ingesta), `docs/api/openapi.json`
 
 - Create: `backend/src/hta/ingest/__init__.py`, `service.py`, `router.py`, `iot/simulator.py`, `docs/api/ingesta.md`
 - Modify: `backend/src/hta/app.py`
