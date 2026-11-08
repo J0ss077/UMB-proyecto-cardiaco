@@ -19,9 +19,24 @@ from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict, Field
 
 from hta.accounts import service
-from hta.auth.deps import CurrentUser, get_conn, require_role
+from hta.auth.deps import (
+    SESSION_RESPONSES,
+    CurrentUser,
+    get_conn,
+    require_role,
+)
 
-router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+# El registro público no exige sesión, así que vive en su propio enrutador y no
+# declara el 401 ni el 403 de la compuerta.
+public_router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+
+# Las rutas administrativas exigen una sesión con rol de administrador y
+# declaran los errores que la compuerta puede producir.
+router = APIRouter(
+    prefix="/api/accounts",
+    tags=["accounts"],
+    responses=SESSION_RESPONSES,
+)
 
 # Página por omisión del listado, máximo que acepta una petición y mínimo de
 # ambos parámetros. El máximo evita que una petición se lleve la tabla entera.
@@ -84,7 +99,7 @@ class PaginatedAccounts(BaseModel):
     total: int
 
 
-@router.post("/register", status_code=201, response_model=RegisteredAccount)
+@public_router.post("/register", status_code=201, response_model=RegisteredAccount)
 async def register(
     body: RegisterRequest,
     conn: Annotated[AsyncConnection, Depends(get_conn)],

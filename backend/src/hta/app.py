@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo.errors import PyMongoError
 
+from hta.accounts.router import public_router as accounts_public_router
 from hta.accounts.router import router as accounts_router
 from hta.api.cors import allowed_origins
 from hta.api.health import router as health_router
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(accounts_public_router)
     app.include_router(accounts_router)
     app.include_router(consent_router)
     app.include_router(clinical_router)

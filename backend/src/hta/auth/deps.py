@@ -6,6 +6,11 @@ La identidad de cada petición se resuelve contra la base y no solo contra el
 token: el rol y el estado de la cuenta se leen de ``users``. Así un cambio de
 rol o una desactivación surten efecto en la petición siguiente, sin esperar a
 que venza el token de acceso que ya estaba emitido.
+
+El esquema se declara con ``HTTPBearer(auto_error=False)`` y no leyendo el
+encabezado a mano: el contrato publicado declara el esquema de seguridad y cada
+ruta con sesión lo exige. La compuerta conserva el rechazo propio de la API, con
+el mismo 401 para cualquier forma inválida de presentarlo.
 """
 
 from __future__ import annotations
@@ -15,7 +20,8 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from psycopg import AsyncConnection
 
 from hta.auth.tokens import InvalidToken, decode_access
@@ -23,6 +29,29 @@ from hta.db.pool import get_pool
 
 _INVALID_SESSION = "Sesión inválida o expirada"
 FORBIDDEN = "Permiso denegado"
+
+# Esquema que publica el contrato. Con ``auto_error=False``, la ausencia del
+# encabezado o un esquema distinto no producen el 403 genérico de FastAPI:
+# llegan como ``None`` y la compuerta responde el mismo 401 de la API.
+bearer = HTTPBearer(
+    auto_error=False,
+    bearerFormat="JWT",
+    description=(
+        "Token de acceso JWT en el encabezado Authorization con el esquema Bearer."
+    ),
+)
+
+# Respuestas de error que comparten las rutas que exigen una sesión. El 401 es
+# el mismo para la cabecera ausente, el esquema equivocado, el token inválido o
+# vencido, la cuenta desconocida y la cuenta inactiva. El 403 cubre el rol que
+# no permite la ruta y, en las rutas clínicas, la falta de consentimiento
+# vigente.
+SESSION_RESPONSES = {
+    401: {"description": _INVALID_SESSION},
+    403: {
+        "description": f"{FORBIDDEN}, o No hay consentimiento informado vigente",
+    },
+}
 
 
 @dataclass(frozen=True)
@@ -44,34 +73,36 @@ async def get_conn() -> AsyncIterator[AsyncConnection]:
         yield conn
 
 
-def _bearer_token(authorization: str | None) -> str | None:
-    """Extrae el token del encabezado, o ``None`` si no tiene la forma esperada.
+def _token(credentials: HTTPAuthorizationCredentials | None) -> str | None:
+    """Extrae el token de las credenciales, o ``None`` si no sirven.
 
-    El esquema se compara sin distinguir mayúsculas, como pide la RFC 6750, y
-    se exige un valor no vacío después del espacio.
+    ``HTTPBearer`` ya devuelve ``None`` cuando falta el encabezado o el esquema
+    no es Bearer. La comprobación se repite aquí para que una llamada directa a
+    ``current_user`` conserve el mismo rechazo que una petición HTTP, y se exige
+    un valor no vacío después del espacio, como pide la RFC 6750.
     """
-    if authorization is None:
+    if credentials is None or credentials.scheme.lower() != "bearer":
         return None
-    scheme, _, credentials = authorization.partition(" ")
-    if scheme.lower() != "bearer":
-        return None
-    token = credentials.strip()
+    token = credentials.credentials.strip()
     return token or None
 
 
 async def current_user(
     conn: Annotated[AsyncConnection, Depends(get_conn)],
-    authorization: Annotated[str | None, Header()] = None,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(bearer),
+    ] = None,
 ) -> CurrentUser:
     """Devuelve la cuenta de la petición o rechaza con 401.
 
     Sirve como dependencia de FastAPI y también se puede invocar directamente
-    pasando la conexión y el encabezado. La falta del encabezado, un esquema
+    pasando la conexión y las credenciales. La falta del encabezado, un esquema
     distinto de Bearer, un token inválido o vencido, una cuenta desconocida y
     una cuenta inactiva producen el mismo rechazo: el cliente no debe poder
     distinguir cuál de los casos ocurrió.
     """
-    token = _bearer_token(authorization)
+    token = _token(credentials)
     if token is None:
         raise HTTPException(status_code=401, detail=_INVALID_SESSION)
 

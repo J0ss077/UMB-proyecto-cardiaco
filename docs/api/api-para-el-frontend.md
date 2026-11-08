@@ -75,6 +75,15 @@ El token de acceso va en el encabezado `Authorization` con el esquema
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
 ```
 
+El contrato declara un único esquema de seguridad, `HTTPBearer`: tipo `http`,
+esquema `bearer` y formato `JWT`. Todas las rutas lo exigen salvo cuatro:
+`GET /api/health`, `POST /api/auth/login`, `POST /api/auth/refresh` y
+`POST /api/accounts/register`. El cliente generado a partir de
+`docs/api/openapi.json` ya lleva el esquema y adjunta el token en las rutas
+protegidas; una petición sin token, con un esquema distinto de Bearer o con un
+token vencido responde 401, y un rol sin permiso responde 403. Esas dos
+respuestas están declaradas en el contrato de cada ruta con sesión.
+
 ### Rotación del refresco
 
 `POST /api/auth/refresh` recibe el token de refresco y devuelve un par completo

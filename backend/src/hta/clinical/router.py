@@ -38,10 +38,21 @@ from fastapi import APIRouter, Depends, Query
 from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict
 
-from hta.auth.deps import CurrentUser, get_conn, require_role
+from hta.auth.deps import (
+    SESSION_RESPONSES,
+    CurrentUser,
+    get_conn,
+    require_role,
+)
 from hta.clinical import access, alerts, patients, readings, symptoms, validation
 
-router = APIRouter(prefix="/api", tags=["clinical"])
+# Todas las rutas de este enrutador exigen una sesión, así que el contrato
+# declara en cada una el 401 y el 403 que la compuerta puede producir.
+router = APIRouter(
+    prefix="/api",
+    tags=["clinical"],
+    responses=SESSION_RESPONSES,
+)
 
 # Roles que pueden consultar datos clínicos. El administrador queda fuera y
 # recibe el 403 de ``require_role`` antes de llegar al servicio.

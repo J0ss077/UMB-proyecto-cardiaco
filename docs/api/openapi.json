@@ -960,6 +960,14 @@
         "title": "WindowSummaryResponse",
         "type": "object"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "bearerFormat": "JWT",
+        "description": "Token de acceso JWT en el encabezado Authorization con el esquema Bearer.",
+        "scheme": "bearer",
+        "type": "http"
+      }
     }
   },
   "info": {
@@ -995,22 +1003,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -1024,6 +1016,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1035,6 +1033,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Accounts",
         "tags": [
           "accounts"
@@ -1097,27 +1100,17 @@
               "title": "User Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
           },
           "422": {
             "content": {
@@ -1130,6 +1123,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Deactivate",
         "tags": [
           "accounts"
@@ -1150,22 +1148,6 @@
               "title": "User Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -1182,6 +1164,12 @@
           "204": {
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1193,6 +1181,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Change Role",
         "tags": [
           "accounts"
@@ -1287,22 +1280,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -1316,6 +1293,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1327,6 +1310,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Alerts",
         "tags": [
           "clinical"
@@ -1347,22 +1335,6 @@
               "title": "Alert Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -1376,6 +1348,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1387,6 +1365,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Read Alert",
         "tags": [
           "clinical"
@@ -1407,22 +1390,6 @@
               "title": "Alert Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -1439,6 +1406,12 @@
           "204": {
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1450,6 +1423,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Acknowledge Alert",
         "tags": [
           "clinical"
@@ -1470,22 +1448,6 @@
               "title": "Alert Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -1502,6 +1464,12 @@
           "204": {
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1513,6 +1481,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Dismiss Alert",
         "tags": [
           "clinical"
@@ -1533,22 +1506,6 @@
               "title": "Alert Id",
               "type": "string"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "requestBody": {
@@ -1565,6 +1522,12 @@
           "204": {
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1576,6 +1539,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Validate Alert",
         "tags": [
           "clinical"
@@ -1715,22 +1683,6 @@
               "title": "Required Version",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -1744,6 +1696,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1755,6 +1713,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Read Status",
         "tags": [
           "consent"
@@ -1763,24 +1726,6 @@
       "post": {
         "description": "Registra una aceptación nueva del documento firmada por el paciente.",
         "operationId": "accept_api_consent_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1802,48 +1747,11 @@
             },
             "description": "Successful Response"
           },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Accept",
-        "tags": [
-          "consent"
-        ]
-      }
-    },
-    "/api/consent/revoke": {
-      "post": {
-        "description": "Revoca las aceptaciones vigentes del paciente y conserva el historial.",
-        "operationId": "revoke_api_consent_revoke_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
           },
           "422": {
             "content": {
@@ -1856,6 +1764,37 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Accept",
+        "tags": [
+          "consent"
+        ]
+      }
+    },
+    "/api/consent/revoke": {
+      "post": {
+        "description": "Revoca las aceptaciones vigentes del paciente y conserva el historial.",
+        "operationId": "revoke_api_consent_revoke_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Revoke",
         "tags": [
           "consent"
@@ -1980,22 +1919,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -2009,6 +1932,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2020,6 +1949,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Patients",
         "tags": [
           "clinical"
@@ -2104,22 +2038,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -2133,6 +2051,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2144,6 +2068,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Readings",
         "tags": [
           "clinical"
@@ -2152,24 +2081,6 @@
       "post": {
         "description": "Registra una lectura manual y, si viene, su síntoma en la misma operación.\n\nEl perfil se resuelve desde la cuenta autenticada; el servicio comprueba el\nconsentimiento antes de insertar. La marca normalizada se calcula también\naquí para devolverla en la respuesta: es la misma función pura que usa el\nservicio, que vuelve a comprobarla antes de insertar. El estado de\nvalidación de la respuesta sale del mismo validador que clasificó la fila.",
         "operationId": "create_reading_api_readings_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2191,6 +2102,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2202,6 +2119,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Reading",
         "tags": [
           "clinical"
@@ -2229,22 +2151,6 @@
               ],
               "title": "Patient Id"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -2258,6 +2164,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2269,6 +2181,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Home Window Summary",
         "tags": [
           "clinical"
@@ -2319,22 +2236,6 @@
               "title": "Offset",
               "type": "integer"
             }
-          },
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
           }
         ],
         "responses": {
@@ -2348,6 +2249,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2359,6 +2266,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Symptoms",
         "tags": [
           "clinical"
@@ -2367,24 +2279,6 @@
       "post": {
         "description": "Registra un síntoma suelto del paciente con consentimiento vigente.\n\nEs el alta que no viene acompañada de una lectura. El perfil se resuelve\ndesde la cuenta autenticada y el servicio comprueba el consentimiento,\ninserta el síntoma, audita el hecho y confirma antes de responder.",
         "operationId": "create_symptom_api_symptoms_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2406,6 +2300,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -2417,6 +2317,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Create Symptom",
         "tags": [
           "clinical"

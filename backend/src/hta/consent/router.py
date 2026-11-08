@@ -18,10 +18,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg import AsyncConnection
 from pydantic import BaseModel, ConfigDict
 
-from hta.auth.deps import FORBIDDEN, CurrentUser, get_conn, require_role
+from hta.auth.deps import (
+    FORBIDDEN,
+    SESSION_RESPONSES,
+    CurrentUser,
+    get_conn,
+    require_role,
+)
 from hta.consent import service
 
-router = APIRouter(prefix="/api/consent", tags=["consent"])
+# Las tres rutas exigen una sesión de paciente: el contrato declara el 401 y el
+# 403 que produce la compuerta en todas ellas.
+router = APIRouter(
+    prefix="/api/consent",
+    tags=["consent"],
+    responses=SESSION_RESPONSES,
+)
 
 
 class AcceptRequest(BaseModel):
