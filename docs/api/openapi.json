@@ -189,6 +189,105 @@
         "title": "PaginatedAccounts",
         "type": "object"
       },
+      "PaginatedPatients": {
+        "description": "Página del directorio y total de pacientes visibles para la cuenta.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PatientSummaryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PaginatedPatients",
+        "type": "object"
+      },
+      "PaginatedReadings": {
+        "description": "Página de lecturas y total de filas filtradas.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReadingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PaginatedReadings",
+        "type": "object"
+      },
+      "PaginatedSymptoms": {
+        "description": "Página de síntomas y total de filas del paciente.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SymptomResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PaginatedSymptoms",
+        "type": "object"
+      },
+      "PatientSummaryResponse": {
+        "description": "Paciente del directorio, con el identificador de su cuenta.",
+        "properties": {
+          "birth_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "full_name",
+          "birth_date"
+        ],
+        "title": "PatientSummaryResponse",
+        "type": "object"
+      },
       "ReadingRequest": {
         "additionalProperties": false,
         "description": "Datos de una lectura manual de presión arterial.\n\n``patient_id`` es opcional y, cuando llega, es el identificador de la cuenta\ndel paciente: solo se admite el propio. ``measured_at`` es opcional y sin\nella se registra el instante actual; con valor debe ser ISO 8601 con\ndesplazamiento horario y no puede estar en el futuro.",
@@ -255,7 +354,7 @@
         "type": "object"
       },
       "ReadingResponse": {
-        "description": "Lectura recién guardada, con el identificador de cuenta como paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil: es el único\nidentificador de paciente que el contrato publica. ``validation_status``\ninforma si la cifra es plausible sin que eso cambie el código de estado.",
+        "description": "Lectura guardada o listada, con el identificador de cuenta como paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil: es el único\nidentificador de paciente que el contrato publica. ``validation_status``\ninforma si la cifra es plausible sin que eso cambie el código de estado.",
         "properties": {
           "diastolic": {
             "title": "Diastolic",
@@ -418,6 +517,57 @@
         "title": "SymptomRequest",
         "type": "object"
       },
+      "SymptomResponse": {
+        "description": "Síntoma listado, con el identificador de cuenta como paciente.",
+        "properties": {
+          "free_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Text"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mood": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mood"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "title": "Recorded At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "free_text",
+          "mood",
+          "recorded_at"
+        ],
+        "title": "SymptomResponse",
+        "type": "object"
+      },
       "TokenPair": {
         "description": "Par de tokens de la sesión y el rol de la cuenta autenticada.\n\nEs el cuerpo de respuesta del inicio y de la rotación. ``refresh_token``\nsolo se entrega aquí: no se puede reconstruir a partir de su huella.",
         "properties": {
@@ -480,6 +630,66 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WindowSummaryResponse": {
+        "description": "Resumen de la ventana domiciliaria de siete días.\n\n``window_start`` y ``window_end`` permiten rotular la pantalla sin que el\ncliente reconstruya el intervalo. ``mean_systolic`` y ``mean_diastolic``\nviajan como números con un decimal y son ``null`` cuando el resumen no es\nsuficiente: un promedio de dos lecturas no se muestra.",
+        "properties": {
+          "days_with_readings": {
+            "title": "Days With Readings",
+            "type": "integer"
+          },
+          "mean_diastolic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Diastolic"
+          },
+          "mean_systolic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean Systolic"
+          },
+          "sufficient": {
+            "title": "Sufficient",
+            "type": "boolean"
+          },
+          "valid_count": {
+            "title": "Valid Count",
+            "type": "integer"
+          },
+          "window_end": {
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_start",
+          "window_end",
+          "sufficient",
+          "valid_count",
+          "days_with_readings",
+          "mean_systolic",
+          "mean_diastolic"
+        ],
+        "title": "WindowSummaryResponse",
         "type": "object"
       }
     }
@@ -1020,7 +1230,202 @@
         "summary": "Health"
       }
     },
+    "/api/patients": {
+      "get": {
+        "description": "Lista los pacientes que la cuenta puede ver, en una página.\n\nEl paciente se ve a sí mismo; el médico, los vinculados; el cuidador, los\nautorizados con alcance ``readings``. El administrador recibe 403. La\npágina se recorta en la base y ``total`` cuenta las filas visibles, no las\nde la página.",
+        "operationId": "list_patients_api_patients_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 0,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPatients"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Patients",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
     "/api/readings": {
+      "get": {
+        "description": "Lista las lecturas del paciente visible, de la más reciente a la más vieja.\n\nSin ``patient_id`` el paciente ve sus propias lecturas; el médico y el\ncuidador deben indicar uno y la resolución comprueba el vínculo. ``since``\ny ``until`` son opcionales, inclusivos y deben ser ISO 8601 con\ndesplazamiento horario. No se exige consentimiento: es la historia clínica.",
+        "operationId": "list_readings_api_readings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 0,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedReadings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Readings",
+        "tags": [
+          "clinical"
+        ]
+      },
       "post": {
         "description": "Registra una lectura manual y, si viene, su síntoma en la misma operación.\n\nEl perfil se resuelve desde la cuenta autenticada; el servicio comprueba el\nconsentimiento antes de insertar. La marca normalizada se calcula también\naquí para devolverla en la respuesta: es la misma función pura que usa el\nservicio, que vuelve a comprobarla antes de insertar. El estado de\nvalidación de la respuesta sale del mismo validador que clasificó la fila.",
         "operationId": "create_reading_api_readings_post",
@@ -1080,7 +1485,162 @@
         ]
       }
     },
+    "/api/readings/summary": {
+      "get": {
+        "description": "Resume la ventana domiciliaria de siete días del paciente visible.\n\nExige consentimiento informado vigente del paciente: el resumen es análisis\nde datos clínicos y sin la aceptación responde 403 con\n``No hay consentimiento informado vigente``. Descarta el primer día de la\nventana y solo es suficiente con ocho lecturas válidas en dos fechas.",
+        "operationId": "home_window_summary_api_readings_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WindowSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Home Window Summary",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
     "/api/symptoms": {
+      "get": {
+        "description": "Lista los síntomas del paciente visible, del más reciente al más viejo.\n\nSigue la misma resolución de alcance y la misma paginación que las\nlecturas: el paciente ve los propios y el médico o el cuidador autorizado\nlos del paciente que indican. No se exige consentimiento porque es historia\nclínica, no análisis.",
+        "operationId": "list_symptoms_api_symptoms_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "patient_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Patient Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 0,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSymptoms"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Symptoms",
+        "tags": [
+          "clinical"
+        ]
+      },
       "post": {
         "description": "Registra un síntoma suelto del paciente con consentimiento vigente.\n\nEs el alta que no viene acompañada de una lectura. El perfil se resuelve\ndesde la cuenta autenticada y el servicio comprueba el consentimiento,\ninserta el síntoma, audita el hecho y confirma antes de responder.",
         "operationId": "create_symptom_api_symptoms_post",

@@ -185,24 +185,26 @@ valor recibido. Este es un cuerpo real:
 
 Códigos que el cliente debe manejar:
 
-| Código | Cuándo                                                                                                                   | `detail`                                                                 |
-| ------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| 200    | Petición atendida                                                                                                        | No aplica                                                                |
-| 201    | Recurso creado                                                                                                           | No aplica                                                                |
-| 204    | Operación sin cuerpo de respuesta                                                                                        | No hay cuerpo                                                            |
-| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                   | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
-| 403    | Sesión válida con un rol que no permite la ruta, o cuenta sin perfil                                                     | `Permiso denegado`                                                       |
-| 403    | Escritura clínica sin consentimiento informado vigente                                                                   | `No hay consentimiento informado vigente`                                |
-| 404    | La cuenta indicada no existe                                                                                             | `La cuenta no existe`                                                    |
-| 409    | Correo ya registrado o desactivación de la propia cuenta                                                                 | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
-| 422    | Rol desconocido, cuerpo inválido, `limit` fuera de rango, fecha de medición futura o sin desplazamiento, o síntoma vacío | Un mensaje o una lista de errores de validación                          |
-| 500    | Error no previsto                                                                                                        | Forma no garantizada; no se muestra al usuario                           |
+| Código | Cuándo                                                                                                                                                      | `detail`                                                                 |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| 200    | Petición atendida                                                                                                                                           | No aplica                                                                |
+| 201    | Recurso creado                                                                                                                                              | No aplica                                                                |
+| 204    | Operación sin cuerpo de respuesta                                                                                                                           | No hay cuerpo                                                            |
+| 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                                                      | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
+| 403    | Sesión válida con un rol que no permite la ruta, cuenta sin perfil o paciente fuera del alcance de la cuenta                                                | `Permiso denegado`                                                       |
+| 403    | Escritura clínica o resumen de la ventana sin consentimiento informado vigente                                                                              | `No hay consentimiento informado vigente`                                |
+| 404    | La cuenta indicada no existe                                                                                                                                | `La cuenta no existe`                                                    |
+| 409    | Correo ya registrado o desactivación de la propia cuenta                                                                                                    | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
+| 422    | Rol desconocido, cuerpo inválido, `limit` fuera de rango, fecha de medición futura o sin desplazamiento, fecha de filtro sin desplazamiento o síntoma vacío | Un mensaje o una lista de errores de validación                          |
+| 500    | Error no previsto                                                                                                                                           | Forma no garantizada; no se muestra al usuario                           |
 
 Un 403 con `Permiso denegado` también aparece cuando la cuenta es de paciente
-pero no tiene perfil: esa inconsistencia no se anuncia con un código distinto.
-El otro 403 no es de permisos: las rutas clínicas de escritura responden
-`No hay consentimiento informado vigente` cuando el paciente no tiene una
-aceptación vigente. El cliente distingue los dos por `detail` y solo en el
+pero no tiene perfil, y cuando el paciente consultado no está en el alcance de
+la cuenta: la negativa es la misma que la de un paciente inexistente, a
+propósito, para que el cliente no pueda enumerar pacientes. El otro 403 no es
+de permisos: las rutas clínicas de escritura y el resumen de la ventana
+responden `No hay consentimiento informado vigente` cuando el paciente no tiene
+una aceptación vigente. El cliente distingue los dos por `detail` y solo en el
 segundo lleva al paciente a aceptar el consentimiento.
 
 ## Rutas
@@ -471,6 +473,226 @@ Respuesta 204, sin cuerpo.
 Después de revocar, la consulta vuelve a informar la versión pendiente de
 aceptación. Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la
 cuenta no tiene perfil.
+
+### Alcance de los datos clínicos
+
+Estas cuatro rutas son las que alimentan los tableros. La tabla dice qué
+devuelve cada cuenta:
+
+| Cuenta                          | `GET /api/patients`                        | `GET /api/readings` y `GET /api/symptoms`   | `GET /api/readings/summary`                                     |
+| ------------------------------- | ------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------- |
+| Paciente                        | Solo a sí mismo                            | Solo las propias                            | Solo la propia, con consentimiento vigente                      |
+| Médico                          | Solo los vinculados en `patient_physician` | Solo las del paciente indicado y vinculado  | Solo las del paciente indicado y vinculado, con consentimiento  |
+| Cuidador con alcance `readings` | Solo los autorizados                       | Solo las del paciente indicado y autorizado | Solo las del paciente indicado y autorizado, con consentimiento |
+| Cuidador con alcance `minimal`  | Lista vacía, `total` 0                     | 403 `Permiso denegado`                      | 403 `Permiso denegado`                                          |
+| Administrador                   | 403 `Permiso denegado`                     | 403 `Permiso denegado`                      | 403 `Permiso denegado`                                          |
+
+Un paciente fuera del alcance responde 403 con `Permiso denegado`, igual que un
+paciente inexistente: el cliente no puede distinguir los dos casos. El médico y
+el cuidador deben indicar `patient_id` en las tres rutas del paciente; sin él
+responden 403. El cuidador con alcance `minimal` no ve datos clínicos aunque el
+vínculo exista; solo el alcance `readings` lo autoriza.
+
+**La consulta de lecturas y de síntomas no exige consentimiento; el resumen de
+la ventana sí.** La historia clínica se consulta sin la compuerta. El resumen es
+análisis de datos clínicos y responde 403 con
+`No hay consentimiento informado vigente` si el paciente no tiene una aceptación
+vigente. El cliente no debe confundir ese 403 con una falta de permisos ni
+reintentar la petición: lleva al paciente a aceptar el consentimiento.
+
+### `GET /api/patients`
+
+Exige sesión con rol `patient`, `physician` o `caregiver`. Devuelve el
+directorio de pacientes que la cuenta puede ver, con la envoltura y la
+paginación de la sección de listados. El administrador recibe 403.
+
+Petición:
+
+```http
+GET /api/patients?limit=50&offset=0
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del médico de demostración:
+
+```json
+{
+    "items": [
+        {
+            "user_id": "31679784-1cd5-4b84-b7e5-af6ac0b303df",
+            "full_name": "Ana María Torres Gil",
+            "birth_date": "1955-01-30"
+        },
+        {
+            "user_id": "fbcd6674-42cc-4928-86e2-2be365309200",
+            "full_name": "Carlos Alberto Pérez Ruiz",
+            "birth_date": "1958-03-14"
+        },
+        {
+            "user_id": "058f72ca-eaed-4ab8-8303-8b08a9292f86",
+            "full_name": "Jorge Enrique Ramírez Salas",
+            "birth_date": "1970-11-05"
+        },
+        {
+            "user_id": "f19b4b99-a1bb-4a6c-9af3-d560f578181b",
+            "full_name": "María Fernanda López Díaz",
+            "birth_date": "1962-07-22"
+        }
+    ],
+    "total": 4
+}
+```
+
+`user_id` es el identificador de la cuenta del paciente, nunca el del perfil.
+`birth_date` puede ser `null` y el orden es por nombre. `total` cuenta todos los
+pacientes visibles, no los de la página.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si la cuenta no tiene perfil.
+
+### `GET /api/readings`
+
+Exige sesión con rol `patient`, `physician` o `caregiver`. Lista las lecturas
+del paciente de la más reciente a la más antigua, con la envoltura y la
+paginación. No exige consentimiento: es la historia clínica.
+
+Parámetros:
+
+- `patient_id` es opcional y es el identificador de la cuenta del paciente. El
+  paciente que lo omite ve sus propias lecturas; el médico y el cuidador deben
+  indicarlo y solo obtienen las del paciente que tienen en su alcance.
+- `since` y `until` son opcionales, inclusivos y deben ser ISO 8601 con
+  desplazamiento horario. Sin desplazamiento responden 422.
+- `limit` y `offset` son los de la paginación general.
+
+Petición:
+
+```http
+GET /api/readings?limit=2
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del paciente de demostración:
+
+```json
+{
+    "items": [
+        {
+            "id": "99b7fe5b-5c29-4c9e-8371-715aefd8f30a",
+            "patient_id": "fbcd6674-42cc-4928-86e2-2be365309200",
+            "systolic": 154,
+            "diastolic": 100,
+            "heart_rate": 83,
+            "source": "manual",
+            "measured_at": "2026-11-07T20:00:00Z",
+            "validation_status": "valid"
+        },
+        {
+            "id": "306b08d7-db97-46a7-84f9-b5d1a8cbd682",
+            "patient_id": "fbcd6674-42cc-4928-86e2-2be365309200",
+            "systolic": 146,
+            "diastolic": 94,
+            "heart_rate": 76,
+            "source": "device",
+            "measured_at": "2026-11-07T07:00:00Z",
+            "validation_status": "valid"
+        }
+    ],
+    "total": 20
+}
+```
+
+La página trae dos lecturas y `total` veinte: el cliente pide la siguiente con
+`offset`. `patient_id` es el de la cuenta, `source` vale `manual` o `device` y
+`validation_status` vale `valid`, `out_of_range` o `flagged`.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
+si el paciente no está en el alcance o si el médico o el cuidador omiten
+`patient_id`; 422 si `since` o `until` no traen desplazamiento horario.
+
+### `GET /api/readings/summary`
+
+Exige sesión con rol `patient`, `physician` o `caregiver` y consentimiento
+informado vigente del paciente. Resume la ventana domiciliaria de los últimos
+siete días. Acepta `patient_id` opcional con la misma regla que
+`GET /api/readings`; no se pagina.
+
+Petición:
+
+```http
+GET /api/readings/summary
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del paciente de demostración:
+
+```json
+{
+    "window_start": "2026-11-01T20:40:22.985177Z",
+    "window_end": "2026-11-08T20:40:22.985177Z",
+    "sufficient": true,
+    "valid_count": 9,
+    "days_with_readings": 5,
+    "mean_systolic": 134.4,
+    "mean_diastolic": 86.0
+}
+```
+
+Reglas del resumen:
+
+- La ventana va de `window_end` menos siete días hasta `window_end`, ambas
+  orillas incluidas, y las dos fechas se publican para rotular la pantalla.
+- Las lecturas se agrupan por fecha UTC. Si hay dos o más fechas distintas se
+  descarta completa la más antigua, porque el primer día suele estar incompleto.
+- Del resto solo cuentan las lecturas con `validation_status` en `valid`.
+- `sufficient` es `true` con al menos ocho lecturas válidas en al menos dos
+  fechas distintas después del descarte. `days_with_readings` cuenta esas fechas.
+- `mean_systolic` y `mean_diastolic` son números con un decimal y valen `null`
+  cuando el resumen no es suficiente: el cliente no debe mostrar un promedio de
+  dos lecturas.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
+si el paciente no está en el alcance o si falta `patient_id`; 403 con
+`No hay consentimiento informado vigente` si el paciente no tiene una aceptación
+vigente.
+
+### `GET /api/symptoms`
+
+Exige sesión con rol `patient`, `physician` o `caregiver`. Lista los síntomas
+del paciente del más reciente al más antiguo, con la misma resolución de alcance
+y la misma paginación que las lecturas. Acepta `patient_id` opcional con la
+misma regla y no exige consentimiento.
+
+Petición:
+
+```http
+GET /api/symptoms
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200 real de la sesión del paciente de demostración:
+
+```json
+{
+    "items": [
+        {
+            "id": "3aa34d4e-2d18-4620-abe0-6a528a781c2d",
+            "patient_id": "fbcd6674-42cc-4928-86e2-2be365309200",
+            "free_text": "mareo leve por la mañana",
+            "mood": "ansioso",
+            "recorded_at": "2026-11-08T20:40:23.020873Z"
+        }
+    ],
+    "total": 1
+}
+```
+
+`free_text` y `mood` pueden ser `null` por separado. `patient_id` es el de la
+cuenta del paciente.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
+si el paciente no está en el alcance o si el médico o el cuidador omiten
+`patient_id`.
 
 ### `POST /api/readings`
 

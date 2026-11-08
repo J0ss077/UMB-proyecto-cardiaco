@@ -1,17 +1,22 @@
 """@requirement RF-21
 
-Registro de síntomas y estado de ánimo del paciente.
+Registro y consulta de síntomas y estado de ánimo del paciente.
 
 Un síntoma es un texto, un estado de ánimo o ambos; un objeto vacío no se
 acepta. La fila cuelga del perfil y no de la lectura: ``symptoms_mood`` no
 declara llave foránea hacia ``readings`` y este módulo no inventa esa relación.
 La inserción y su auditoría viven en la transacción del llamador; el alta de
 lectura las confirma junto con la lectura, y el alta suelta confirma al final.
+
+La consulta devuelve la página de síntomas del perfil con el identificador de
+la cuenta y sin exigir consentimiento: es parte de la historia clínica que el
+médico debe poder leer.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -36,6 +41,17 @@ class SymptomInput:
 
     free_text: str | None = None
     mood: str | None = None
+
+
+@dataclass(frozen=True)
+class Symptom:
+    """Síntoma publicado en un listado, con el identificador de la cuenta."""
+
+    id: UUID
+    patient_id: UUID
+    free_text: str | None
+    mood: str | None
+    recorded_at: datetime
 
 
 def has_content(free_text: str | None, mood: str | None) -> bool:
@@ -105,3 +121,35 @@ async def register(
     symptom_id = await create(conn, profile_id, actor_id, free_text, mood)
     await conn.commit()
     return symptom_id
+
+
+async def list_for(
+    conn: AsyncConnection,
+    profile_id: UUID,
+    limit: int,
+    offset: int,
+) -> tuple[list[Symptom], int]:
+    """Devuelve una página de los síntomas del perfil y el total.
+
+    El total cuenta todas las filas del perfil antes de recortar la página. El
+    orden es por ``recorded_at`` descendente y, como desempate, por
+    identificador, para que dos páginas consecutivas sean estables.
+    """
+    total = await (
+        await conn.execute(
+            "select count(*) from symptoms_mood where patient_id = %s",
+            (profile_id,),
+        )
+    ).fetchone()
+    rows = await (
+        await conn.execute(
+            "select s.id, p.user_id, s.free_text, s.mood, s.recorded_at "
+            "from symptoms_mood s "
+            "join patient_profiles p on p.id = s.patient_id "
+            "where s.patient_id = %s "
+            "order by s.recorded_at desc, s.id desc limit %s offset %s",
+            (profile_id, limit, offset),
+        )
+    ).fetchall()
+    items = [Symptom(*row) for row in rows]
+    return items, total[0]
