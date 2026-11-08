@@ -76,7 +76,7 @@ Estas son las entradas que más probablemente rompan algo y que ninguna prueba e
 - Las fechas salen en ISO 8601 con desplazamiento, en UTC.
 - Los errores son `{"detail": "<mensaje en español>"}`.
 - La sesión es un token de portador de quince minutos y un refresco de siete días que rota en cada uso; el cliente reemplaza los dos en cada refresco.
-- Los identificadores son cadenas UUID; los campos JSON van en snake_case.
+- Los identificadores son cadenas UUID; los campos JSON van en snake_case. El identificador de paciente que viaja en la API es el del usuario; el de `patient_profiles` no sale del servidor.
 - CORS se habilita para `HTA_ALLOWED_ORIGINS`, por omisión `http://localhost:5173,http://localhost:3000`, con el encabezado `Authorization` permitido.
 
 ---
@@ -239,16 +239,20 @@ def test_future_measured_at_is_rejected(client, patient_headers):
 Run: `cd backend && .venv/bin/python -m pytest tests/integration/clinical/test_readings.py -v`
 Expected: FAIL, todas con 404.
 
-- [ ] **Step 3: Implementar la resolución de alcance, la plausibilidad y el alta**
+- [ ] **Step 3: Añadir la fixture de paciente con consentimiento**
+
+Las fixtures existentes no crean consentimiento, y la compuerta rechazaría al paciente de `patient_headers`. Añadir en `conftest.py` `consented_patient_id` y `consented_patient_headers`: crean un paciente con perfil, consentimiento vigente de la versión 1 y su sesión. Las pruebas de esta tarea, de la 3 y de la 4 usan esas fixtures; `patient_id` y `patient_headers` se quedan como están para no alterar las pruebas de consentimiento del incremento anterior, que cuentan filas.
+
+- [ ] **Step 4: Implementar la resolución de alcance, la plausibilidad y el alta**
 
 `access.patient_profile_id` devuelve el `patient_profiles.id` del paciente cuando la cuenta es ese paciente, y 403 en cualquier otro caso en esta tarea. `validation.plausibility` compara los dos rangos plausibles y la relación sistólica mayor que diastólica. `readings.create` inserta la lectura con `source='manual'`, el estado que devuelve el validador y `measured_at` en UTC, inserta los síntomas si vienen y registra `reading.created` con el id; la compuerta se consulta antes de insertar y responde 403 si el consentimiento de la versión vigente no está activo.
 
-- [ ] **Step 4: Ejecutar y ver que pasa**
+- [ ] **Step 5: Ejecutar y ver que pasa**
 
 Run: `cd backend && .venv/bin/python -m pytest tests/integration/clinical/test_readings.py -v`
 Expected: PASS, siete pruebas.
 
-- [ ] **Step 5: Confirmar**
+- [ ] **Step 6: Confirmar**
 
 ```bash
 git add backend/src/hta/clinical backend/src/hta/app.py backend/tests
@@ -268,7 +272,7 @@ git commit -m "feat(clinical): register readings with consent gate and physiolog
 **Interfaces:**
 
 - Consumes: `patient_profile_id` de la tarea 2.
-- Produces: `patients.visible(conn, user) -> list[PatientSummary]`; `readings.list_for(conn, profile_id, since, until, limit, offset) -> tuple[list[Reading], int]`; `readings.window_summary(conn, profile_id) -> WindowSummary` con `sufficient: bool`, `valid_count`, `days_with_readings`, `mean_systolic`, `mean_diastolic`; `symptoms.list_for(conn, profile_id, limit, offset) -> tuple[list[Symptom], int]`; endpoints `GET /api/patients`, `GET /api/readings`, `GET /api/readings/summary`, `GET /api/symptoms`.
+- Produces: `patients.visible(conn, user, limit, offset) -> tuple[list[PatientSummary], int]`; `readings.list_for(conn, profile_id, since, until, limit, offset) -> tuple[list[Reading], int]`; `readings.window_summary(conn, profile_id) -> WindowSummary` con `sufficient: bool`, `valid_count`, `days_with_readings`, `mean_systolic`, `mean_diastolic`; `symptoms.list_for(conn, profile_id, limit, offset) -> tuple[list[Symptom], int]`; endpoints `GET /api/patients`, `GET /api/readings`, `GET /api/readings/summary`, `GET /api/symptoms`.
 
 - [ ] **Step 1: Escribir las pruebas que fallan**
 
@@ -277,6 +281,14 @@ def test_physician_sees_only_linked_patients(client, physician_headers, patient_
     body = client.get("/api/patients", headers=physician_headers).json()
     assert body["total"] == 1
     assert body["items"][0]["user_id"] == str(patient_id)
+
+def test_patient_directory_is_paginated(client, physician_headers, patient_id):
+    first = client.get("/api/patients?limit=1&offset=0", headers=physician_headers).json()
+    beyond = client.get("/api/patients?limit=1&offset=50", headers=physician_headers).json()
+    assert first["total"] == 1
+    assert len(first["items"]) == 1
+    assert beyond["items"] == []
+    assert beyond["total"] == 1
 
 def test_physician_of_another_patient_gets_403(client, physician_headers, other_patient_id):
     response = client.get(f"/api/readings?patient_id={other_patient_id}", headers=physician_headers)
