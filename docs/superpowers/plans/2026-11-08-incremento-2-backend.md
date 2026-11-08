@@ -351,9 +351,8 @@ En `conftest.py`: `physician_id` y `physician_headers` crean un médico vinculad
 
 - [ ] **Step 4: Añadir las pruebas de la matriz de acceso**
 
-Una por fila, en `test_patients.py`: el paciente se ve a sí mismo en el directorio; el cuidador con alcance `readings` ve al paciente y con alcance `minimal` recibe una página vacía, no un 403; el administrador recibe 403 en el directorio y en las lecturas; un paciente no puede leer las lecturas de otro; el médico lee directorio, lecturas, resumen y síntomas de su paciente; el resumen sin consentimiento responde 403 para el médico vinculado también; y ninguna respuesta contiene un identificador de `patient_profiles`.
+Una por fila, repartidas entre `test_patients.py` (directorio) y `test_readings.py` (lecturas, resumen y síntomas): el paciente se ve a sí mismo en el directorio; el cuidador con alcance `readings` ve al paciente y con alcance `minimal` recibe una página vacía, no un 403; el administrador recibe 403 en el directorio y en las lecturas; un paciente no puede leer las lecturas de otro; el médico lee directorio, lecturas, resumen y síntomas de su paciente; el resumen sin consentimiento responde 403 para el médico vinculado también; y ninguna respuesta contiene un identificador de `patient_profiles`.
 
-- [ ] **Step 5: Implementar el directorio, la consulta y la ventana**
 
 En `conftest.py`: `physician_id` y `physician_headers` crean un médico vinculado al paciente de la fixture en `patient_physician`; `caregiver_headers` crea un cuidador con `authorized_scope='readings'` y `caregiver_minimal_headers` con `'minimal'`, ambos con su `caregiver_links` hacia `patient_id`. Todas dependen de `clean_db`.
 
