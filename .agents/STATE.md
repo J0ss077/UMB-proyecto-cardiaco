@@ -7,12 +7,12 @@ Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El coman
 ## Terminado
 
 - **Incremento 1 cerrado**: esquema clínico de dieciséis tablas y siete enumerados, pila de contenedores, sesión con rotación de refresco, cuentas y roles, consentimiento versionado, datos de demostración y trazabilidad generada. El paquete de esa revisión es `docs/manual/entrega-01.md`.
-- **Incremento 2 del backend cerrado**: el contrato HTTP está congelado y publicado en `docs/api/openapi.json`, con CORS para el origen de desarrollo del frontend y el documento `docs/api/api-para-el-frontend.md` escrito para quien lo consume.
+- **Incremento 2 del backend terminado**: el contrato HTTP está congelado y publicado en `docs/api/openapi.json` con su esquema de seguridad, CORS para el origen de desarrollo del frontend y el documento `docs/api/api-para-el-frontend.md` escrito para quien lo consume.
 - Rutas clínicas: alta de lectura con síntomas, compuerta de consentimiento y validación fisiológica; directorio de pacientes; consulta paginada de lecturas y síntomas con filtros de fecha; resumen de la ventana domiciliaria de siete días.
 - Alertas: bandeja con filtros, detalle con el motivo del descarte leído del rastro y las tres transiciones humanas, exclusivas del rol médico.
 - Ingesta de dispositivos: `POST /api/ingest/readings` con clave compartida, escritura en los dos almacenes, deduplicación por paciente, dispositivo e instante con cerrojo consultivo, y `iot/simulator.py`.
-- La suite completa corre contra el contenedor: 153 pruebas de integración, 56 unitarias y 30 de los scripts, sin violaciones de autoría ni de estilo. La base quedó sembrada con las siete cuentas, ochenta lecturas, la alerta abierta y el síntoma de demostración.
-- Sin cambios de esquema: ninguna migración nueva en todo el incremento.
+- La suite completa corre contra el contenedor: 156 pruebas de integración, 56 unitarias y 30 de los scripts, sin violaciones de autoría ni de estilo. La base quedó sembrada con las siete cuentas, ochenta lecturas, la alerta abierta y el síntoma de demostración.
+- Sin cambios de esquema: ninguna migración nueva en todo el incremento. La lectura del historial sin consentimiento vigente quedó registrada en `docs/adr/0003-lectura-del-historial-sin-consentimiento-vigente.md`.
 
 ## En curso
 
