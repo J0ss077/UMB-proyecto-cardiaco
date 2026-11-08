@@ -332,11 +332,15 @@ def device_headers() -> dict[str, str]:
 
     El dispositivo no inicia sesión: se autentica con ``X-Device-Key``. La
     clave se lee del entorno o de ``.env``, igual que la lee el backend, y si no
-    está configurada se usa la del comando de desarrollo documentado. Así una
-    pila levantada con otra clave se sigue probando definiendo ``HTA_DEVICE_KEY``
-    en el entorno, sin tocar las pruebas.
+    está configurada se usa la del comando de desarrollo documentado. Un valor
+    vacío cuenta como no configurado: ``.env.example`` puede traer la variable
+    presente pero sin valor, y enviar la cadena vacía solo produciría un 401
+    contra un servidor que sí tiene la clave de desarrollo. Así una pila
+    levantada con otra clave se sigue probando definiendo ``HTA_DEVICE_KEY`` en
+    el entorno, sin tocar las pruebas.
     """
-    return {"X-Device-Key": _setting("HTA_DEVICE_KEY", "clave-de-prueba")}
+    key = _setting("HTA_DEVICE_KEY", "").strip() or "clave-de-prueba"
+    return {"X-Device-Key": key}
 
 
 @pytest.fixture

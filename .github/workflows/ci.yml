@@ -43,6 +43,10 @@ jobs:
       HTA_MONGO_URL: mongodb://localhost:27017/hta
       HTA_JWT_SECRET: secreto-de-integracion-continua-para-las-pruebas
       HTA_ENVIRONMENT: ci
+      # Clave de desarrollo que comparten el servidor del job y la fixture
+      # device_headers. Sin ella la ruta de ingesta responde 503 y la suite de
+      # integración falla.
+      HTA_DEVICE_KEY: clave-de-prueba
 
     steps:
       - name: Clonar el repositorio

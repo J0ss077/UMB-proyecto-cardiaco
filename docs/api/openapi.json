@@ -1883,7 +1883,7 @@
     },
     "/api/ingest/readings": {
       "post": {
-        "description": "Guarda la lectura de un dispositivo en los dos almacenes.\n\nEl servicio resuelve al paciente, exige consentimiento vigente y escribe\nprimero el documento crudo y después la lectura con ``source='device'``. Si\nla pareja de deduplicación ya existía, el estado de la respuesta pasa a 200\ny el cuerpo es la lectura original: las dos respuestas son idénticas y el\ncliente puede reintentar sin miedo a duplicar una medición.",
+        "description": "Guarda la lectura de un dispositivo en los dos almacenes.\n\nEl servicio resuelve al paciente, exige consentimiento vigente y escribe\nprimero el documento crudo y después la lectura con ``source='device'``. Si\nla terna de deduplicación ya existía, el estado de la respuesta pasa a 200\ny el cuerpo es la lectura original: las dos respuestas son idénticas y el\ncliente puede reintentar sin miedo a duplicar una medición.",
         "operationId": "ingest_reading_api_ingest_readings_post",
         "parameters": [
           {
@@ -1927,6 +1927,12 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "description": "Clave de dispositivo inválida"
+          },
+          "403": {
+            "description": "La cuenta del paciente está desactivada, o No hay consentimiento informado vigente"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1936,6 +1942,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "La ingesta de dispositivos no está configurada"
           }
         },
         "summary": "Ingest Reading",

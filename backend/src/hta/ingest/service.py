@@ -9,13 +9,15 @@ La lectura se guarda primero en bruto en ``raw_readings`` y después en
 dispositivo envió aunque la escritura relacional falle, porque perder el mensaje
 original es peor que dejar un documento huérfano.
 
-La deduplicación usa la pareja ``device_id`` y ``measured_at``. El documento
-crudo se inserta con ``$setOnInsert``, de modo que un reintento no reescribe la
-primera recepción, y la lectura relacional solo se inserta si no existe ya una
-de dispositivo con esa pareja. La comprobación y el alta se serializan con un
-bloqueo de transacción sobre la pareja, porque la tabla no tiene una restricción
-única: dos reintentos simultáneos esperan su turno y el segundo encuentra la
-fila que dejó el primero.
+La deduplicación usa la terna ``patient_id``, ``device_id`` y ``measured_at``.
+El documento crudo se inserta con ``$setOnInsert``, de modo que un reintento no
+reescribe la primera recepción, y la lectura relacional solo se inserta si no
+existe ya una de dispositivo con esa terna. La comprobación y el alta se
+serializan con un bloqueo de transacción sobre la terna, porque la tabla no
+tiene una restricción única: dos reintentos simultáneos esperan su turno y el
+segundo encuentra la fila que dejó el primero. El paciente forma parte de la
+clave: el mismo dispositivo e instante para otro paciente es una lectura
+distinta y nunca devuelve el cuerpo del primero.
 """
 
 from __future__ import annotations
@@ -79,7 +81,7 @@ class IngestPayload(BaseModel):
 class IngestOutcome:
     """Lectura guardada y si esta petición la creó.
 
-    ``created`` es falso cuando la pareja de deduplicación ya existía: la ruta
+    ``created`` es falso cuando la terna de deduplicación ya existía: la ruta
     responde 200 y devuelve la lectura original, no la del reintento, para que
     las dos respuestas sean idénticas.
     """
@@ -129,56 +131,59 @@ async def _stored_reading(conn: AsyncConnection, reading_id: UUID) -> Reading:
 
 async def _existing_reading_id(
     conn: AsyncConnection,
+    profile_id: UUID,
     device_id: str,
     measured_at: datetime,
 ) -> UUID | None:
-    """Devuelve la lectura de dispositivo de esa pareja, si ya existe.
+    """Devuelve la lectura de dispositivo de esa terna, si ya existe.
 
-    La consulta no filtra por paciente: la pareja ``device_id`` y
-    ``measured_at`` es la clave de deduplicación del contrato. Se limita a una
-    fila porque una base anterior a esta regla podría tener más de una.
+    La consulta filtra por paciente además de por dispositivo e instante: la
+    misma pareja de dispositivo e instante para otro paciente es una lectura
+    distinta y no debe devolver el cuerpo del primero. Se limita a una fila
+    porque una base anterior a esta regla podría tener más de una.
     """
     row = await (
         await conn.execute(
             "select id from readings "
-            "where source = 'device' and device_id = %s and measured_at = %s "
-            "limit 1",
-            (device_id, measured_at),
+            "where source = 'device' and patient_id = %s "
+            "and device_id = %s and measured_at = %s limit 1",
+            (profile_id, device_id, measured_at),
         )
     ).fetchone()
     return None if row is None else row[0]
 
 
-def _lock_key(device_id: str, measured_at: datetime) -> str:
-    """Devuelve la cadena estable que identifica la pareja de deduplicación.
+def _lock_key(patient_id: UUID, device_id: str, measured_at: datetime) -> str:
+    """Devuelve la cadena estable que identifica la terna de deduplicación.
 
     La marca se normaliza a UTC para que dos desplazamientos horarios del mismo
     instante produzcan la misma clave. El bloqueo la convierte a un entero con
-    ``hashtextextended``: una colisión solo serializa dos parejas distintas de
+    ``hashtextextended``: una colisión solo serializa dos ternas distintas de
     más, nunca permite un duplicado.
     """
     return (
-        f"{device_id}{_LOCK_SEPARATOR}"
+        f"{patient_id}{_LOCK_SEPARATOR}{device_id}{_LOCK_SEPARATOR}"
         f"{measured_at.astimezone(timezone.utc).isoformat()}"
     )
 
 
 async def _lock_pair(
     conn: AsyncConnection,
+    patient_id: UUID,
     device_id: str,
     measured_at: datetime,
 ) -> None:
-    """Serializa las entregas concurrentes de la misma pareja.
+    """Serializa las entregas concurrentes de la misma terna.
 
     El bloqueo es de transacción: lo toma ``pg_advisory_xact_lock`` y PostgreSQL
     lo libera al confirmar o revertir, de modo que no hay un desbloqueo que
-    olvidar. La comprobación de la pareja y el ``insert`` quedan dentro de la
+    olvidar. La comprobación de la terna y el ``insert`` quedan dentro de la
     misma transacción, así que dos reintentos simultáneos no pueden ver los dos
     que la lectura no existe.
     """
     await conn.execute(
         "select pg_advisory_xact_lock(hashtextextended(%s, 0))",
-        (_lock_key(device_id, measured_at),),
+        (_lock_key(patient_id, device_id, measured_at),),
     )
 
 
@@ -187,12 +192,18 @@ def _store_raw(payload: IngestPayload, measured_at: datetime) -> None:
 
     La marca de recepción es del servidor y por eso no viene en el cuerpo. El
     ``$setOnInsert`` deja intacto el primer documento si el dispositivo
-    reintenta: el flujo crudo conserva lo que llegó la primera vez. La marca de
-    la medición se guarda normalizada a UTC porque es la que usa el índice
-    ``device_time`` y la pareja de deduplicación.
+    reintenta: el flujo crudo conserva lo que llegó la primera vez. La terna
+    ``patient_id``, ``device_id`` y ``measured_at`` identifica el mensaje: el
+    mismo dispositivo e instante para otro paciente es otro mensaje y no debe
+    pisar el primero. La marca de la medición se guarda normalizada a UTC porque
+    es la que usa el índice ``device_time``.
     """
     get_database()["raw_readings"].update_one(
-        {"device_id": payload.device_id, "measured_at": measured_at},
+        {
+            "patient_id": str(payload.patient_id),
+            "device_id": payload.device_id,
+            "measured_at": measured_at,
+        },
         {
             "$setOnInsert": {
                 "patient_id": str(payload.patient_id),
@@ -213,7 +224,7 @@ async def ingest(conn: AsyncConnection, payload: IngestPayload) -> IngestOutcome
 
     El orden es deliberado: se resuelve el paciente y se comprueba el
     consentimiento antes de escribir nada, después se toma el bloqueo de la
-    pareja, se guarda el documento crudo y solo entonces la lectura relacional.
+    terna, se guarda el documento crudo y solo entonces la lectura relacional.
     Una lectura fuera de rango no se descarta: se guarda con el estado que
     devuelve ``plausibility``. Si la escritura en PostgreSQL falla, el documento
     crudo permanece; la transacción se confirma una sola vez, cuando la lectura
@@ -223,11 +234,13 @@ async def ingest(conn: AsyncConnection, payload: IngestPayload) -> IngestOutcome
     await require_consent(conn, profile_id)
     measured_at = measured_at_utc(payload.measured_at)
     status = plausibility(payload.systolic, payload.diastolic)
-    await _lock_pair(conn, payload.device_id, measured_at)
+    await _lock_pair(conn, payload.patient_id, payload.device_id, measured_at)
 
     _store_raw(payload, measured_at)
 
-    existing = await _existing_reading_id(conn, payload.device_id, measured_at)
+    existing = await _existing_reading_id(
+        conn, profile_id, payload.device_id, measured_at
+    )
     if existing is not None:
         reading = await _stored_reading(conn, existing)
         # Cierra la transacción para liberar el bloqueo antes de responder. En

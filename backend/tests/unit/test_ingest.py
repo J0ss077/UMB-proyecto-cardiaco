@@ -139,18 +139,34 @@ def test_ingest_takes_the_pair_lock_before_the_dedup_check(monkeypatch):
     )
     assert lock_index < dedup_index < insert_index
     assert conn.statements[lock_index][1] == (
-        service._lock_key("sim-1", payload.measured_at),
+        service._lock_key(patient_id, "sim-1", payload.measured_at),
+    )
+    assert conn.statements[dedup_index][1] == (
+        conn.profile_id,
+        "sim-1",
+        payload.measured_at,
     )
     assert outcome.created is True
     assert outcome.reading.id == reading_id
 
 
 def test_lock_key_is_stable_across_time_zones():
-    """El mismo instante con otro desplazamiento produce la misma clave."""
+    """El mismo instante y paciente producen la misma clave."""
+    patient = uuid4()
+    other = uuid4()
     utc = datetime(2026, 11, 8, 15, 0, tzinfo=timezone.utc)
-    bogota = datetime(2026, 11, 8, 10, 0, tzinfo=timezone(timedelta(hours=-5)))
-    assert service._lock_key("sim-1", utc) == service._lock_key("sim-1", bogota)
-    assert service._lock_key("sim-1", utc) != service._lock_key("sim-2", utc)
-    assert service._lock_key("sim-1", utc) != service._lock_key(
-        "sim-1", utc + timedelta(seconds=1)
+    bogota = datetime(
+        2026, 11, 8, 10, 0, tzinfo=timezone(timedelta(hours=-5))
+    )
+    assert service._lock_key(patient, "sim-1", utc) == service._lock_key(
+        patient, "sim-1", bogota
+    )
+    assert service._lock_key(patient, "sim-1", utc) != service._lock_key(
+        patient, "sim-2", utc
+    )
+    assert service._lock_key(patient, "sim-1", utc) != service._lock_key(
+        other, "sim-1", utc
+    )
+    assert service._lock_key(patient, "sim-1", utc) != service._lock_key(
+        patient, "sim-1", utc + timedelta(seconds=1)
     )

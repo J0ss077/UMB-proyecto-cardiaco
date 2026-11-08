@@ -20,6 +20,8 @@ from uuid import uuid4
 
 import pytest
 
+from hta.consent.service import CURRENT_VERSION
+
 pytestmark = pytest.mark.integration
 
 # Identificador de dispositivo propio de esta suite. No se usa un valor de la
@@ -136,6 +138,40 @@ def test_repeated_ingest_does_not_duplicate(
     assert db.execute(
         "select count(*) from audit_logs where action = 'reading.ingested'"
     ).fetchone()[0] == 1
+
+
+def test_same_pair_for_another_patient_is_a_different_reading(
+    client, db, mongo_db, device_headers, consented_patient_id, other_patient_id
+):
+    """El mismo dispositivo e instante para otro paciente no devuelve el primero."""
+    db.execute(
+        "insert into consents (patient_id, version) "
+        "select id, %s from patient_profiles where user_id = %s",
+        (CURRENT_VERSION, other_patient_id),
+    )
+    first = client.post(
+        "/api/ingest/readings",
+        json=_payload(consented_patient_id),
+        headers=device_headers,
+    )
+    second = client.post(
+        "/api/ingest/readings",
+        json=_payload(other_patient_id),
+        headers=device_headers,
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert second.json()["id"] != first.json()["id"]
+    assert second.json()["patient_id"] == str(other_patient_id)
+    assert db.execute(
+        "select count(*) from readings where source = 'device'"
+    ).fetchone()[0] == 2
+    assert _raw_count(mongo_db) == 2
+    patients = {
+        document["patient_id"]
+        for document in mongo_db["raw_readings"].find({"device_id": DEVICE_ID})
+    }
+    assert patients == {str(consented_patient_id), str(other_patient_id)}
 
 
 def test_out_of_range_reading_is_preserved(

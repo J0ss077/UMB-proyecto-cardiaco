@@ -91,7 +91,15 @@ async def require_device_key(request: Request) -> None:
         200: {
             "model": ReadingResponse,
             "description": "Reintento de una lectura ya guardada",
-        }
+        },
+        401: {"description": "Clave de dispositivo inválida"},
+        403: {
+            "description": (
+                "La cuenta del paciente está desactivada, o "
+                "No hay consentimiento informado vigente"
+            )
+        },
+        503: {"description": "La ingesta de dispositivos no está configurada"},
     },
     openapi_extra={"parameters": [DEVICE_KEY_PARAMETER]},
 )
@@ -105,7 +113,7 @@ async def ingest_reading(
 
     El servicio resuelve al paciente, exige consentimiento vigente y escribe
     primero el documento crudo y después la lectura con ``source='device'``. Si
-    la pareja de deduplicación ya existía, el estado de la respuesta pasa a 200
+    la terna de deduplicación ya existía, el estado de la respuesta pasa a 200
     y el cuerpo es la lectura original: las dos respuestas son idénticas y el
     cliente puede reintentar sin miedo a duplicar una medición.
     """

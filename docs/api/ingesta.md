@@ -90,28 +90,32 @@ puede tratar 200 como éxito y dejar de reintentar.
 
 ## Deduplicación
 
-La clave de deduplicación es la pareja `device_id` y `measured_at`, con la marca
-ya normalizada a UTC. El servidor:
+La clave de deduplicación es la terna `patient_id`, `device_id` y `measured_at`,
+con la marca ya normalizada a UTC. El paciente forma parte de la clave: el mismo
+dispositivo e instante para otro paciente es una lectura distinta y nunca
+devuelve el cuerpo del primero. El servidor:
 
 1. Toma un bloqueo de transacción con `pg_advisory_xact_lock` sobre una clave
-   derivada de la pareja, antes de mirar si la lectura ya existe.
+   derivada de la terna, antes de mirar si la lectura ya existe.
 2. Inserta el documento crudo en `raw_readings` con `$setOnInsert`, de modo que
-   un reintento no reescribe la primera recepción.
-3. Busca una lectura con `source = 'device'` para esa pareja. Si existe,
+   un reintento no reescribe la primera recepción. La terna identifica también
+   el documento crudo, así que la lectura de otro paciente no pisa el mensaje
+   del primero.
+3. Busca una lectura con `source = 'device'` para esa terna. Si existe,
    responde 200 y no inserta.
 4. Si no existe, inserta la lectura con `source = 'device'`, audita
    `reading.ingested` y confirma la transacción.
 
-La tabla `readings` no tiene una restricción única sobre la pareja y este
+La tabla `readings` no tiene una restricción única sobre la terna y este
 incremento no puede añadir una migración, así que el bloqueo es lo que serializa
-las entregas concurrentes: un segundo reintento de la misma pareja espera a que
+las entregas concurrentes: un segundo reintento de la misma terna espera a que
 la primera transacción termine y encuentra la fila que esta dejó. El bloqueo es
 de transacción, no de sesión: PostgreSQL lo libera solo al confirmar o revertir.
 Otro escritor que no tome el bloqueo, por ejemplo un `insert` manual, no queda
 cubierto; la ruta de ingesta es el único camino que escribe lecturas de
 dispositivo.
 
-Un reintento con la misma pareja pero valores distintos devuelve la lectura
+Un reintento con la misma terna pero valores distintos devuelve la lectura
 original, no la nueva: el dispositivo no debe corregir una medición reenviándola
 con otra cifra.
 
@@ -119,7 +123,8 @@ con otra cifra.
 
 - `raw_readings` guarda el mensaje recibido con `patient_id`, `device_id`,
   `systolic`, `diastolic`, `heart_rate`, `measured_at` y `received_at`, la marca
-  de recepción del servidor. Es el registro de lo que el dispositivo envió.
+  de recepción del servidor. Es el registro de lo que el dispositivo envió y su
+  terna `patient_id`, `device_id` y `measured_at` lo identifica.
 - `readings` guarda la lectura validada con `source = 'device'`, `device_id`,
   la marca normalizada y el estado de plausibilidad. La lectura y su auditoría
   se confirman en un solo `commit`.
@@ -165,5 +170,5 @@ Los valores también se pueden dejar en el entorno: `HTA_API_BASE_URL` o
 `API_BASE_URL` para la URL base (por omisión `http://localhost:8000`),
 `HTA_DEVICE_KEY` para la clave y `HTA_PATIENT_ID` para el paciente.
 `--device-id` cambia el identificador del aparato simulado. El programa
-devuelve 0 si todas las lecturas fueron aceptadas y 1 ante un rechazo o un
-error de red.
+devuelve 0 si todas las lecturas fueron aceptadas, 1 ante un rechazo o un error
+de red y 2 si faltan la clave o el paciente.
