@@ -1,6 +1,13 @@
 {
   "components": {
     "schemas": {
+      "AcceptRequest": {
+        "additionalProperties": false,
+        "description": "Cuerpo vacío del alta de consentimiento.\n\nEl contrato anterior enviaba ``version`` y ``content_ref``; ahora los fija\nel servidor. El modelo no declara campos y cierra el paso a los\ndesconocidos, igual que el registro público, para que un cliente viejo\nreciba 422 en la primera llamada en lugar de un 201 que ignora su cuerpo.",
+        "properties": {},
+        "title": "AcceptRequest",
+        "type": "object"
+      },
       "AcceptedConsent": {
         "description": "Identificador de la aceptación recién registrada.",
         "properties": {
@@ -1717,8 +1724,25 @@
         ]
       },
       "post": {
-        "description": "Registra una aceptación nueva del documento firmada por el paciente.\n\nLa petición no lleva cuerpo: la versión y la referencia del documento las\nfija el servidor con la versión vigente y el contenido que la plataforma\npublica. Así el paciente no puede aceptar una versión o un documento que la\nplataforma nunca emitió.",
+        "description": "Registra una aceptación nueva del documento firmada por el paciente.\n\nLa petición no lleva cuerpo: la versión y la referencia del documento las\nfija el servidor con la versión vigente y el contenido que la plataforma\npublica. Así el paciente no puede aceptar una versión o un documento que la\nplataforma nunca emitió. Un cuerpo con los campos del contrato anterior se\nrechaza con 422 para que el cliente viejo no crea que eligió la versión.",
         "operationId": "accept_api_consent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AcceptRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "content": {
@@ -1735,6 +1759,16 @@
           },
           "403": {
             "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [

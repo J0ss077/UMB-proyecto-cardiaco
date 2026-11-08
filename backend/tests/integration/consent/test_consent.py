@@ -46,21 +46,27 @@ def test_patient_accepts_the_current_version_and_document(
     )
 
 
-def test_client_values_do_not_change_the_recorded_consent(
+def test_an_old_body_is_rejected_without_recording_anything(
     client, patient_headers, db
 ):
-    """Un cuerpo con una versión o una referencia inventadas no las registra."""
+    """Un cuerpo con los campos del contrato anterior responde 422.
+
+    El cliente viejo debe fallar en la primera llamada en lugar de recibir un
+    201 que ignora su cuerpo y creer que eligió la versión. La negativa nombra
+    los campos retirados y no deja aceptación ni auditoría.
+    """
     response = client.post(
         "/api/consent",
         json={"version": 99, "content_ref": "documento-inexistente.md"},
         headers=patient_headers,
     )
-    assert response.status_code == 201
-    version, content_ref = db.execute(
-        "select version, content_ref from consents"
-    ).fetchone()
-    assert version == CURRENT_VERSION
-    assert content_ref == CONSENT_CONTENT_REF
+    assert response.status_code == 422
+    assert "version" in response.text
+    assert "content_ref" in response.text
+    assert db.execute("select count(*) from consents").fetchone()[0] == 0
+    assert db.execute(
+        "select count(*) from audit_logs where action = 'consent.accepted'"
+    ).fetchone()[0] == 0
 
 
 def test_revocation_blocks_new_consent_but_keeps_history(client, patient_headers, patient_id, db):

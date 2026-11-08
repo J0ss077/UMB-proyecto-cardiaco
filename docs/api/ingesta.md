@@ -84,9 +84,9 @@ El cuerpo es el mismo que publica el alta manual, con `source` siempre
 `device`. `patient_id` es el de la cuenta de usuario. `validation_status` vale
 `valid` o `out_of_range`.
 
-Un reintento de la misma pareja `device_id` y `measured_at` responde 200 con el
-mismo cuerpo, incluido el mismo `id`, y no crea una lectura nueva. El adaptador
-puede tratar 200 como éxito y dejar de reintentar.
+Un reintento de la misma terna `patient_id`, `device_id` y `measured_at` responde
+200 con el mismo cuerpo, incluido el mismo `id`, y no crea una lectura nueva. El
+adaptador puede tratar 200 como éxito y dejar de reintentar.
 
 ## Deduplicación
 

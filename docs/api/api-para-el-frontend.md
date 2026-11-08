@@ -76,13 +76,18 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
 ```
 
 El contrato declara un único esquema de seguridad, `HTTPBearer`: tipo `http`,
-esquema `bearer` y formato `JWT`. Todas las rutas lo exigen salvo cuatro:
-`GET /api/health`, `POST /api/auth/login`, `POST /api/auth/refresh` y
-`POST /api/accounts/register`. El cliente generado a partir de
-`docs/api/openapi.json` ya lleva el esquema y adjunta el token en las rutas
-protegidas; una petición sin token, con un esquema distinto de Bearer o con un
-token vencido responde 401, y un rol sin permiso responde 403. Esas dos
-respuestas están declaradas en el contrato de cada ruta con sesión.
+esquema `bearer` y formato `JWT`. Seis rutas no lo exigen: `GET /api/health`,
+`POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/logout`,
+`POST /api/accounts/register` y `POST /api/ingest/readings`. No son omisiones:
+la salud, el inicio y la rotación son públicas por diseño; el registro público
+crea la cuenta antes de que exista una sesión; el cierre de sesión se autentica
+con el token de refresco que viaja en el cuerpo; y la ingesta usa la clave
+compartida `X-Device-Key`, que autentica al dispositivo y no a una persona. El
+cliente generado a partir de `docs/api/openapi.json` ya lleva el esquema y
+adjunta el token en las rutas protegidas; una petición sin token, con un
+esquema distinto de Bearer o con un token vencido responde 401, y un rol sin
+permiso responde 403. Esas dos respuestas están declaradas en el contrato de
+cada ruta con sesión.
 
 ### Rotación del refresco
 
@@ -448,7 +453,10 @@ lleva cuerpo: el servidor graba la versión vigente y la referencia del document
 que la plataforma publica. El cliente no elige ninguna de las dos, así que no
 puede registrar la aceptación de una versión o de un documento que la plataforma
 nunca emitió. El historial es de solo agregar: aceptar no reescribe aceptaciones
-anteriores.
+anteriores. Cualquier cuerpo con contenido, incluidos los campos `version` y
+`content_ref` del contrato anterior, responde 422 con un mensaje que explica que
+la versión y el documento los fija el servidor. El cliente viejo falla en la
+primera llamada en lugar de recibir un 201 que ignora su cuerpo.
 
 Petición:
 
@@ -465,8 +473,9 @@ Respuesta 201:
 }
 ```
 
-Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta de paciente no
-tiene perfil.
+Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta de
+paciente no tiene perfil; 422 si la petición trae los campos del contrato
+anterior.
 
 ### `POST /api/consent/revoke`
 

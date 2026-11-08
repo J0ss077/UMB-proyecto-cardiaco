@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import AsyncConnection
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from hta.auth.deps import (
     FORBIDDEN,
@@ -34,6 +34,35 @@ router = APIRouter(
     tags=["consent"],
     responses=SESSION_RESPONSES,
 )
+
+
+# Mensaje del rechazo de un cuerpo en el alta de consentimiento. Nombra el
+# cambio para que un cliente del contrato anterior sepa por qué su petición ya
+# no se acepta y no crea que eligió la versión.
+_BODY_NOT_ACCEPTED = (
+    "POST /api/consent ya no recibe version ni content_ref: "
+    "la versión vigente y el documento los fija el servidor"
+)
+
+
+class AcceptRequest(BaseModel):
+    """Cuerpo vacío del alta de consentimiento.
+
+    El contrato anterior enviaba ``version`` y ``content_ref``; ahora los fija
+    el servidor. El modelo no declara campos y cierra el paso a los
+    desconocidos, igual que el registro público, para que un cliente viejo
+    reciba 422 en la primera llamada en lugar de un 201 que ignora su cuerpo.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_a_body(cls, data: object) -> object:
+        """Rechaza cualquier cuerpo con contenido y deja pasar el objeto vacío."""
+        if data not in (None, {}):
+            raise ValueError(_BODY_NOT_ACCEPTED)
+        return data
 
 
 class AcceptedConsent(BaseModel):
@@ -96,13 +125,15 @@ async def read_status(
 async def accept(
     conn: Annotated[AsyncConnection, Depends(get_conn)],
     user: Annotated[CurrentUser, Depends(require_role("patient"))],
+    body: AcceptRequest | None = None,
 ) -> AcceptedConsent:
     """Registra una aceptación nueva del documento firmada por el paciente.
 
     La petición no lleva cuerpo: la versión y la referencia del documento las
     fija el servidor con la versión vigente y el contenido que la plataforma
     publica. Así el paciente no puede aceptar una versión o un documento que la
-    plataforma nunca emitió.
+    plataforma nunca emitió. Un cuerpo con los campos del contrato anterior se
+    rechaza con 422 para que el cliente viejo no crea que eligió la versión.
     """
     profile_id = await _profile_id(conn, user.user_id)
     consent_id = await service.accept(conn, profile_id)
