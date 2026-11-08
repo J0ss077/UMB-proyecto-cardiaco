@@ -411,6 +411,15 @@ def test_alert_cannot_be_validated_twice(client, physician_headers, validated_al
 def test_patient_cannot_validate_an_alert(client, patient_headers, open_alert_id):
     assert client.post(f"/api/alerts/{open_alert_id}/validate", json={}, headers=patient_headers).status_code == 403
 
+def test_caregiver_cannot_validate_an_alert(client, caregiver_headers, open_alert_id, consented_patient_id):
+    response = client.post(
+        f"/api/alerts/{open_alert_id}/validate",
+        json={},
+        headers=caregiver_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+
 def test_dismissal_requires_a_note(client, physician_headers, open_alert_id):
     assert client.post(f"/api/alerts/{open_alert_id}/dismiss", json={}, headers=physician_headers).status_code == 422
 
@@ -430,6 +439,8 @@ Expected: FAIL, 404.
 En `conftest.py`: `open_alert_id` inserta una alerta `critical` en estado `open` para el paciente con consentimiento y devuelve su id; `validated_alert_id` inserta una ya `validated`. Ambas dependen de `clean_db` y de `consented_patient_id`, porque `physician_headers` está vinculado a ese paciente y no al de `patient_headers`.
 
 - [ ] **Step 4: Implementar la consulta y las transiciones**
+
+El listado y el detalle usan la matriz de acceso de las lecturas. **Las tres transiciones exigen además el rol `physician`**: un paciente o un cuidador con acceso al paciente que intenta mover una alerta recibe 403 `Permiso denegado`, porque la invariante del proyecto es que una alerta la cierra un clínico y un paciente validando su propia alerta la rompería.
 
 `transition` lee la alerta con `for update`, comprueba que el actor tenga acceso al paciente, valida la transición permitida (`open` a `acknowledged`, `validated` o `dismissed`; `acknowledged` a `validated` o `dismissed`) y responde 409 en cualquier otra; `validate` escribe `validated_by` y `validated_at`; `dismiss` exige `note` no vacía y la guarda. Cada transición registra su acción en la auditoría con el id de la alerta y confirma antes de responder.
 
