@@ -1081,6 +1081,14 @@ Después de aceptar el consentimiento (ver `POST /api/consent`), las dos rutas d
 escritura clínica quedan habilitadas. Si el paciente lo revoca, vuelven a
 responder 403 con `No hay consentimiento informado vigente`.
 
+## Ingesta desde dispositivos
+
+Existe una ruta de escritura que no usa la sesión: `POST /api/ingest/readings`
+recibe lecturas de un dispositivo autenticado con la clave compartida
+`X-Device-Key`. La interfaz web no la llama: el navegador no tiene la clave y no
+debe tenerla. El contrato completo, con los campos, la deduplicación por
+`device_id` y `measured_at` y los dos almacenes, está en `docs/api/ingesta.md`.
+
 ## Regenerar el contrato
 
 Después de un cambio de rutas o de modelos, el backend regenera el archivo y lo

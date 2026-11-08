@@ -60,6 +60,9 @@ services:
       HTA_REFRESH_TTL_SECONDS: ${HTA_REFRESH_TTL_SECONDS:-604800}
       HTA_ENVIRONMENT: ${HTA_ENVIRONMENT:-local}
       HTA_ALLOWED_ORIGINS: ${HTA_ALLOWED_ORIGINS:-}
+      # Clave compartida de los dispositivos. Vacía deja la ingesta cerrada con
+      # 503; se configura en .env y nunca se publica en el navegador.
+      HTA_DEVICE_KEY: ${HTA_DEVICE_KEY:-}
       # El montaje de ./backend/src solo se usa si el paquete se busca primero
       # en el árbol montado; la imagen ya trae una copia instalada.
       PYTHONPATH: /app/src

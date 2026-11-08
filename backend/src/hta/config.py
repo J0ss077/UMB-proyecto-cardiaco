@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     database_url: str
     mongo_url: str
     jwt_secret: str
+    # Clave compartida que presentan los dispositivos en ``X-Device-Key``.
+    # Vacía deja la ingesta cerrada con 503: una instalación sin clave no debe
+    # aceptar escrituras anónimas.
+    device_key: str = ""
     access_ttl_seconds: int = 900
     # 604800 segundos son siete días: la vida del token de refresco.
     refresh_ttl_seconds: int = 604800

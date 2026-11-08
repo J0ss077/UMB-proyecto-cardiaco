@@ -19,6 +19,7 @@ from hta.config import Settings
 from hta.consent.router import router as consent_router
 from hta.db.mongo import ensure_collections, get_database
 from hta.db.pool import close_pool, get_pool
+from hta.ingest.router import router as ingest_router
 
 logger = logging.getLogger(__name__)
 
@@ -88,4 +89,5 @@ def create_app() -> FastAPI:
     app.include_router(accounts_router)
     app.include_router(consent_router)
     app.include_router(clinical_router)
+    app.include_router(ingest_router)
     return app

@@ -327,6 +327,19 @@ def consented_patient_headers(
 
 
 @pytest.fixture
+def device_headers() -> dict[str, str]:
+    """Encabezado con la clave compartida que espera el servidor.
+
+    El dispositivo no inicia sesión: se autentica con ``X-Device-Key``. La
+    clave se lee del entorno o de ``.env``, igual que la lee el backend, y si no
+    está configurada se usa la del comando de desarrollo documentado. Así una
+    pila levantada con otra clave se sigue probando definiendo ``HTA_DEVICE_KEY``
+    en el entorno, sin tocar las pruebas.
+    """
+    return {"X-Device-Key": _setting("HTA_DEVICE_KEY", "clave-de-prueba")}
+
+
+@pytest.fixture
 def patient_login(client: httpx.Client, patient_id: UUID) -> dict[str, str]:
     """Encabezado de la sesión del paciente, para la prueba de desactivación."""
     return _login_headers(client, PATIENT_EMAIL)

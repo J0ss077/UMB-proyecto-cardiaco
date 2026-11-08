@@ -339,6 +339,61 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "IngestPayload": {
+        "additionalProperties": false,
+        "description": "Cuerpo que envía un dispositivo de presión arterial.\n\n``patient_id`` es el identificador de la cuenta del paciente, el mismo que\npublica el resto de la API; el de ``patient_profiles`` no sale del\nservidor. ``measured_at`` es opcional, pero sin él cada reintento recibe\nuna marca distinta y no se puede reconocer como repetido. Un campo que el\ncontrato no define responde 422: el cuerpo se conserva tal cual, sin\nadivinar extensiones.",
+        "properties": {
+          "device_id": {
+            "minLength": 1,
+            "title": "Device Id",
+            "type": "string"
+          },
+          "diastolic": {
+            "title": "Diastolic",
+            "type": "integer"
+          },
+          "heart_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate"
+          },
+          "measured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured At"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "systolic": {
+            "title": "Systolic",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "device_id",
+          "patient_id",
+          "systolic",
+          "diastolic"
+        ],
+        "title": "IngestPayload",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "Credenciales que envía el cliente al iniciar sesión.",
         "properties": {
@@ -1824,6 +1879,69 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/api/ingest/readings": {
+      "post": {
+        "description": "Guarda la lectura de un dispositivo en los dos almacenes.\n\nEl servicio resuelve al paciente, exige consentimiento vigente y escribe\nprimero el documento crudo y después la lectura con ``source='device'``. Si\nla pareja de deduplicación ya existía, el estado de la respuesta pasa a 200\ny el cuerpo es la lectura original: las dos respuestas son idénticas y el\ncliente puede reintentar sin miedo a duplicar una medición.",
+        "operationId": "ingest_reading_api_ingest_readings_post",
+        "parameters": [
+          {
+            "description": "Clave compartida configurada en HTA_DEVICE_KEY.",
+            "in": "header",
+            "name": "X-Device-Key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingResponse"
+                }
+              }
+            },
+            "description": "Reintento de una lectura ya guardada"
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingest Reading",
+        "tags": [
+          "ingest"
+        ]
       }
     },
     "/api/patients": {
