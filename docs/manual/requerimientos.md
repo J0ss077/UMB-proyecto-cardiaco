@@ -6,7 +6,7 @@ de cada uno y el enunciado que le corresponde. El estado se escribe una sola vez
 matriz de `docs/estado-requerimientos.md` se genera a partir de este archivo y de las
 anotaciones del código, y no se edita a mano.
 
-Estado vigente a 19 de octubre de 2026, al cierre del incremento 1.
+Estado vigente a 8 de noviembre de 2026, al cierre del incremento 2.
 
 ### Cómo se lee el estado
 
@@ -42,17 +42,17 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-04 Captura automática desde tensiómetros
 
-**Estado:** Declarado
+**Estado:** Parcial
 
 **Texto:** Capturar de forma automática la presión arterial (sistólica y diastólica) y la frecuencia cardiaca desde tensiómetros conectados mediante Bluetooth Low Energy.
 
+**Motivo:** La ruta `POST /api/ingest/readings` recibe lecturas de un dispositivo autenticado con clave compartida, las deduplica por paciente, dispositivo e instante y las guarda con `source = 'device'`; `iot/simulator.py` ejercita esa ruta. No existe la captura Bluetooth Low Energy ni un adaptador para un tensiómetro real.
+
 ## RF-05 Registro manual de lecturas
 
-**Estado:** Declarado
+**Estado:** Implementado
 
 **Texto:** Permitir el registro manual de presión arterial, frecuencia cardiaca y otros datos cuando no haya dispositivo conectado o en modo sin conexión.
-
-**Motivo:** La tabla `readings` y el valor `manual` de `reading_source` existen, pero no hay vía de registro manual ni comportamiento sin conexión; los dos están declarados pendientes para esta ventana.
 
 ## RF-06 Datos de wearables
 
@@ -68,7 +68,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-08 Validación de rangos fisiológicos
 
-**Estado:** Declarado
+**Estado:** Implementado
 
 **Texto:** Validar que las lecturas estén dentro de rangos fisiológicos plausibles (sistólica 80–200 mmHg y diastólica 40–130 mmHg) y marcar valores atípicos.
 
@@ -116,7 +116,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-16 Historial de alertas
 
-**Estado:** Declarado
+**Estado:** Implementado
 
 **Texto:** Registrar el historial de alertas generadas y su estado de gestión.
 
@@ -134,9 +134,11 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-19 Visualización de datos y tendencias
 
-**Estado:** Pendiente
+**Estado:** Parcial
 
 **Texto:** Permitir la visualización de los datos clínicos y sus tendencias en la interfaz web.
+
+**Motivo:** La API publica el directorio de pacientes, el listado de lecturas, el resumen de la ventana domiciliaria y las alertas, y la ingesta guarda lecturas de dispositivo; la interfaz web sigue siendo una página en construcción, así que no hay gráficas ni pantalla de tendencias.
 
 ## RF-20 Chat con el modelo de IA
 
@@ -146,7 +148,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-21 Síntomas y estado de ánimo
 
-**Estado:** Declarado
+**Estado:** Implementado
 
 **Texto:** Permitir el registro de síntomas y estado de ánimo por parte del paciente.
 
@@ -186,7 +188,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 **Texto:** Registrar logs de acceso, de inferencias del modelo y de eventos críticos, con trazabilidad completa para auditoría.
 
-**Motivo:** Se auditan el inicio de sesión, el cierre de sesión, la rotación del token, el consentimiento y la desactivación de cuentas; las inferencias del modelo y los accesos de lectura a datos clínicos no se registran.
+**Motivo:** Se auditan el inicio y el cierre de sesión, la rotación del token, el registro y la desactivación de cuentas, el consentimiento, el alta de lecturas y síntomas, la ingesta de dispositivo y las transiciones de alerta; los accesos de lectura a datos clínicos y las inferencias del modelo no se registran.
 
 ## RNF-01 Latencia de la alerta
 
@@ -258,11 +260,11 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RNF-11 Apoyo a la decisión con supervisión humana
 
-**Estado:** Declarado
+**Estado:** Parcial
 
 **Texto:** Operar exclusivamente como apoyo a la decisión médica, sin autonomía clínica y con supervisión humana.
 
-**Motivo:** El esquema ya tiene la estructura de la supervisión humana: `alerts.validated_by` registra quién valida, `alerts.validated_at` cuándo y el valor `validated` de `alert_status` cierra el ciclo; el flujo de alertas que la usaría todavía no existe.
+**Motivo:** Las tres transiciones de una alerta exigen el rol `physician`, escriben quién la validó y cuándo, quedan en la auditoría y ninguna ruta crea o cierra una alerta de forma autónoma. Falta la inferencia del modelo de apoyo a la decisión que esa supervisión debe acompañar: el modelo no existe todavía.
 
 ## RNF-12 Protocolos de interoperabilidad
 

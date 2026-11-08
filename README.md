@@ -5,23 +5,24 @@ seguimiento domiciliario de pacientes con hipertensión arterial. El alcance pre
 el registro de lecturas y síntomas, el consentimiento informado, las alertas con validación
 médica y un modelo de IA de apoyo a la decisión; no diagnostica ni trata.
 
-**Estado del incremento 1.** Hoy existen la pila de contenedores, el esquema clínico
-completo, la sesión, las cuentas y roles, el consentimiento, los datos de demostración y la
-matriz de requerimientos. La interfaz web es una página en construcción; las lecturas, las
-alertas y el modelo llegan en los incrementos siguientes. El paquete de la revisión está en
-[`docs/manual/entrega-01.md`](docs/manual/entrega-01.md).
+**Estado del incremento 2.** La API cubre la sesión, las cuentas y los roles, el consentimiento,
+las lecturas y los síntomas, el resumen de la ventana domiciliaria, las alertas con
+validación médica y la ingesta desde dispositivos. La interfaz web sigue siendo una página
+en construcción; las pantallas llegan con el incremento que las construya. El paquete del
+incremento 1 está en [`docs/manual/entrega-01.md`](docs/manual/entrega-01.md).
 
 ## Cómo se organiza el repositorio
 
-| Ruta       | Contenido                                                                  |
-| ---------- | -------------------------------------------------------------------------- |
-| `backend/` | API y lógica: salud, sesión, cuentas, roles y consentimiento               |
-| `web/`     | Esqueleto de la interfaz; las primeras pantallas llegan en el incremento 2 |
-| `db/`      | Migraciones del registro clínico y colecciones del flujo crudo             |
-| `scripts/` | Generadores de la trazabilidad y verificadores de autoría y estilo         |
-| `docs/`    | Manual, ADRs, estado de los requerimientos e investigaciones               |
+| Ruta       | Contenido                                                                        |
+| ---------- | -------------------------------------------------------------------------------- |
+| `backend/` | API y lógica: sesión, cuentas, consentimiento, datos clínicos, alertas e ingesta |
+| `web/`     | Esqueleto de la interfaz; las pantallas llegan con el incremento del frontend    |
+| `db/`      | Migraciones del registro clínico y colecciones del flujo crudo                   |
+| `iot/`     | Contrato de ingesta y simulador de dispositivo                                   |
+| `scripts/` | Generadores de la trazabilidad y verificadores de autoría y estilo               |
+| `docs/`    | Manual, ADRs, contrato de la API, estado de los requerimientos e investigaciones |
 
-Las carpetas `ml/` e `iot/` aparecen con los incrementos que las construyen.
+La carpeta `ml/` aparece con el incremento que la construye.
 
 ## Requisitos previos
 
@@ -85,6 +86,8 @@ autoría y estilo a las pruebas, es:
 make check
 ```
 
+El contrato HTTP se versiona en `docs/api/openapi.json` y se regenera con `make contract`.
+
 ## Cuentas de demostración
 
 La tabla autoritativa de las siete cuentas, su contraseña común y lo que se puede comprobar
@@ -93,6 +96,9 @@ hoy con cada una está en [`docs/manual/cuentas-demo.md`](docs/manual/cuentas-de
 
 ## Dónde seguir leyendo
 
+- [`docs/api/api-para-el-frontend.md`](docs/api/api-para-el-frontend.md): contrato de la API
+  para quien construye la interfaz web.
+- [`docs/api/ingesta.md`](docs/api/ingesta.md): contrato de la ingesta desde dispositivos.
 - [`docs/manual/entrega-01.md`](docs/manual/entrega-01.md): qué entregó el incremento 1 y
   qué se puede demostrar hoy.
 - [`docs/estado-requerimientos.md`](docs/estado-requerimientos.md): estado de los 47

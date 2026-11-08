@@ -119,8 +119,26 @@ curl -s http://localhost:8000/api/accounts \
   -H "Authorization: Bearer $ADMIN"
 ```
 
-Devuelve las cuentas ordenadas por correo, cada una con `id`, `email`, `full_name`, `role` y
-`active`. Con el token de un paciente la misma ruta responde 403, y sin token responde 401.
+Respuesta 200:
+
+```json
+{
+    "items": [
+        {
+            "id": "440ba1c5-6748-44ea-b903-ccd520cd7625",
+            "email": "admin@hta.demo",
+            "full_name": "Sandra Milena Rojas Cárdenas",
+            "role": "admin",
+            "active": true
+        }
+    ],
+    "total": 7
+}
+```
+
+Devuelve las cuentas ordenadas por correo dentro de la envoltura `items` y `total`, cada una
+con `id`, `email`, `full_name`, `role` y `active`; acepta `limit` y `offset`. Con el token de
+un paciente la misma ruta responde 403, y sin token responde 401.
 
 ### Estado del consentimiento
 
@@ -368,3 +386,14 @@ chocar con la pila de trabajo (`BACKEND_PORT=8011`, `WEB_PORT=3011`, `POSTGRES_P
 Después de esa comprobación el clon se eliminó y la pila de trabajo se volvió a sembrar. Lo
 que no se ha ejecutado nunca es la integración continua: el flujo está escrito y corre
 autoría, estilo y las dos suites, pero no se ha visto correr en un servidor todavía.
+
+## 7. Lo que agregó el incremento 2
+
+El incremento 2, cerrado el 8 de noviembre de 2026, no cambió el esquema. Sumó a la API el
+directorio de pacientes, el registro y la consulta de lecturas y síntomas, el resumen de la
+ventana domiciliaria de siete días, las alertas con historial y transiciones que solo un
+médico puede firmar, y la ingesta desde dispositivos con deduplicación y simulador. Los
+datos de demostración incluyen ahora un síntoma del escenario crítico. El contrato para
+quien construye la interfaz web, con cada ruta, sus permisos y cuerpos reales, está en
+[`docs/api/api-para-el-frontend.md`](../api/api-para-el-frontend.md); la ingesta tiene el
+suyo en [`docs/api/ingesta.md`](../api/ingesta.md).

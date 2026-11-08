@@ -682,18 +682,18 @@ GET /api/symptoms
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
 ```
 
-Respuesta 200 real de una sesión de paciente después de registrar un síntoma
-con `POST /api/symptoms`:
+Respuesta 200 real de la sesión del paciente del escenario de la alerta abierta
+sobre una base recién sembrada:
 
 ```json
 {
     "items": [
         {
             "id": "3aa34d4e-2d18-4620-abe0-6a528a781c2d",
-            "patient_id": "fbcd6674-42cc-4928-86e2-2be365309200",
-            "free_text": "mareo leve por la mañana",
+            "patient_id": "7d39cdbb-9e5d-406b-a762-bcd5369d8834",
+            "free_text": "mareo y dolor de cabeza desde la tarde",
             "mood": "ansioso",
-            "recorded_at": "2026-11-08T20:40:23.020873Z"
+            "recorded_at": "2026-11-07T21:30:00Z"
         }
     ],
     "total": 1
@@ -703,15 +703,10 @@ con `POST /api/symptoms`:
 `free_text` y `mood` pueden ser `null` por separado. `patient_id` es el de la
 cuenta del paciente.
 
-La siembra de demostración no crea síntomas, así que una base recién sembrada
-devuelve una página vacía en esta ruta hasta que el paciente registre alguno:
-
-```json
-{
-    "items": [],
-    "total": 0
-}
-```
+La siembra de demostración deja ese síntoma, con texto y hora fijos respecto
+del día de la siembra, y no lo duplica al volver a ejecutarse. Los demás
+pacientes empiezan sin síntomas: su página es `{"items": [], "total": 0}`
+hasta que registren alguno.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
 si el paciente no está en el alcance o si el médico o el cuidador omiten

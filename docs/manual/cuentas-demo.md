@@ -2,36 +2,42 @@
 
 ## Qué entrega este incremento
 
-La interfaz web es todavía un esqueleto en construcción. Lo que existe hoy son la salud
-(`/api/health`, la ruta que se puede llamar antes de tener cualquier sesión y sin cuerpo), los
-endpoints de autenticación (`/api/auth/login`, `/api/auth/refresh` y `/api/auth/logout`), de
-cuentas y roles (`/api/accounts` y el registro público `/api/accounts/register`), de
-consentimiento (`/api/consent`) y los datos que siembra `make seed`. Los endpoints de
-autenticación y el registro público son las otras rutas que no exigen sesión. Las pantallas
-de lecturas, alertas, umbrales, auditoría y telemonitoreo llegan con los incrementos que las
-construyan; la tabla dice qué se puede comprobar hoy y qué queda pendiente. El token de
-acceso se obtiene con `POST /api/auth/login`; el registro de pacientes en
-`POST /api/accounts/register` es público, mientras que listar cuentas, cambiar un rol y
-desactivar una cuenta exigen rol de administración; las rutas de consentimiento exigen rol de
-paciente.
+La interfaz web es todavía un esqueleto en construcción. La API ya cubre la salud, la
+autenticación, las cuentas y los roles, el consentimiento, el directorio de pacientes, el
+registro y la consulta de lecturas y síntomas, el resumen de la ventana domiciliaria, las
+alertas con validación médica y la ingesta desde dispositivos. El contrato completo para
+quien construye el cliente está en
+[`docs/api/api-para-el-frontend.md`](../api/api-para-el-frontend.md); la ingesta tiene el
+suyo en [`docs/api/ingesta.md`](../api/ingesta.md). Las pantallas llegan con el incremento
+que las construya; la tabla dice qué se puede comprobar hoy con cada cuenta y qué queda
+pendiente.
+
+El token de acceso se obtiene con `POST /api/auth/login` y el registro público de pacientes
+es `POST /api/accounts/register`. Listar cuentas, cambiar un rol y desactivar una cuenta
+exigen rol de administración; las rutas de consentimiento y las dos escrituras clínicas
+exigen rol de paciente; el directorio y las lecturas, síntomas y alertas de un paciente
+exigen que la cuenta sea la del propio paciente o que el médico o el cuidador lo tengan en
+su alcance. Las transiciones de una alerta exigen rol de médico. La ingesta
+(`POST /api/ingest/readings`) no usa sesión: se autentica con la clave de dispositivo y se
+documenta aparte.
 
 Todas las cuentas usan la contraseña `Demo2026!`. Los datos son de demostración: no
 corresponden a personas reales ni a mediciones tomadas en un domicilio, y no sustituyen una
 historia clínica.
 
-| Correo               | Rol            | Contraseña  | Qué se puede comprobar hoy                                                                                                                                                                                                                                              |
-| -------------------- | -------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `admin@hta.demo`     | Administración | `Demo2026!` | Rol de administración. `GET /api/accounts` lista las siete cuentas; la auditoría se escribe al iniciar sesión, y las pantallas de umbrales y auditoría llegan con el incremento que las construya.                                                                      |
-| `medico@hta.demo`    | Médico         | `Demo2026!` | Rol de médico. Inicia sesión y obtiene un token con rol `physician`; los cuatro pacientes y sus lecturas están sembrados y vinculados, pero la pantalla que los muestra llega después.                                                                                  |
-| `cuidador@hta.demo`  | Cuidador       | `Demo2026!` | Rol de cuidador. Inicia sesión y obtiene un token con rol `caregiver`; el vínculo con paciente4 y el alcance `readings` están en la base, pero su pantalla llega después.                                                                                               |
-| `paciente1@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`. Un sembrado sin interrupciones deja veinte lecturas: doce por encima del umbral de referencia de 140/90 mmHg y una fisiológicamente implausible (78/46 mmHg) marcada `out_of_range`; la pantalla de lecturas llega después. |
-| `paciente2@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`. La base tiene dos lecturas de 186/122 y 184/120 mmHg y una alerta abierta de severidad crítica; la pantalla de alertas llega después.                                                                                       |
-| `paciente3@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: false` con `requires_acceptance_of_version: 1`; la única fila de consentimiento se conserva revocada. La pantalla de lecturas llega después.                                                                                       |
-| `paciente4@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`; el vínculo con el cuidador y el alcance `readings` están en la base, y su pantalla llega después.                                                                                                                           |
+| Correo               | Rol            | Contraseña  | Qué se puede comprobar hoy                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | -------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `admin@hta.demo`     | Administración | `Demo2026!` | Rol de administración. `GET /api/accounts` devuelve la envoltura paginada con las siete cuentas; `PATCH /api/accounts/{id}/role` cambia un rol y `POST /api/accounts/{id}/deactivate` desactiva una cuenta. Las rutas clínicas responden 403 y las pantallas de umbrales y auditoría no existen todavía.                                                                                                                                                                 |
+| `medico@hta.demo`    | Médico         | `Demo2026!` | Rol de médico. `GET /api/patients` lista los cuatro pacientes vinculados; `GET /api/readings`, `GET /api/symptoms` y `GET /api/readings/summary` (con consentimiento) leen los del paciente indicado; `GET /api/alerts` y `GET /api/alerts/{id}` leen sus alertas. Puede acusar recibo, validar o descartar con las tres rutas de transición, por ejemplo la alerta abierta de `paciente2@hta.demo`. La pantalla que lo muestra llega después.                           |
+| `cuidador@hta.demo`  | Cuidador       | `Demo2026!` | Rol de cuidador. `GET /api/patients` lista solo a `paciente4@hta.demo`; con el alcance `readings` puede leer sus lecturas, síntomas, resumen y alertas. Las transiciones de alerta le responden 403. La pantalla llega después.                                                                                                                                                                                                                                          |
+| `paciente1@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`. `GET /api/readings` devuelve sus veinte lecturas, doce por encima de 140/90 mmHg y una 78/46 marcada `out_of_range`, y `GET /api/readings/summary` responde `sufficient: true`; `POST /api/readings` y `POST /api/symptoms` escriben mientras el consentimiento siga vigente. `GET /api/symptoms` empieza vacío. La pantalla llega después.                                                                                  |
+| `paciente2@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`. `GET /api/readings` devuelve sus veinte lecturas con dos de 186/122 y 184/120 mmHg; `GET /api/alerts` devuelve una alerta abierta de severidad crítica y `GET /api/symptoms` devuelve el síntoma sembrado, `mareo y dolor de cabeza desde la tarde` con estado de ánimo `ansioso`. Puede leer sus datos y registrar lecturas y síntomas, pero no mover la alerta: las transiciones responden 403. La pantalla llega después. |
+| `paciente3@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: false` con `requires_acceptance_of_version: 1`; la única fila de consentimiento se conserva revocada. `GET /api/readings` y `GET /api/symptoms` siguen disponibles porque son su historia clínica; `GET /api/readings/summary` y las dos escrituras clínicas responden 403 con `No hay consentimiento informado vigente`. La pantalla llega después.                                                                                |
+| `paciente4@hta.demo` | Paciente       | `Demo2026!` | `GET /api/consent` responde `active: true`. `GET /api/readings`, `GET /api/symptoms` y `GET /api/readings/summary` devuelven sus datos; el vínculo con el cuidador y el alcance `readings` están en la base, así que la cuenta de `cuidador@hta.demo` puede leerlos. La pantalla llega después.                                                                                                                                                                          |
 
-Los recordatorios de los pacientes 1, 2 y 4, la alerta del paciente 2 y el vínculo del
-paciente 4 con el cuidador están en la base. Sus pantallas llegarán con los incrementos que
-las construyan.
+Los recordatorios de los pacientes 1, 2 y 4, la alerta y el síntoma del paciente 2 y el
+vínculo del paciente 4 con el cuidador están en la base. Sus pantallas llegarán con los
+incrementos que las construyan.
 
 La alerta del escenario crítico queda abierta y pendiente de revisión médica. Los umbrales
 de `alert_config` son una propuesta documentada en
@@ -46,12 +52,13 @@ Desde la carpeta del proyecto, con la pila levantada mediante `make up`, ejecuta
 make seed
 ```
 
-El comando crea las siete cuentas y los datos de los cuatro escenarios. Se puede volver a
-ejecutar sin duplicar nada: si una cuenta ya existe, no se recrea; si un paciente ya tiene
-lecturas, no se le añade otra serie aunque haya pasado el tiempo; los consentimientos,
-alertas, vínculos, recordatorios y umbrales tampoco se insertan de nuevo. La siembra no
-completa una serie parcial: si la primera ejecución se interrumpió, hay que regenerar los
-datos desde cero con el procedimiento de la sección siguiente.
+El comando crea las siete cuentas y los datos de los cuatro escenarios, incluido el
+síntoma del escenario crítico. Se puede volver a ejecutar sin duplicar nada: si una cuenta
+ya existe, no se recrea; si un paciente ya tiene lecturas, no se le añade otra serie aunque
+haya pasado el tiempo; los síntomas, consentimientos, alertas, vínculos, recordatorios y
+umbrales tampoco se insertan de nuevo. La siembra no completa una serie parcial: si la
+primera ejecución se interrumpió, hay que regenerar los datos desde cero con el
+procedimiento de la sección siguiente.
 
 ## Si los datos ya están cargados
 

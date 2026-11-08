@@ -2,7 +2,7 @@
 
 Generado por `scripts/build_map.py` desde las anotaciones `@requirement` del código. No se edita a mano: se regenera con `make docs`. El estado y el texto de cada requerimiento están en `docs/manual/requerimientos.md`.
 
-Requerimientos en el catálogo: 47. Con al menos una anotación: 3. Archivos con anotación de requerimiento: 19 (13 módulos y 6 pruebas). Archivos de infraestructura (`@requirement none`): 10. Archivos sin anotación: 25.
+Requerimientos en el catálogo: 47. Con al menos una anotación: 10. Archivos con anotación de requerimiento: 38 (25 módulos y 13 pruebas). Archivos de infraestructura (`@requirement none`): 14. Archivos sin anotación: 25.
 
 ## RF-01 Registro, autenticación y recuperación de credenciales
 
@@ -47,9 +47,90 @@ Pruebas:
 
 - `backend/tests/integration/consent/test_consent.py`
 
+## RF-04 Captura automática desde tensiómetros
+
+Módulos:
+
+- `backend/src/hta/ingest/__init__.py`
+- `backend/src/hta/ingest/router.py`
+- `backend/src/hta/ingest/service.py`
+- `iot/simulator.py`
+
+Pruebas:
+
+- `backend/tests/integration/ingest/test_ingest.py`
+- `backend/tests/unit/test_ingest.py`
+
+## RF-05 Registro manual de lecturas
+
+Módulos:
+
+- `backend/src/hta/clinical/__init__.py`
+- `backend/src/hta/clinical/readings.py`
+- `backend/src/hta/clinical/router.py`
+
+Pruebas:
+
+- `backend/tests/integration/clinical/test_readings.py`
+
+## RF-08 Validación de rangos fisiológicos
+
+Módulos:
+
+- `backend/src/hta/clinical/validation.py`
+
+Pruebas:
+
+- `backend/tests/unit/test_validation.py`
+
+## RF-16 Historial de alertas
+
+Módulos:
+
+- `backend/src/hta/clinical/alerts.py`
+- `backend/src/hta/clinical/router.py`
+
+Pruebas:
+
+- `backend/tests/integration/clinical/test_alerts.py`
+
+## RF-19 Visualización de datos y tendencias
+
+Módulos:
+
+- `backend/src/hta/clinical/patients.py`
+- `backend/src/hta/clinical/readings.py`
+- `backend/src/hta/clinical/router.py`
+
+Pruebas:
+
+- `backend/tests/integration/clinical/test_patients.py`
+- `backend/tests/integration/clinical/test_readings.py`
+
+## RF-21 Síntomas y estado de ánimo
+
+Módulos:
+
+- `backend/src/hta/clinical/router.py`
+- `backend/src/hta/clinical/symptoms.py`
+
+Pruebas:
+
+- `backend/tests/unit/test_symptoms.py`
+
+## RNF-09 Control de acceso por roles y trazabilidad
+
+Módulos:
+
+- `backend/src/hta/clinical/access.py`
+
+Pruebas:
+
+Ninguno.
+
 ## Requerimientos sin anotación
 
-Ninguna anotación del código cubre estos requerimientos: RF-04, RF-05, RF-06, RF-07, RF-08, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-16, RF-17, RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24, RF-25, RF-26, RF-27, RNF-01, RNF-02, RNF-03, RNF-04, RNF-05, RNF-06, RNF-07, RNF-08, RNF-09, RNF-10, RNF-11, RNF-12, RNF-13, RNF-14, RNF-15, RNF-16, RNF-17, RNF-18, RNF-19, RNF-20.
+Ninguna anotación del código cubre estos requerimientos: RF-06, RF-07, RF-09, RF-10, RF-11, RF-12, RF-13, RF-14, RF-15, RF-17, RF-18, RF-20, RF-22, RF-23, RF-24, RF-25, RF-26, RF-27, RNF-01, RNF-02, RNF-03, RNF-04, RNF-05, RNF-06, RNF-07, RNF-08, RNF-10, RNF-11, RNF-12, RNF-13, RNF-14, RNF-15, RNF-16, RNF-17, RNF-18, RNF-19, RNF-20.
 
 ## Módulos sin anotación
 

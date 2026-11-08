@@ -10,16 +10,18 @@ lo que hicieron las personas y una siembra no es una persona.
 Los datos son deterministas por día: la rejilla de lecturas se ancla en la
 medianoche UTC del día actual, con dos mediciones diarias a las 07:00 y a las
 20:00 durante los últimos diez días. La más reciente queda en el día anterior,
-de modo que ninguna lectura cae en el futuro. Los valores y las horas se
-repiten en cualquier máquina que ejecute la siembra el mismo día; los
-identificadores y las sales de las contraseñas son aleatorios por diseño.
+de modo que ninguna lectura cae en el futuro. El síntoma del escenario crítico
+se ancla a las 21:30 del día anterior, después de la última lectura. Los
+valores y las horas se repiten en cualquier máquina que ejecute la siembra el
+mismo día; los identificadores y las sales de las contraseñas son aleatorios
+por diseño.
 
 La siembra es idempotente por correo y también para las filas que cuelgan de
 cada cuenta: si un paciente ya tiene alguna lectura, no se le añade ninguna
-serie, y si una alerta, aceptación, vínculo o recordatorio ya existe, no se
-vuelve a insertar. Lo mismo vale para los dos umbrales globales de
-``alert_config``. No confirma la transacción; la conexión de la prueba y la
-del punto de entrada están en autocommit.
+serie, y si un síntoma, una alerta, una aceptación, un vínculo o un
+recordatorio ya existe, no se vuelve a insertar. Lo mismo vale para los dos
+umbrales globales de ``alert_config``. No confirma la transacción; la conexión
+de la prueba y la del punto de entrada están en autocommit.
 """
 
 from __future__ import annotations
@@ -319,6 +321,12 @@ _ALERT_NOTE = (
     "pendiente de revisión médica."
 )
 
+# El escenario crítico conserva un síntoma del día de la alerta. El texto y el
+# estado de ánimo son fijos; la marca se deriva del mismo anclaje diario de la
+# rejilla para que una base recién sembrada ya tenga una fila que mostrar.
+_SYMPTOM_TEXT = "mareo y dolor de cabeza desde la tarde"
+_SYMPTOM_MOOD = "ansioso"
+
 
 def _validation_status(systolic: int, diastolic: int) -> str:
     """Marca solo los valores fuera del rango fisiológico plausible.
@@ -541,6 +549,37 @@ def _seed_alert(
     )
 
 
+def _seed_symptom(
+    conn: Connection,
+    patient_id: UUID,
+    anchor: datetime,
+) -> None:
+    """Deja el síntoma del escenario crítico, una sola vez.
+
+    La guarda es por paciente, como la de las lecturas: si el paciente ya tiene
+    algún síntoma, la siembra no añade otro. La marca se deriva del anclaje
+    diario, así que no cambia entre dos ejecuciones del mismo día ni deja de
+    ser reproducible en otra máquina.
+    """
+    row = conn.execute(
+        "select 1 from symptoms_mood where patient_id = %s limit 1",
+        (patient_id,),
+    ).fetchone()
+    if row is not None:
+        return
+
+    conn.execute(
+        "insert into symptoms_mood (patient_id, free_text, mood, recorded_at) "
+        "values (%s, %s, %s, %s)",
+        (
+            patient_id,
+            _SYMPTOM_TEXT,
+            _SYMPTOM_MOOD,
+            anchor - timedelta(days=1) + timedelta(hours=21, minutes=30),
+        ),
+    )
+
+
 def _seed_caregiver_link(
     conn: Connection,
     patient_id: UUID,
@@ -616,7 +655,7 @@ def seed(conn: Connection) -> dict[str, UUID]:
     """Siembra las siete cuentas de demostración y devuelve sus identificadores.
 
     Es idempotente por correo y por fila relacionada: volver a ejecutarla no
-    duplica cuentas, lecturas, alertas, consentimientos, vínculos ni
+    duplica cuentas, lecturas, síntomas, alertas, consentimientos, vínculos ni
     recordatorios, ni añade un segundo par de umbrales globales. No escribe
     auditoría y no confirma la transacción.
     """
@@ -640,6 +679,7 @@ def seed(conn: Connection) -> dict[str, UUID]:
         _seed_readings(conn, account.key, profile_id, anchor)
 
     _seed_alert(conn, profile_ids["patient_alert"], anchor)
+    _seed_symptom(conn, profile_ids["patient_alert"], anchor)
     _seed_caregiver_link(
         conn,
         profile_ids["patient_caregiver"],
