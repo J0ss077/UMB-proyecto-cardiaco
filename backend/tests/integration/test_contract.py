@@ -64,7 +64,11 @@ def test_cors_rejects_an_unknown_origin(client):
             "Access-Control-Request-Method": "GET",
         },
     )
-    assert 400 <= response.status_code < 500
+    # Un servidor sin el middleware responde 405 a OPTIONS; Starlette rechaza el
+    # origen con 400 y el motivo en texto plano. El cuerpo se fija para que un
+    # 204 o un 400 de otra ruta tampoco satisfagan la prueba.
+    assert response.status_code == 400
+    assert response.text == "Disallowed CORS origin"
     assert "access-control-allow-origin" not in response.headers
 
 
