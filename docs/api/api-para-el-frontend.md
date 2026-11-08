@@ -494,14 +494,17 @@ el cuidador deben indicar `patient_id` en las tres rutas del paciente; sin él
 responden 403. El cuidador con alcance `minimal` no ve datos clínicos aunque el
 vínculo exista; solo el alcance `readings` lo autoriza.
 
-El listado y la consulta de alertas siguen exactamente la misma matriz que
-`GET /api/readings`: el paciente ve sus alertas, el médico las de sus pacientes
-vinculados, el cuidador las de los autorizados con alcance `readings` y el
-administrador recibe 403. El médico y el cuidador deben indicar `patient_id` en
-el listado; en la consulta y en las transiciones el paciente se toma de la
-alerta y se comprueba el mismo vínculo. Las tres transiciones exigen además el
-rol `physician`: un paciente o un cuidador con acceso recibe 403 con
-`Permiso denegado` y la alerta no cambia.
+El listado y la consulta de alertas siguen la matriz de `GET /api/readings`: el
+paciente ve sus alertas, el médico las de sus pacientes vinculados, el cuidador
+las de los autorizados con alcance `readings` y el administrador recibe 403. En
+el listado de alertas `patient_id` es opcional: sin él, el médico recibe todas
+las alertas de sus pacientes vinculados y el cuidador todas las de los
+autorizados con alcance `readings`, en una sola línea de tiempo; con él, el
+alcance se reduce a ese paciente y uno fuera de la cuenta responde 403. En la
+consulta y en las transiciones el paciente se toma de la alerta y se comprueba
+el mismo vínculo. Las tres transiciones exigen además el rol `physician`: un
+paciente o un cuidador con acceso recibe 403 con `Permiso denegado` y la alerta
+no cambia.
 
 **La consulta de lecturas y de síntomas no exige consentimiento; el resumen de
 la ventana sí.** La historia clínica se consulta sin la compuerta. El resumen es
@@ -760,19 +763,27 @@ cuerpo.
 
 ### `GET /api/alerts`
 
-Exige sesión con rol `patient`, `physician` o `caregiver`. Lista las alertas del
-paciente visible de la más reciente a la más antigua, con la envoltura y la
-paginación de la sección de listados. El paciente que omite `patient_id` ve las
-propias; el médico y el cuidador deben indicarlo.
+Exige sesión con rol `patient`, `physician` o `caregiver`. Es la bandeja de
+alertas: sin `patient_id` devuelve todas las alertas visibles para la cuenta, de
+la más reciente a la más antigua, con la envoltura y la paginación de la sección
+de listados. El paciente ve las propias, el médico las de todos sus pacientes
+vinculados y el cuidador las de todos los autorizados con alcance `readings`:
+una sola petición y una sola línea de tiempo para la pantalla de inicio.
 
 Parámetros:
 
-- `patient_id` es opcional y es el identificador de la cuenta del paciente.
+- `patient_id` es opcional y es el identificador de la cuenta del paciente. Sin
+  él la página abarca todo el alcance de la cuenta; con él se reduce a ese
+  paciente y uno fuera del alcance responde 403.
 - `status` es opcional y vale `open`, `acknowledged`, `validated` o `dismissed`.
 - `severity` es opcional y vale `low`, `medium`, `high` o `critical`.
 - `limit` y `offset` son los de la paginación general.
 
 Un valor de `status` o `severity` fuera de esos conjuntos responde 422.
+
+La lista está ordenada por `created_at` descendente en todos los pacientes, así
+que la bandeja se lee como una sola línea de tiempo y no como un bloque por
+paciente.
 
 Petición:
 
@@ -809,9 +820,9 @@ la descripción clínica de la alerta y puede ser `null`. El motivo del descarte
 se escribe ahí: lo devuelve `GET /api/alerts/{alert_id}` en `dismissal_reason`, y
 el listado no incluye ese campo.
 
-Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
-si el paciente no está en el alcance o si el médico o el cuidador omiten
-`patient_id`; 422 si `status`, `severity` o `limit` quedan fuera de rango.
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
+o si el `patient_id` indicado no está en el alcance; 422 si `status`, `severity`
+o `limit` quedan fuera de rango.
 
 ### `GET /api/alerts/{alert_id}`
 

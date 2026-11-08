@@ -123,15 +123,20 @@ async def _fetch(
 
 async def _page(
     conn: AsyncConnection,
-    profile_id: UUID,
+    profile_ids: list[UUID],
     status: str | None,
     severity: str | None,
     limit: int,
     offset: int,
 ) -> tuple[list[Alert], int]:
-    """Devuelve una página de alertas del perfil y el total filtrado."""
-    condition = "a.patient_id = %s"
-    params: list[Any] = [profile_id]
+    """Devuelve una página de alertas de los perfiles y el total filtrado.
+
+    ``profile_ids`` puede traer uno o varios perfiles: el listado sin paciente
+    abarca todos los que la cuenta puede ver y el orden por ``created_at``
+    descendente los mezcla en una sola línea de tiempo.
+    """
+    condition = "a.patient_id = any(%s)"
+    params: list[Any] = [profile_ids]
     if status is not None:
         condition += " and a.status = %s"
         params.append(status)
@@ -168,9 +173,12 @@ async def list_for(
     """Devuelve una página de las alertas visibles para la cuenta.
 
     ``patient_id`` es el identificador de la cuenta del paciente, no el del
-    perfil. Sin él, el paciente resuelve el propio; el médico y el cuidador
-    deben indicarlo y reciben 403 si falta. El resolutor de ``access`` decide
-    el alcance con la misma matriz de las lecturas y no se replica aquí.
+    perfil. Sin él, el paciente recibe las propias, el médico todas las de sus
+    pacientes vinculados y el cuidador todas las de los autorizados con alcance
+    ``readings``: la bandeja del médico es una sola petición y una sola línea de
+    tiempo. Con él, el alcance se reduce a ese paciente y uno fuera de la cuenta
+    responde 403. El resolutor de ``access`` decide el conjunto y no se replica
+    aquí.
 
     ``status`` y ``severity`` llegan ya validados contra los tipos enumerados
     por la ruta: un valor fuera de ellos responde 422 antes de llegar al
@@ -178,8 +186,8 @@ async def list_for(
     la página; el orden es por ``created_at`` descendente y, como desempate,
     por identificador, para que dos páginas consecutivas sean estables.
     """
-    profile_id = await access.patient_profile_id(conn, user, patient_id)
-    return await _page(conn, profile_id, status, severity, limit, offset)
+    profile_ids = await access.visible_patient_profiles(conn, user, patient_id)
+    return await _page(conn, profile_ids, status, severity, limit, offset)
 
 
 async def get_for(

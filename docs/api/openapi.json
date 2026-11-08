@@ -1201,7 +1201,7 @@
     },
     "/api/alerts": {
       "get": {
-        "description": "Lista las alertas del paciente visible, de la más reciente a la más vieja.\n\nSigue la misma resolución de alcance que las lecturas: sin ``patient_id``\nel paciente ve las propias y el médico o el cuidador deben indicarlo y\ncomprobar su vínculo. ``status`` y ``severity`` son opcionales y un valor\nfuera de los tipos enumerados responde 422. El administrador recibe 403.",
+        "description": "Lista las alertas visibles, de la más reciente a la más vieja.\n\nSin ``patient_id`` es la bandeja de la cuenta: el paciente ve las propias,\nel médico todas las de sus pacientes vinculados y el cuidador todas las de\nlos autorizados con alcance ``readings``, mezcladas en una sola línea de\ntiempo. Con ``patient_id`` el alcance se reduce a ese paciente y uno fuera\nde la cuenta responde 403. ``status`` y ``severity`` son opcionales y un\nvalor fuera de los tipos enumerados responde 422. El administrador recibe\n403.",
         "operationId": "list_alerts_api_alerts_get",
         "parameters": [
           {

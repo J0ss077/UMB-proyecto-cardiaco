@@ -5,7 +5,10 @@ las alertas.
 
 Cubren el alcance de cada cuenta con la misma matriz de las lecturas, los
 filtros por estado y severidad, el orden y la paginación del listado, la
-consulta de una alerta y la máquina de estados de las transiciones. Las
+consulta de una alerta y la máquina de estados de las transiciones. Sin
+``patient_id`` el listado es la bandeja de la cuenta: el médico ve todos sus
+pacientes vinculados y el cuidador todos los autorizados con alcance
+``readings``, en una sola línea de tiempo; un paciente ve las propias. Las
 transiciones exigen el rol de médico además del acceso: un paciente o un
 cuidador que lo intenta recibe 403 y la alerta no cambia. Ninguna transición
 prohíbida se acepta, el 409 nombra el estado actual, el descarte exige una nota
@@ -16,7 +19,7 @@ paciente, nunca el del perfil.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -88,12 +91,42 @@ def test_consented_patient_lists_only_own_alerts(
     }
 
 
-def test_physician_must_pass_a_patient_for_the_alert_list(
-    client, physician_headers, open_alert_id
+def test_physician_inbox_lists_every_linked_patient(
+    client,
+    db,
+    physician_headers,
+    physician_id,
+    consented_patient_id,
+    other_patient_id,
+    open_alert_id,
 ):
-    response = client.get("/api/alerts", headers=physician_headers)
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Permiso denegado"
+    """Sin patient_id la bandeja trae las alertas de todos los vinculados.
+
+    El segundo paciente se vincula al mismo médico y recibe una alerta: si la
+    consulta se quedara con un solo perfil, el total no llegaría a dos. La
+    alerta añadida es más vieja para que el orden entre pacientes sea estable.
+    """
+    db.execute(
+        "insert into patient_physician (patient_id, physician_id) "
+        "values (%s, %s)",
+        (_profile_id(db, other_patient_id), physician_id),
+    )
+    other_alert = _insert_alert(
+        db,
+        other_patient_id,
+        "medium",
+        created_at=datetime.now(timezone.utc) - timedelta(hours=1),
+    )
+    body = client.get("/api/alerts", headers=physician_headers).json()
+    assert body["total"] == 2
+    assert [item["id"] for item in body["items"]] == [
+        str(open_alert_id),
+        str(other_alert),
+    ]
+    assert {item["patient_id"] for item in body["items"]} == {
+        str(consented_patient_id),
+        str(other_patient_id),
+    }
 
 
 def test_physician_lists_a_linked_patients_alerts(
@@ -230,6 +263,28 @@ def test_caregiver_with_readings_scope_lists_the_alerts(
     ).json()
     assert body["total"] == 1
     assert body["items"][0]["id"] == str(open_alert_id)
+
+
+def test_caregiver_inbox_lists_only_authorized_readings_patients(
+    client,
+    db,
+    caregiver_headers,
+    other_caregiver_headers,
+    consented_patient_id,
+    other_patient_id,
+    open_alert_id,
+):
+    """Sin patient_id la bandeja del cuidador deja fuera a los pacientes ajenos.
+
+    El otro paciente existe, tiene una alerta y tiene un cuidador con alcance
+    ``readings``, pero no es este cuidador: la consulta sin paciente no puede
+    traer su alerta.
+    """
+    _insert_alert(db, other_patient_id, "high")
+    body = client.get("/api/alerts", headers=caregiver_headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["id"] == str(open_alert_id)
+    assert body["items"][0]["patient_id"] == str(consented_patient_id)
 
 
 def test_caregiver_with_readings_scope_cannot_dismiss(

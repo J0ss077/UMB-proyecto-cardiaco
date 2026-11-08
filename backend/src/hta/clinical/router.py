@@ -428,12 +428,15 @@ async def list_alerts(
     limit: Annotated[int, Query(ge=0, le=MAX_LIMIT)] = DEFAULT_LIMIT,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PaginatedAlerts:
-    """Lista las alertas del paciente visible, de la más reciente a la más vieja.
+    """Lista las alertas visibles, de la más reciente a la más vieja.
 
-    Sigue la misma resolución de alcance que las lecturas: sin ``patient_id``
-    el paciente ve las propias y el médico o el cuidador deben indicarlo y
-    comprobar su vínculo. ``status`` y ``severity`` son opcionales y un valor
-    fuera de los tipos enumerados responde 422. El administrador recibe 403.
+    Sin ``patient_id`` es la bandeja de la cuenta: el paciente ve las propias,
+    el médico todas las de sus pacientes vinculados y el cuidador todas las de
+    los autorizados con alcance ``readings``, mezcladas en una sola línea de
+    tiempo. Con ``patient_id`` el alcance se reduce a ese paciente y uno fuera
+    de la cuenta responde 403. ``status`` y ``severity`` son opcionales y un
+    valor fuera de los tipos enumerados responde 422. El administrador recibe
+    403.
     """
     page, total = await alerts.list_for(
         conn,

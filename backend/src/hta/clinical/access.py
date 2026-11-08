@@ -13,8 +13,13 @@ sí mismo, el médico sobre los pacientes vinculados en ``patient_physician`` y
 el cuidador sobre los que lo autorizaron en ``caregiver_links`` con alcance
 ``readings``. El administrador no ve datos clínicos y cualquier otro caso
 responde 403 con el mismo mensaje, para que el cliente no pueda distinguir
-"no es tuyo" de "no existe". Un médico o un cuidador que no indican paciente no
-tienen uno sobre el que resolver y también reciben 403.
+"no es tuyo" de "no existe". En las rutas de un solo paciente, un médico o un
+cuidador que no lo indican también reciben 403.
+
+Los listados que abarcan varios pacientes usan ``visible_patient_profiles``:
+sin un paciente indicado, el médico obtiene todos los que tiene vinculados y el
+cuidador todos los que lo autorizaron con alcance ``readings``, para que la
+bandeja de alertas sea una sola petición y una sola línea de tiempo.
 """
 
 from __future__ import annotations
@@ -111,6 +116,49 @@ async def patient_profile_id(
     if link is None:
         raise HTTPException(status_code=403, detail=FORBIDDEN)
     return profile
+
+
+async def visible_patient_profiles(
+    conn: AsyncConnection,
+    user: CurrentUser,
+    patient_id: UUID | None = None,
+) -> list[UUID]:
+    """Devuelve todos los perfiles de paciente que la cuenta puede consultar.
+
+    Con ``patient_id`` resuelve uno solo con ``patient_profile_id`` y conserva
+    su negativa 403, de modo que el alcance del listado filtrado es el mismo de
+    la consulta individual. Sin ``patient_id`` el paciente obtiene el propio,
+    el médico todos los pacientes de ``patient_physician`` y el cuidador todos
+    los de ``caregiver_links`` con alcance ``readings``. El administrador y los
+    roles desconocidos reciben 403.
+
+    Una lista vacía es un alcance válido para un médico o un cuidador sin
+    vínculos: el listado responde una página vacía con ``total`` 0 y no un
+    error. El orden de la lista no importa; lo fija la consulta que la usa.
+    """
+    if patient_id is not None or user.role == "patient":
+        return [await patient_profile_id(conn, user, patient_id)]
+
+    if user.role not in READ_ROLES:
+        raise HTTPException(status_code=403, detail=FORBIDDEN)
+
+    if user.role == "physician":
+        rows = await (
+            await conn.execute(
+                "select distinct pp.patient_id from patient_physician pp "
+                "where pp.physician_id = %s",
+                (user.user_id,),
+            )
+        ).fetchall()
+    else:
+        rows = await (
+            await conn.execute(
+                "select distinct cl.patient_id from caregiver_links cl "
+                "where cl.caregiver_id = %s and cl.authorized_scope = %s",
+                (user.user_id, READINGS_SCOPE),
+            )
+        ).fetchall()
+    return [row[0] for row in rows]
 
 
 async def require_consent(conn: AsyncConnection, profile_id: UUID) -> None:
