@@ -209,6 +209,7 @@ CONSENTED_PATIENT_EMAIL = "consentido@hta.demo"
 PHYSICIAN_EMAIL = "medico-consulta@hta.demo"
 CAREGIVER_EMAIL = "cuidador-lecturas@hta.demo"
 CAREGIVER_MINIMAL_EMAIL = "cuidador-minimo@hta.demo"
+OTHER_CAREGIVER_EMAIL = "cuidador-otro@hta.demo"
 
 
 def _create_patient(connection: psycopg.Connection, email: str) -> UUID:
@@ -442,6 +443,23 @@ def caregiver_minimal_headers(
     """
     _caregiver(db, CAREGIVER_MINIMAL_EMAIL, "minimal", consented_patient_id)
     return _login_headers(client, CAREGIVER_MINIMAL_EMAIL)
+
+
+@pytest.fixture
+def other_caregiver_headers(
+    client: httpx.Client,
+    db: psycopg.Connection,
+    clean_db: None,
+    other_patient_id: UUID,
+) -> dict[str, str]:
+    """Cuidador con alcance ``readings`` hacia el otro paciente de las fixtures.
+
+    Sirve para comprobar que el directorio y la resolución de alcance miran el
+    vínculo concreto y no cualquier vínculo con alcance ``readings``: este
+    cuidador no puede ver al paciente con consentimiento.
+    """
+    _caregiver(db, OTHER_CAREGIVER_EMAIL, "readings", other_patient_id)
+    return _login_headers(client, OTHER_CAREGIVER_EMAIL)
 
 
 @pytest.fixture

@@ -226,11 +226,19 @@ def _profile_id(db, user_id):
     ).fetchone()[0]
 
 
+CLINICAL_READ_PATHS = (
+    "/api/readings",
+    "/api/readings/summary",
+    "/api/symptoms",
+)
+
+
+@pytest.mark.parametrize("path", CLINICAL_READ_PATHS)
 def test_physician_of_another_patient_gets_403(
-    client, physician_headers, other_patient_id
+    client, physician_headers, other_patient_id, path
 ):
     response = client.get(
-        f"/api/readings?patient_id={other_patient_id}", headers=physician_headers
+        f"{path}?patient_id={other_patient_id}", headers=physician_headers
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "Permiso denegado"
@@ -257,11 +265,26 @@ def test_caregiver_with_minimal_scope_is_rejected(
     assert response.json()["detail"] == "Permiso denegado"
 
 
-def test_admin_cannot_read_clinical_data(client, admin_headers, consented_patient_id):
+def test_caregiver_of_another_patient_gets_403(
+    client, other_caregiver_headers, consented_patient_id
+):
     response = client.get(
-        f"/api/readings?patient_id={consented_patient_id}", headers=admin_headers
+        f"/api/readings?patient_id={consented_patient_id}",
+        headers=other_caregiver_headers,
     )
     assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+
+
+@pytest.mark.parametrize("path", CLINICAL_READ_PATHS)
+def test_admin_cannot_read_clinical_data(
+    client, admin_headers, consented_patient_id, path
+):
+    response = client.get(
+        f"{path}?patient_id={consented_patient_id}", headers=admin_headers
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
 
 
 def test_physician_must_pass_a_patient_for_the_readings(client, physician_headers):
@@ -396,13 +419,30 @@ def test_symptoms_are_listed_for_the_patient(client, patient_headers, db, patien
     profile_id = _profile_id(db, patient_id)
     db.execute(
         "insert into symptoms_mood (patient_id, free_text, mood, recorded_at) "
-        "values (%s, 'mareo', 'bien', now())",
+        "values (%s, 'mareo', 'bien', '2026-01-01T00:00:00+00:00')",
+        (profile_id,),
+    )
+    db.execute(
+        "insert into symptoms_mood (patient_id, free_text, recorded_at) "
+        "values (%s, 'dolor de cabeza', '2026-01-02T00:00:00+00:00')",
         (profile_id,),
     )
     body = client.get("/api/symptoms", headers=patient_headers).json()
-    assert body["total"] == 1
-    assert body["items"][0]["free_text"] == "mareo"
+    assert body["total"] == 2
+    assert [item["free_text"] for item in body["items"]] == [
+        "dolor de cabeza",
+        "mareo",
+    ]
     assert body["items"][0]["patient_id"] == str(patient_id)
+    first = client.get(
+        "/api/symptoms?limit=1&offset=0", headers=patient_headers
+    ).json()
+    second = client.get(
+        "/api/symptoms?limit=1&offset=1", headers=patient_headers
+    ).json()
+    assert first["total"] == 2
+    assert [item["free_text"] for item in first["items"]] == ["dolor de cabeza"]
+    assert [item["free_text"] for item in second["items"]] == ["mareo"]
 
 
 def test_physician_lists_a_linked_patients_symptoms(

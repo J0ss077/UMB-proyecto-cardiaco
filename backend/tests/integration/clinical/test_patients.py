@@ -91,6 +91,14 @@ def test_caregiver_with_minimal_scope_lists_no_patients(
     assert body == {"items": [], "total": 0}
 
 
+def test_caregiver_of_another_patient_lists_only_their_patient(
+    client, other_caregiver_headers, other_patient_id, consented_patient_id
+):
+    body = client.get("/api/patients", headers=other_caregiver_headers).json()
+    assert body["total"] == 1
+    assert body["items"][0]["user_id"] == str(other_patient_id)
+
+
 def test_admin_cannot_list_patients(client, admin_headers):
     response = client.get("/api/patients", headers=admin_headers)
     assert response.status_code == 403

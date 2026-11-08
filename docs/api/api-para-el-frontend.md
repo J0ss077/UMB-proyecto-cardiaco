@@ -191,7 +191,7 @@ Códigos que el cliente debe manejar:
 | 201    | Recurso creado                                                                                                                                              | No aplica                                                                |
 | 204    | Operación sin cuerpo de respuesta                                                                                                                           | No hay cuerpo                                                            |
 | 401    | Sin sesión, token inválido, cuenta inactiva o credenciales incorrectas                                                                                      | `Sesión inválida o expirada` o `Credenciales inválidas`                  |
-| 403    | Sesión válida con un rol que no permite la ruta, cuenta sin perfil o paciente fuera del alcance de la cuenta                                                | `Permiso denegado`                                                       |
+| 403    | Sesión válida con un rol que no permite la ruta, cuenta de paciente sin perfil o paciente fuera del alcance de la cuenta                                    | `Permiso denegado`                                                       |
 | 403    | Escritura clínica o resumen de la ventana sin consentimiento informado vigente                                                                              | `No hay consentimiento informado vigente`                                |
 | 404    | La cuenta indicada no existe                                                                                                                                | `La cuenta no existe`                                                    |
 | 409    | Correo ya registrado o desactivación de la propia cuenta                                                                                                    | `El correo ya está registrado` o `No puedes desactivar tu propia cuenta` |
@@ -428,7 +428,7 @@ Respuesta 200 con consentimiento vigente:
 `requires_acceptance_of_version` es la versión cuya aceptación falta, o `null`
 si no falta ninguna. Así el cliente no compara versiones por su cuenta.
 
-Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta no
+Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta de paciente no
 tiene perfil.
 
 ### `POST /api/consent`
@@ -453,7 +453,7 @@ Respuesta 201:
 }
 ```
 
-Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta no
+Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta de paciente no
 tiene perfil.
 
 ### `POST /api/consent/revoke`
@@ -472,7 +472,7 @@ Respuesta 204, sin cuerpo.
 
 Después de revocar, la consulta vuelve a informar la versión pendiente de
 aceptación. Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la
-cuenta no tiene perfil.
+cuenta de paciente no tiene perfil.
 
 ### Alcance de los datos clínicos
 
@@ -548,7 +548,9 @@ Respuesta 200 real de la sesión del médico de demostración:
 pacientes visibles, no los de la página.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
-o si la cuenta no tiene perfil.
+o si la cuenta es de paciente y no tiene perfil. Un médico o un cuidador no
+tienen fila en `patient_profiles`: su directorio responde 200 con la página que
+su alcance permite, que puede estar vacía.
 
 ### `GET /api/readings`
 
@@ -670,7 +672,8 @@ GET /api/symptoms
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
 ```
 
-Respuesta 200 real de la sesión del paciente de demostración:
+Respuesta 200 real de una sesión de paciente después de registrar un síntoma
+con `POST /api/symptoms`:
 
 ```json
 {
@@ -689,6 +692,16 @@ Respuesta 200 real de la sesión del paciente de demostración:
 
 `free_text` y `mood` pueden ser `null` por separado. `patient_id` es el de la
 cuenta del paciente.
+
+La siembra de demostración no crea síntomas, así que una base recién sembrada
+devuelve una página vacía en esta ruta hasta que el paciente registre alguno:
+
+```json
+{
+    "items": [],
+    "total": 0
+}
+```
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
 si el paciente no está en el alcance o si el médico o el cuidador omiten
@@ -767,7 +780,7 @@ alta no produce `flagged`. Una lectura imposible también responde 201:
 ```
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
-`patient`, la cuenta no tiene perfil o `patient_id` no es el propio; 403 con
+`patient`, la cuenta de paciente no tiene perfil o `patient_id` no es el propio; 403 con
 `No hay consentimiento informado vigente` si falta la aceptación, por ejemplo:
 
 ```json
@@ -805,7 +818,7 @@ Respuesta 201 real:
 ```
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
-`patient` o la cuenta no tiene perfil; 403 con
+`patient` o la cuenta de paciente no tiene perfil; 403 con
 `No hay consentimiento informado vigente` si falta la aceptación; 422 si el
 síntoma está vacío. Sin consentimiento no se escribe la fila ni su auditoría.
 

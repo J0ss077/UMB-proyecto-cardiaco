@@ -113,16 +113,23 @@ def test_window_needs_two_dates_after_discarding_the_first():
     assert summary.sufficient is False
 
 
-def test_window_groups_by_date_before_discarding():
-    """El primer día se decide con todas las lecturas, no solo con las válidas."""
+def test_window_groups_by_all_statuses_before_discarding():
+    """La fecha marcada también cuenta para decidir cuál es la más antigua.
+
+    La primera fecha solo trae una lectura ``out_of_range`` y las dos
+    siguientes traen cuatro válidas cada una. Si el agrupamiento mirara solo las
+    válidas, la primera fecha no existiría y se descartaría una de las dos
+    buenas: quedarían cuatro lecturas y el resumen sería insuficiente.
+    """
     readings = [
         _reading(date(2026, 1, 1), 300, 200, "out_of_range"),
-        *[_reading(date(2026, 1, 2), 120, 80) for _ in range(8)],
+        *[_reading(date(2026, 1, 2), 120, 80) for _ in range(4)],
+        *[_reading(date(2026, 1, 3), 120, 80) for _ in range(4)],
     ]
     summary = summarize_window(readings, START, END)
     assert summary.valid_count == 8
-    assert summary.days_with_readings == 1
-    assert summary.sufficient is False
+    assert summary.days_with_readings == 2
+    assert summary.sufficient is True
 
 
 def test_window_mean_rounds_half_up_to_one_decimal():
