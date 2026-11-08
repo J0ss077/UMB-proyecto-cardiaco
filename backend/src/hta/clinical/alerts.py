@@ -4,19 +4,21 @@ Listado, consulta y transiciones humanas de las alertas clínicas.
 
 Una alerta nace de una regla de umbrales que no vive en este módulo: aquí no se
 crea ninguna alerta, porque el alta pertenece al motor de alertas de un
-incremento posterior. Este módulo solo lee las que existen y permite que una
-persona las recorra. La máquina de estados es la única autoridad sobre una
+incremento posterior. Este módulo solo lee las que existen y permite que un
+médico las recorra. La máquina de estados es la única autoridad sobre una
 transición: de ``open`` se pasa a ``acknowledged``, ``validated`` o
 ``dismissed``; de ``acknowledged`` a ``validated`` o ``dismissed``; los estados
 finales no admiten ninguna otra. El software nunca cierra una alerta por su
-cuenta: cada cambio de estado lo firma una cuenta autenticada y queda en la
-auditoría.
+cuenta: cada cambio de estado lo firma un médico y queda en la auditoría.
 
 El alcance es el mismo de las lecturas y se resuelve con el resolutor único de
 ``clinical.access``: el paciente ve las propias, el médico las de sus pacientes
 vinculados, el cuidador las de los autorizados con alcance ``readings`` y el
-administrador ninguna. Una alerta se lee con ``for update`` antes de
-transicionar, de modo que dos personas que actúan a la vez no ganan las dos.
+administrador ninguna. Las rutas de transición exigen además el rol de médico en
+la capa de dependencias, antes de leer el estado; este módulo no repite esa
+regla de rol y solo resuelve el alcance del paciente. Una alerta se lee con
+``for update`` antes de transicionar, de modo que dos personas que actúan a la
+vez no ganan las dos.
 """
 
 from __future__ import annotations
@@ -204,15 +206,16 @@ async def transition(
 ) -> None:
     """Mueve una alerta a su estado siguiente y confirma antes de responder.
 
-    ``action`` vale ``acknowledge``, ``validate`` o ``dismiss``. La fila se lee
-    con ``for update``, se comprueba que el actor tenga acceso a su paciente con
-    el resolutor único y se consulta la máquina de estados. Cualquier
-    transición fuera del mapa responde 409 con un mensaje que nombra el estado
-    actual. ``validate`` escribe ``validated_by`` y ``validated_at``; ``dismiss``
-    exige una nota no vacía y la guarda; ``acknowledge`` solo cambia el estado.
-    El actor queda en la auditoría con el identificador de la alerta y la nota,
-    si la hay, en el detalle. El ``commit`` deja el hecho visible para la
-    siguiente petición.
+    ``action`` vale ``acknowledge``, ``validate`` o ``dismiss``. La ruta exige
+    el rol de médico antes de llegar aquí y este servicio comprueba además que
+    el actor tenga acceso al paciente con el resolutor único. La fila se lee con
+    ``for update`` y se consulta la máquina de estados. Cualquier transición
+    fuera del mapa responde 409 con un mensaje que nombra el estado actual.
+    ``validate`` escribe ``validated_by`` y ``validated_at``; ``dismiss`` exige
+    una nota no vacía y la guarda; ``acknowledge`` solo cambia el estado. El
+    actor queda en la auditoría con el identificador de la alerta y la nota, si
+    la hay, en el detalle. El ``commit`` deja el hecho visible para la siguiente
+    petición.
     """
     target = ACTION_TARGET.get(action)
     if target is None:

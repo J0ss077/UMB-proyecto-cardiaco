@@ -1248,7 +1248,7 @@
     },
     "/api/alerts/{alert_id}/acknowledge": {
       "post": {
-        "description": "Acusa recibo de una alerta abierta.\n\nSolo cambia el estado a ``acknowledged``. La transición se rechaza con 409\nsi la alerta ya no está abierta y queda auditada con el actor.",
+        "description": "Acusa recibo de una alerta abierta.\n\nExige el rol de médico antes de leer el estado. Solo cambia el estado a\n``acknowledged``. La transición se rechaza con 409 si la alerta ya no está\nabierta y queda auditada con el actor.",
         "operationId": "acknowledge_alert_api_alerts__alert_id__acknowledge_post",
         "parameters": [
           {
@@ -1311,7 +1311,7 @@
     },
     "/api/alerts/{alert_id}/dismiss": {
       "post": {
-        "description": "Descarta una alerta abierta o reconocida con un motivo obligatorio.\n\nSin nota, o con una nota en blanco, responde 422 y no cambia la alerta. El\nmotivo se guarda en la alerta y en la auditoría.",
+        "description": "Descarta una alerta abierta o reconocida con un motivo obligatorio.\n\nExige el rol de médico antes de leer el estado. Sin nota, o con una nota en\nblanco, responde 422 y no cambia la alerta. El motivo se guarda en la\nalerta y en la auditoría.",
         "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
         "parameters": [
           {
@@ -1374,7 +1374,7 @@
     },
     "/api/alerts/{alert_id}/validate": {
       "post": {
-        "description": "Valida una alerta abierta o reconocida.\n\nEscribe ``validated_by`` y ``validated_at`` con la persona que valida. La\nnota opcional viaja a la auditoría. Responde 409 si el estado actual no\nadmite la transición.",
+        "description": "Valida una alerta abierta o reconocida.\n\nExige el rol de médico antes de leer el estado. Escribe ``validated_by`` y\n``validated_at`` con la persona que valida. La nota opcional viaja a la\nauditoría. Responde 409 si el estado actual no admite la transición.",
         "operationId": "validate_alert_api_alerts__alert_id__validate_post",
         "parameters": [
           {

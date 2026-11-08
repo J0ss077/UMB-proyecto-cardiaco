@@ -15,7 +15,9 @@ La consulta de lecturas y síntomas no exige consentimiento: es la historia
 clínica que el médico debe poder leer. El resumen de la ventana sí lo exige,
 porque es análisis, y responde 403 con el mismo mensaje que las rutas de alta.
 Las rutas de alertas no crean alertas ni las cierran por su cuenta: solo listan,
-leen y registran una transición firmada por una persona.
+leen y registran una transición firmada por una persona. El listado y la consulta
+aceptan a los tres roles clínicos; las tres transiciones exigen además el rol de
+médico, porque mover una alerta es el acto clínico que la cierra.
 """
 
 from __future__ import annotations
@@ -456,12 +458,13 @@ async def acknowledge_alert(
     alert_id: UUID,
     body: AlertTransitionRequest,
     conn: Annotated[AsyncConnection, Depends(get_conn)],
-    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
 ) -> None:
     """Acusa recibo de una alerta abierta.
 
-    Solo cambia el estado a ``acknowledged``. La transición se rechaza con 409
-    si la alerta ya no está abierta y queda auditada con el actor.
+    Exige el rol de médico antes de leer el estado. Solo cambia el estado a
+    ``acknowledged``. La transición se rechaza con 409 si la alerta ya no está
+    abierta y queda auditada con el actor.
     """
     await alerts.transition(conn, alert_id, user, "acknowledge", body.note)
 
@@ -471,13 +474,13 @@ async def validate_alert(
     alert_id: UUID,
     body: AlertTransitionRequest,
     conn: Annotated[AsyncConnection, Depends(get_conn)],
-    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
 ) -> None:
     """Valida una alerta abierta o reconocida.
 
-    Escribe ``validated_by`` y ``validated_at`` con la persona que valida. La
-    nota opcional viaja a la auditoría. Responde 409 si el estado actual no
-    admite la transición.
+    Exige el rol de médico antes de leer el estado. Escribe ``validated_by`` y
+    ``validated_at`` con la persona que valida. La nota opcional viaja a la
+    auditoría. Responde 409 si el estado actual no admite la transición.
     """
     await alerts.transition(conn, alert_id, user, "validate", body.note)
 
@@ -487,11 +490,12 @@ async def dismiss_alert(
     alert_id: UUID,
     body: AlertTransitionRequest,
     conn: Annotated[AsyncConnection, Depends(get_conn)],
-    user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
 ) -> None:
     """Descarta una alerta abierta o reconocida con un motivo obligatorio.
 
-    Sin nota, o con una nota en blanco, responde 422 y no cambia la alerta. El
-    motivo se guarda en la alerta y en la auditoría.
+    Exige el rol de médico antes de leer el estado. Sin nota, o con una nota en
+    blanco, responde 422 y no cambia la alerta. El motivo se guarda en la
+    alerta y en la auditoría.
     """
     await alerts.transition(conn, alert_id, user, "dismiss", body.note)

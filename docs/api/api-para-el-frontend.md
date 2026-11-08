@@ -494,12 +494,14 @@ el cuidador deben indicar `patient_id` en las tres rutas del paciente; sin él
 responden 403. El cuidador con alcance `minimal` no ve datos clínicos aunque el
 vínculo exista; solo el alcance `readings` lo autoriza.
 
-Las rutas de alertas siguen exactamente la misma matriz que `GET /api/readings`:
-el paciente ve sus alertas, el médico las de sus pacientes vinculados, el
-cuidador las de los autorizados con alcance `readings` y el administrador
-recibe 403. El médico y el cuidador deben indicar `patient_id` en el listado; en
-la consulta de una alerta y en sus transiciones el paciente se toma de la
-alerta y se comprueba el mismo vínculo.
+El listado y la consulta de alertas siguen exactamente la misma matriz que
+`GET /api/readings`: el paciente ve sus alertas, el médico las de sus pacientes
+vinculados, el cuidador las de los autorizados con alcance `readings` y el
+administrador recibe 403. El médico y el cuidador deben indicar `patient_id` en
+el listado; en la consulta y en las transiciones el paciente se toma de la
+alerta y se comprueba el mismo vínculo. Las tres transiciones exigen además el
+rol `physician`: un paciente o un cuidador con acceso recibe 403 con
+`Permiso denegado` y la alerta no cambia.
 
 **La consulta de lecturas y de síntomas no exige consentimiento; el resumen de
 la ventana sí.** La historia clínica se consulta sin la compuerta. El resumen es
@@ -719,8 +721,10 @@ si el paciente no está en el alcance o si el médico o el cuidador omiten
 
 Las alertas nacen del motor de umbrales, que llega con un incremento posterior:
 ninguna ruta de este contrato crea una alerta. Las rutas de esta sección listan,
-leen y mueven una alerta existente. Siguen la misma resolución de alcance que las
-lecturas y el administrador recibe 403 en todas.
+leen y mueven una alerta existente. El listado y la consulta siguen la misma
+resolución de alcance que las lecturas; las tres transiciones exigen además el
+rol `physician`, porque mover una alerta es el acto clínico que la cierra. El
+administrador recibe 403 en todas.
 
 La máquina de estados es la única autoridad sobre una transición. El software no
 cierra una alerta por su cuenta: cada cambio de estado lo firma una cuenta
@@ -736,6 +740,12 @@ autenticada, queda en la auditoría con la acción `alert.acknowledged`,
 | `acknowledged` | `dismiss`     | `dismissed`      |
 | `validated`    | ninguna       | 409              |
 | `dismissed`    | ninguna       | 409              |
+
+Solo un médico puede ejecutar las acciones de la tabla. Un paciente o un
+cuidador con acceso puede listar y leer la alerta, pero cualquier transición
+responde 403 con `Permiso denegado` y no cambia el estado. El cliente debe
+ocultar los botones de transición a esos roles en lugar de mostrarlos y recoger
+el 403.
 
 Cualquier otra combinación responde 409 con el estado actual en el mensaje. Este
 es el cuerpo real de un intento de validar una alerta ya validada:
@@ -842,8 +852,8 @@ pertenece la alerta.
 
 ### `POST /api/alerts/{alert_id}/acknowledge`
 
-Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
-`open`. Acusa recibo y la deja en `acknowledged`.
+Exige sesión con rol `physician` y una alerta en estado `open`. Acusa recibo y
+la deja en `acknowledged`.
 
 Petición real de la sesión del médico de demostración:
 
@@ -856,14 +866,15 @@ Petición real de la sesión del médico de demostración:
 La `note` es opcional y viaja al detalle de auditoría; no se guarda en la
 alerta. Respuesta 204, sin cuerpo.
 
-Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
-o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
+`physician` (el administrador, un paciente o un cuidador) o si la alerta está
+fuera del alcance; 404 con `La alerta no existe`; 409 si el
 estado actual no admite la transición.
 
 ### `POST /api/alerts/{alert_id}/validate`
 
-Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
-`open` o `acknowledged`. La valida y escribe la persona que la validó.
+Exige sesión con rol `physician` y una alerta en estado `open` o
+`acknowledged`. La valida y escribe la persona que la validó.
 
 Petición real de la sesión del médico de demostración:
 
@@ -895,14 +906,15 @@ devuelve el estado y la persona que la firmó:
 marca en UTC. Una alerta validada no vuelve a moverse: el intento responde 409
 con el estado actual.
 
-Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
-o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
+`physician` (el administrador, un paciente o un cuidador) o si la alerta está
+fuera del alcance; 404 con `La alerta no existe`; 409 si el
 estado actual no admite la transición.
 
 ### `POST /api/alerts/{alert_id}/dismiss`
 
-Exige sesión con rol `patient`, `physician` o `caregiver` y una alerta en estado
-`open` o `acknowledged`. La descarta con un motivo obligatorio.
+Exige sesión con rol `physician` y una alerta en estado `open` o
+`acknowledged`. La descarta con un motivo obligatorio.
 
 Petición real de la sesión del médico de demostración:
 
@@ -916,8 +928,9 @@ Sin `note`, o con una cadena de solo espacios, responde 422 con
 `El descarte de la alerta necesita una nota` y no cambia la alerta. Respuesta
 204, sin cuerpo. El motivo se guarda en `note` y en el detalle de auditoría.
 
-Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`
-o si la alerta está fuera del alcance; 404 con `La alerta no existe`; 409 si el
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
+`physician` (el administrador, un paciente o un cuidador) o si la alerta está
+fuera del alcance; 404 con `La alerta no existe`; 409 si el
 estado actual no admite la transición; 422 si falta la nota.
 
 ### `POST /api/readings`

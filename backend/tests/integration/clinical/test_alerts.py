@@ -5,11 +5,13 @@ las alertas.
 
 Cubren el alcance de cada cuenta con la misma matriz de las lecturas, los
 filtros por estado y severidad, el orden y la paginación del listado, la
-consulta de una alerta y la máquina de estados de las transiciones. Ninguna
-transición prohíbida se acepta, el 409 nombra el estado actual, el descarte
-exige una nota y la validación escribe a la persona que validó. Cada
-transición deja su evento de auditoría y la respuesta pública lleva el
-identificador de la cuenta del paciente, nunca el del perfil.
+consulta de una alerta y la máquina de estados de las transiciones. Las
+transiciones exigen el rol de médico además del acceso: un paciente o un
+cuidador que lo intenta recibe 403 y la alerta no cambia. Ninguna transición
+prohíbida se acepta, el 409 nombra el estado actual, el descarte exige una nota
+y la validación escribe a la persona que validó. Cada transición deja su evento
+de auditoría y la respuesta pública lleva el identificador de la cuenta del
+paciente, nunca el del perfil.
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
+
+from hta.auth.passwords import hash_password
 
 pytestmark = pytest.mark.integration
 
@@ -222,6 +226,26 @@ def test_caregiver_with_readings_scope_lists_the_alerts(
     assert body["items"][0]["id"] == str(open_alert_id)
 
 
+def test_caregiver_with_readings_scope_cannot_dismiss(
+    client, db, caregiver_headers, open_alert_id
+):
+    """El cuidador autorizado lee la alerta, pero no puede moverla."""
+    response = client.post(
+        f"/api/alerts/{open_alert_id}/dismiss",
+        json={"note": "motivo del cuidador"},
+        headers=caregiver_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+    row = db.execute(
+        "select status, note from alerts where id = %s", (open_alert_id,)
+    ).fetchone()
+    assert row == ("open", None)
+    assert db.execute(
+        "select count(*) from audit_logs where action = 'alert.dismissed'"
+    ).fetchone()[0] == 0
+
+
 def test_caregiver_with_minimal_scope_is_rejected(
     client, caregiver_minimal_headers, consented_patient_id
 ):
@@ -294,15 +318,51 @@ def test_alert_cannot_be_validated_twice(client, physician_headers, validated_al
     assert "validated" in response.json()["detail"]
 
 
-def test_patient_cannot_validate_an_alert(client, patient_headers, open_alert_id):
-    assert (
-        client.post(
-            f"/api/alerts/{open_alert_id}/validate",
-            json={},
-            headers=patient_headers,
-        ).status_code
-        == 403
+def test_patient_cannot_validate_an_alert(
+    client, db, patient_headers, open_alert_id
+):
+    response = client.post(
+        f"/api/alerts/{open_alert_id}/validate",
+        json={},
+        headers=patient_headers,
     )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+    row = db.execute(
+        "select status, validated_by from alerts where id = %s",
+        (open_alert_id,),
+    ).fetchone()
+    assert row == ("open", None)
+    assert db.execute(
+        "select count(*) from audit_logs where action = 'alert.validated'"
+    ).fetchone()[0] == 0
+
+
+def test_patient_cannot_validate_own_alert(
+    client, db, patient_headers, patient_id
+):
+    """El rol, y no el alcance, rechaza al paciente dueño de la alerta.
+
+    Sin la compuerta de rol, el resolutor de acceso dejaría pasar al paciente
+    sobre su propia alerta. La prueba comprueba el 403, el mensaje y que la
+    fila y la auditoría no cambiaron.
+    """
+    alert_id = _insert_alert(db, patient_id, "high")
+    response = client.post(
+        f"/api/alerts/{alert_id}/validate",
+        json={},
+        headers=patient_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+    row = db.execute(
+        "select status, validated_by, validated_at from alerts where id = %s",
+        (alert_id,),
+    ).fetchone()
+    assert row == ("open", None, None)
+    assert db.execute(
+        "select count(*) from audit_logs where entity_id = %s", (alert_id,)
+    ).fetchone()[0] == 0
 
 
 def test_dismissal_requires_a_note(client, physician_headers, open_alert_id):
@@ -521,16 +581,29 @@ def test_unknown_alert_cannot_be_transitioned(client, physician_headers, action)
     assert response.json()["detail"] == "La alerta no existe"
 
 
-def test_transition_of_an_alert_of_another_patient_is_denied(
-    client, other_caregiver_headers, open_alert_id
+def test_physician_of_another_patient_cannot_validate(
+    client, db, open_alert_id
 ):
+    """El rol de médico no basta: el vínculo con el paciente sigue mandando."""
+    email = "medico-ajeno@hta.demo"
+    db.execute(
+        "insert into users (email, password_hash, role, full_name) "
+        "values (%s, %s, 'physician', %s)",
+        (email, hash_password("s3cret"), "Médico ajeno"),
+    )
+    login = client.post(
+        "/api/auth/login", json={"email": email, "password": "s3cret"}
+    )
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
     response = client.post(
-        f"/api/alerts/{open_alert_id}/validate",
-        json={},
-        headers=other_caregiver_headers,
+        f"/api/alerts/{open_alert_id}/validate", json={}, headers=headers
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "Permiso denegado"
+    assert db.execute(
+        "select status from alerts where id = %s", (open_alert_id,)
+    ).fetchone()[0] == "open"
 
 
 def test_alert_listing_returns_a_type_and_a_severity(
