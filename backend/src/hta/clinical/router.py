@@ -191,6 +191,18 @@ class AlertResponse(BaseModel):
     validated_at: datetime | None
 
 
+class AlertDetailResponse(AlertResponse):
+    """Detalle de una alerta, con el motivo del descarte leído de la auditoría.
+
+    ``dismissal_reason`` es ``null`` salvo que la alerta esté descartada; en ese
+    caso trae la nota del evento ``alert.dismissed`` más reciente. Solo lo
+    devuelve ``GET /api/alerts/{alert_id}``: el listado no lo incluye para no
+    consultar la auditoría una vez por fila.
+    """
+
+    dismissal_reason: str | None
+
+
 class AlertTransitionRequest(BaseModel):
     """Nota opcional de una transición de alerta.
 
@@ -438,21 +450,22 @@ async def list_alerts(
     )
 
 
-@router.get("/alerts/{alert_id}", response_model=AlertResponse)
+@router.get("/alerts/{alert_id}", response_model=AlertDetailResponse)
 async def read_alert(
     alert_id: UUID,
     conn: Annotated[AsyncConnection, Depends(get_conn)],
     user: Annotated[CurrentUser, Depends(require_role(*CLINICAL_ROLES))],
-) -> AlertResponse:
+) -> AlertDetailResponse:
     """Devuelve una alerta visible para la cuenta.
 
     Responde 404 si el identificador no corresponde a ninguna alerta y 403 con
     ``Permiso denegado`` si la alerta es de un paciente fuera del alcance. Ese
     403 es el mismo de cualquier otra negativa de alcance y no revela a quién
-    pertenece la alerta.
+    pertenece la alerta. Si está descartada, ``dismissal_reason`` trae el motivo
+    desde la auditoría; el listado no publica ese campo.
     """
     alert = await alerts.get_for(conn, alert_id, user)
-    return AlertResponse.model_validate(alert)
+    return AlertDetailResponse.model_validate(alert)
 
 
 @router.post("/alerts/{alert_id}/acknowledge", status_code=204)

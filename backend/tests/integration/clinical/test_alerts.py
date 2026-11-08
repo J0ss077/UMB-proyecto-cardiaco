@@ -183,6 +183,7 @@ def test_alert_detail_publishes_the_account_and_never_the_profile(
         "created_at",
         "validated_by",
         "validated_at",
+        "dismissal_reason",
     }
     assert str(_profile_id(db, consented_patient_id)) not in response.text
 
@@ -650,3 +651,43 @@ def test_alert_listing_returns_a_type_and_a_severity(
     assert item["severity"] == "critical"
     assert item["created_at"].endswith("Z") or item["created_at"].endswith("+00:00")
     assert UUID(item["id"]) == open_alert_id
+
+
+def test_detail_reports_the_dismissal_reason_from_the_audit_trail(
+    client, db, physician_headers, consented_patient_id, open_alert_id
+):
+    """El detalle explica el descarte sin duplicar el texto en la alerta.
+
+    ``dismissal_reason`` se lee de la auditoría y solo viaja en el detalle; el
+    listado no lo lleva para no pagar una consulta por cada alerta.
+    """
+    open_body = client.get(
+        f"/api/alerts/{open_alert_id}", headers=physician_headers
+    ).json()
+    assert open_body["dismissal_reason"] is None
+
+    reason = "Lectura mal tomada; se confirmó en consulta."
+    dismissed = client.post(
+        f"/api/alerts/{open_alert_id}/dismiss",
+        json={"note": reason},
+        headers=physician_headers,
+    )
+    assert dismissed.status_code == 204
+
+    detail = client.get(
+        f"/api/alerts/{open_alert_id}", headers=physician_headers
+    ).json()
+    assert detail["status"] == "dismissed"
+    assert detail["dismissal_reason"] == reason
+    assert detail["note"] is None
+    assert db.execute(
+        "select details->>'note' from audit_logs "
+        "where action = 'alert.dismissed' and entity_id = %s",
+        (open_alert_id,),
+    ).fetchone()[0] == reason
+
+    listing = client.get(
+        f"/api/alerts?patient_id={consented_patient_id}",
+        headers=physician_headers,
+    ).json()
+    assert "dismissal_reason" not in listing["items"][0]

@@ -811,7 +811,8 @@ Respuesta 200 real de la sesión del paciente de demostración:
 `type` es texto libre y la siembra usa `crisis_hipertensiva`. `validated_by` y
 `validated_at` valen `null` mientras la alerta no esté validada; `note` conserva
 la descripción clínica de la alerta y puede ser `null`. El motivo del descarte no
-se escribe ahí: queda en el detalle de auditoría.
+se escribe ahí: lo devuelve `GET /api/alerts/{alert_id}` en `dismissal_reason`, y
+el listado no incluye ese campo.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
 si el paciente no está en el alcance o si el médico o el cuidador omiten
@@ -820,8 +821,8 @@ si el paciente no está en el alcance o si el médico o el cuidador omiten
 ### `GET /api/alerts/{alert_id}`
 
 Exige sesión con rol `patient`, `physician` o `caregiver`. Devuelve una alerta
-visible para la cuenta, con el mismo cuerpo que un elemento del listado y sin la
-envoltura. No se pagina.
+visible para la cuenta, con los mismos campos de un elemento del listado, sin la
+envoltura y con el campo adicional `dismissal_reason`. No se pagina.
 
 Petición:
 
@@ -842,7 +843,31 @@ Respuesta 200 real de la sesión del paciente de demostración:
     "note": "Lecturas domiciliarias de 186/122 mmHg y 184/120 mmHg; pendiente de revisión médica.",
     "created_at": "2026-11-07T21:00:00Z",
     "validated_by": null,
-    "validated_at": null
+    "validated_at": null,
+    "dismissal_reason": null
+}
+```
+
+`dismissal_reason` es el único campo que no está en el listado. Vale `null`
+mientras la alerta no esté descartada; en una alerta `dismissed` trae el motivo
+del evento `alert.dismissed` más reciente de la auditoría, no el texto de
+`note`, que conserva la descripción clínica. `GET /api/alerts` no devuelve este
+campo para no consultar la auditoría una vez por cada fila de la página.
+
+Respuesta 200 real de una alerta descartada:
+
+```json
+{
+    "id": "c8646730-68d7-4ff7-9f02-8c2f4846ccb1",
+    "patient_id": "fa7a04d8-d882-4e47-b90e-34a68e4f4c91",
+    "type": "crisis_hipertensiva",
+    "severity": "high",
+    "status": "dismissed",
+    "note": null,
+    "created_at": "2026-11-08T21:58:36.048776Z",
+    "validated_by": null,
+    "validated_at": null,
+    "dismissal_reason": "Lectura mal tomada; se confirmó en consulta."
 }
 ```
 
@@ -900,7 +925,8 @@ devuelve el estado y la persona que la firmó:
     "note": "Lecturas domiciliarias de 186/122 mmHg y 184/120 mmHg; pendiente de revisión médica.",
     "created_at": "2026-11-07T21:00:00Z",
     "validated_by": "1106cf54-2606-47f6-a368-cb15e834ca56",
-    "validated_at": "2026-11-08T21:18:18.139814Z"
+    "validated_at": "2026-11-08T21:18:18.139814Z",
+    "dismissal_reason": null
 }
 ```
 

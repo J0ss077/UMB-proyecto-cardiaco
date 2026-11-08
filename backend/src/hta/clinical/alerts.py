@@ -23,7 +23,7 @@ vez no ganan las dos.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -79,6 +79,8 @@ class Alert:
     ``patient_id`` es el identificador de la cuenta del paciente, nunca el de
     ``patient_profiles``: el perfil no sale del servidor. ``validated_by`` es
     la cuenta que validó y queda nula mientras la alerta no esté validada.
+    ``dismissal_reason`` solo lo llena la consulta individual y solo para una
+    alerta descartada; el listado lo deja en ``None`` porque no lo publica.
     """
 
     id: UUID
@@ -90,6 +92,7 @@ class Alert:
     created_at: datetime
     validated_by: UUID | None
     validated_at: datetime | None
+    dismissal_reason: str | None = None
 
 
 _SELECT = (
@@ -189,12 +192,30 @@ async def get_for(
     Una alerta inexistente responde 404. Una alerta de un paciente fuera del
     alcance de la cuenta responde 403 con ``Permiso denegado``, el mismo
     mensaje de cualquier otro rechazo de alcance.
+
+    Si la alerta está descartada, agrega ``dismissal_reason`` con la nota del
+    evento ``alert.dismissed`` más reciente de la auditoría. Es una sola
+    consulta adicional y solo en esta ruta; el listado no la paga ni publica el
+    campo, porque el motivo de un descarte no pertenece a una página de
+    alertas. Así el texto vive una sola vez, en la auditoría, y ``note`` sigue
+    siendo la descripción clínica.
     """
     alert = await _fetch(conn, alert_id, lock=False)
     if alert is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     await access.patient_profile_id(conn, user, alert.patient_id)
-    return alert
+    if alert.status != "dismissed":
+        return alert
+
+    row = await (
+        await conn.execute(
+            "select details->>'note' from audit_logs "
+            "where action = 'alert.dismissed' and entity_id = %s "
+            "order by occurred_at desc, id desc limit 1",
+            (alert_id,),
+        )
+    ).fetchone()
+    return replace(alert, dismissal_reason=None if row is None else row[0])
 
 
 async def transition(

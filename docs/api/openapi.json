@@ -70,6 +70,98 @@
         "title": "AccountSummary",
         "type": "object"
       },
+      "AlertDetailResponse": {
+        "description": "Detalle de una alerta, con el motivo del descarte leído de la auditoría.\n\n``dismissal_reason`` es ``null`` salvo que la alerta esté descartada; en ese\ncaso trae la nota del evento ``alert.dismissed`` más reciente. Solo lo\ndevuelve ``GET /api/alerts/{alert_id}``: el listado no lo incluye para no\nconsultar la auditoría una vez por fila.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dismissal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissal Reason"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "patient_id": {
+            "format": "uuid",
+            "title": "Patient Id",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "validated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated At"
+          },
+          "validated_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated By"
+          }
+        },
+        "required": [
+          "id",
+          "patient_id",
+          "type",
+          "severity",
+          "status",
+          "note",
+          "created_at",
+          "validated_by",
+          "validated_at",
+          "dismissal_reason"
+        ],
+        "title": "AlertDetailResponse",
+        "type": "object"
+      },
       "AlertResponse": {
         "description": "Alerta listada o consultada, con el identificador de cuenta del paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y\n``validated_at`` solo tienen valor cuando la alerta está validada. ``note``\nconserva la descripción clínica con la que nació la alerta; el motivo del\ndescarte no la sobrescribe y vive en el detalle de auditoría.",
         "properties": {
@@ -1188,7 +1280,7 @@
     },
     "/api/alerts/{alert_id}": {
       "get": {
-        "description": "Devuelve una alerta visible para la cuenta.\n\nResponde 404 si el identificador no corresponde a ninguna alerta y 403 con\n``Permiso denegado`` si la alerta es de un paciente fuera del alcance. Ese\n403 es el mismo de cualquier otra negativa de alcance y no revela a quién\npertenece la alerta.",
+        "description": "Devuelve una alerta visible para la cuenta.\n\nResponde 404 si el identificador no corresponde a ninguna alerta y 403 con\n``Permiso denegado`` si la alerta es de un paciente fuera del alcance. Ese\n403 es el mismo de cualquier otra negativa de alcance y no revela a quién\npertenece la alerta. Si está descartada, ``dismissal_reason`` trae el motivo\ndesde la auditoría; el listado no publica ese campo.",
         "operationId": "read_alert_api_alerts__alert_id__get",
         "parameters": [
           {
@@ -1223,7 +1315,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AlertResponse"
+                  "$ref": "#/components/schemas/AlertDetailResponse"
                 }
               }
             },
