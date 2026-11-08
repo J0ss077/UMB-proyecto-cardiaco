@@ -212,10 +212,11 @@ async def transition(
     ``for update`` y se consulta la máquina de estados. Cualquier transición
     fuera del mapa responde 409 con un mensaje que nombra el estado actual.
     ``validate`` escribe ``validated_by`` y ``validated_at``; ``dismiss`` exige
-    una nota no vacía y la guarda; ``acknowledge`` solo cambia el estado. El
-    actor queda en la auditoría con el identificador de la alerta y la nota, si
-    la hay, en el detalle. El ``commit`` deja el hecho visible para la siguiente
-    petición.
+    una nota no vacía y la registra solo en la auditoría, porque ``note``
+    conserva la descripción clínica con la que nació la alerta; ``acknowledge``
+    solo cambia el estado. El actor queda en la auditoría con el identificador
+    de la alerta y la nota, si la hay, en el detalle. El ``commit`` deja el
+    hecho visible para la siguiente petición.
     """
     target = ACTION_TARGET.get(action)
     if target is None:
@@ -247,8 +248,8 @@ async def transition(
         )
     elif action == "dismiss":
         await conn.execute(
-            "update alerts set status = %s, note = %s where id = %s",
-            (target, normalized, alert_id),
+            "update alerts set status = %s where id = %s",
+            (target, alert_id),
         )
     else:
         await conn.execute(

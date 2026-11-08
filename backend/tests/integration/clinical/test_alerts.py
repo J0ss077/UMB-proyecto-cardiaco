@@ -207,9 +207,14 @@ def test_unknown_alert_returns_404(client, physician_headers):
     assert response.json()["detail"] == "La alerta no existe"
 
 
-def test_alert_of_another_patient_is_denied_like_an_unknown_one(
+def test_alert_of_another_patient_is_refused_with_the_shared_message(
     client, patient_headers, open_alert_id
 ):
+    """El 403 de una alerta ajena es el mismo `Permiso denegado` de siempre.
+
+    El 404 queda para el identificador sin fila; la negativa de alcance no
+    distingue a quién pertenece la alerta.
+    """
     response = client.get(f"/api/alerts/{open_alert_id}", headers=patient_headers)
     assert response.status_code == 403
     assert response.json()["detail"] == "Permiso denegado"
@@ -243,6 +248,27 @@ def test_caregiver_with_readings_scope_cannot_dismiss(
     assert row == ("open", None)
     assert db.execute(
         "select count(*) from audit_logs where action = 'alert.dismissed'"
+    ).fetchone()[0] == 0
+
+
+def test_caregiver_with_readings_scope_cannot_validate(
+    client, db, caregiver_headers, open_alert_id
+):
+    """El cuidador autorizado tampoco puede validar: la compuerta es por ruta."""
+    response = client.post(
+        f"/api/alerts/{open_alert_id}/validate",
+        json={"note": "nota del cuidador"},
+        headers=caregiver_headers,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permiso denegado"
+    row = db.execute(
+        "select status, validated_by, validated_at from alerts where id = %s",
+        (open_alert_id,),
+    ).fetchone()
+    assert row == ("open", None, None)
+    assert db.execute(
+        "select count(*) from audit_logs where action = 'alert.validated'"
     ).fetchone()[0] == 0
 
 
@@ -451,6 +477,12 @@ def test_acknowledged_alert_can_be_validated(
 def test_open_alert_can_be_dismissed_directly(
     client, db, physician_headers, open_alert_id
 ):
+    """El descarte conserva la descripción clínica y deja el motivo en la auditoría."""
+    description = "Lecturas de 186/122 y 184/120 mmHg; pendiente de revisión."
+    db.execute(
+        "update alerts set note = %s where id = %s",
+        (description, open_alert_id),
+    )
     response = client.post(
         f"/api/alerts/{open_alert_id}/dismiss",
         json={"note": "lectura mal tomada"},
@@ -460,7 +492,7 @@ def test_open_alert_can_be_dismissed_directly(
     row = db.execute(
         "select status, note from alerts where id = %s", (open_alert_id,)
     ).fetchone()
-    assert row == ("dismissed", "lectura mal tomada")
+    assert row == ("dismissed", description)
     audit = db.execute(
         "select action, details from audit_logs where entity_id = %s",
         (open_alert_id,),

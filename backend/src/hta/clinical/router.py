@@ -173,8 +173,9 @@ class AlertResponse(BaseModel):
     """Alerta listada o consultada, con el identificador de cuenta del paciente.
 
     ``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y
-    ``validated_at`` solo tienen valor cuando la alerta está validada y
-    ``note`` guarda el motivo del descarte.
+    ``validated_at`` solo tienen valor cuando la alerta está validada. ``note``
+    conserva la descripción clínica con la que nació la alerta; el motivo del
+    descarte no la sobrescribe y vive en el detalle de auditoría.
     """
 
     model_config = ConfigDict(frozen=True, from_attributes=True)
@@ -194,8 +195,9 @@ class AlertTransitionRequest(BaseModel):
     """Nota opcional de una transición de alerta.
 
     ``validate`` y ``acknowledge`` la aceptan para dejarla en la auditoría;
-    ``dismiss`` la exige y la guarda en la alerta. La regla del descarte la
-    aplica el servicio, que responde 422 si falta o está en blanco.
+    ``dismiss`` la exige y también la registra allí, sin escribir ``note``. La
+    regla del descarte la aplica el servicio, que responde 422 si falta o está
+    en blanco.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -495,7 +497,7 @@ async def dismiss_alert(
     """Descarta una alerta abierta o reconocida con un motivo obligatorio.
 
     Exige el rol de médico antes de leer el estado. Sin nota, o con una nota en
-    blanco, responde 422 y no cambia la alerta. El motivo se guarda en la
-    alerta y en la auditoría.
+    blanco, responde 422 y no cambia la alerta. El motivo se registra en el
+    detalle de auditoría; ``note`` conserva la descripción clínica de la alerta.
     """
     await alerts.transition(conn, alert_id, user, "dismiss", body.note)

@@ -758,9 +758,10 @@ es el cuerpo real de un intento de validar una alerta ya validada:
 
 `validate` escribe `validated_by` y `validated_at`. `dismiss` exige una `note` no
 vacía: sin ella, o con solo espacios, responde 422 y no cambia la alerta.
-`acknowledge` solo cambia el estado. La nota de `validate` y de `acknowledge` no
-se guarda en la alerta: viaja al detalle de auditoría; la de `dismiss` se guarda
-además en `note`. Las tres transiciones responden 204, sin cuerpo.
+`acknowledge` solo cambia el estado. La nota de las tres transiciones vive en el
+detalle de auditoría y no sobrescribe `alerts.note`, que conserva la descripción
+clínica con la que nació la alerta. Las tres transiciones responden 204, sin
+cuerpo.
 
 ### `GET /api/alerts`
 
@@ -808,8 +809,9 @@ Respuesta 200 real de la sesión del paciente de demostración:
 
 `patient_id` es el identificador de la cuenta del paciente, nunca el del perfil.
 `type` es texto libre y la siembra usa `crisis_hipertensiva`. `validated_by` y
-`validated_at` valen `null` mientras la alerta no esté validada; `note` guarda el
-motivo del descarte y puede ser `null`.
+`validated_at` valen `null` mientras la alerta no esté validada; `note` conserva
+la descripción clínica de la alerta y puede ser `null`. El motivo del descarte no
+se escribe ahí: queda en el detalle de auditoría.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol es `admin`,
 si el paciente no está en el alcance o si el médico o el cuidador omiten
@@ -926,7 +928,8 @@ Petición real de la sesión del médico de demostración:
 
 Sin `note`, o con una cadena de solo espacios, responde 422 con
 `El descarte de la alerta necesita una nota` y no cambia la alerta. Respuesta
-204, sin cuerpo. El motivo se guarda en `note` y en el detalle de auditoría.
+204, sin cuerpo. El motivo se registra en el detalle de auditoría; `note`
+conserva la descripción clínica y no se sobrescribe.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
 `physician` (el administrador, un paciente o un cuidador) o si la alerta está

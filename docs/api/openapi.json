@@ -71,7 +71,7 @@
         "type": "object"
       },
       "AlertResponse": {
-        "description": "Alerta listada o consultada, con el identificador de cuenta del paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y\n``validated_at`` solo tienen valor cuando la alerta está validada y\n``note`` guarda el motivo del descarte.",
+        "description": "Alerta listada o consultada, con el identificador de cuenta del paciente.\n\n``patient_id`` es el de ``users`` y no el del perfil. ``validated_by`` y\n``validated_at`` solo tienen valor cuando la alerta está validada. ``note``\nconserva la descripción clínica con la que nació la alerta; el motivo del\ndescarte no la sobrescribe y vive en el detalle de auditoría.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -152,7 +152,7 @@
       },
       "AlertTransitionRequest": {
         "additionalProperties": false,
-        "description": "Nota opcional de una transición de alerta.\n\n``validate`` y ``acknowledge`` la aceptan para dejarla en la auditoría;\n``dismiss`` la exige y la guarda en la alerta. La regla del descarte la\naplica el servicio, que responde 422 si falta o está en blanco.",
+        "description": "Nota opcional de una transición de alerta.\n\n``validate`` y ``acknowledge`` la aceptan para dejarla en la auditoría;\n``dismiss`` la exige y también la registra allí, sin escribir ``note``. La\nregla del descarte la aplica el servicio, que responde 422 si falta o está\nen blanco.",
         "properties": {
           "note": {
             "anyOf": [
@@ -1311,7 +1311,7 @@
     },
     "/api/alerts/{alert_id}/dismiss": {
       "post": {
-        "description": "Descarta una alerta abierta o reconocida con un motivo obligatorio.\n\nExige el rol de médico antes de leer el estado. Sin nota, o con una nota en\nblanco, responde 422 y no cambia la alerta. El motivo se guarda en la\nalerta y en la auditoría.",
+        "description": "Descarta una alerta abierta o reconocida con un motivo obligatorio.\n\nExige el rol de médico antes de leer el estado. Sin nota, o con una nota en\nblanco, responde 422 y no cambia la alerta. El motivo se registra en el\ndetalle de auditoría; ``note`` conserva la descripción clínica de la alerta.",
         "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
         "parameters": [
           {
