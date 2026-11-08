@@ -36,13 +36,6 @@ router = APIRouter(
 )
 
 
-class AcceptRequest(BaseModel):
-    """Versión y referencia del documento que el paciente acepta."""
-
-    version: int
-    content_ref: str
-
-
 class AcceptedConsent(BaseModel):
     """Identificador de la aceptación recién registrada."""
 
@@ -101,13 +94,18 @@ async def read_status(
 
 @router.post("", status_code=201, response_model=AcceptedConsent)
 async def accept(
-    body: AcceptRequest,
     conn: Annotated[AsyncConnection, Depends(get_conn)],
     user: Annotated[CurrentUser, Depends(require_role("patient"))],
 ) -> AcceptedConsent:
-    """Registra una aceptación nueva del documento firmada por el paciente."""
+    """Registra una aceptación nueva del documento firmada por el paciente.
+
+    La petición no lleva cuerpo: la versión y la referencia del documento las
+    fija el servidor con la versión vigente y el contenido que la plataforma
+    publica. Así el paciente no puede aceptar una versión o un documento que la
+    plataforma nunca emitió.
+    """
     profile_id = await _profile_id(conn, user.user_id)
-    consent_id = await service.accept(conn, profile_id, body.version, body.content_ref)
+    consent_id = await service.accept(conn, profile_id)
     return AcceptedConsent(id=consent_id)
 
 

@@ -9,6 +9,10 @@ anterior, de modo que la historia del consentimiento se puede reconstruir. La
 consulta que usan los endpoints de monitoreo responde verdadero únicamente si
 existe una aceptación sin revocar de la versión requerida.
 
+La versión y la referencia del documento las fija este módulo: el cliente no las
+envía, de modo que una aceptación no puede referirse a una versión o a un
+documento que la plataforma no emitió.
+
 Las dos mutaciones confirman su transacción antes de responder, igual que el
 servicio de cuentas: la conexión se cierra después de enviar la respuesta y sin
 la confirmación el cliente podría no ver su propio cambio todavía.
@@ -25,9 +29,15 @@ from hta.audit import record
 from hta.auth.deps import FORBIDDEN
 
 # Versión del documento de consentimiento que exige este incremento. La
-# consulta de vigencia y la compuerta de las rutas clínicas preguntan por esta
-# misma versión: una aceptación de otra versión no habilita el monitoreo.
+# consulta de vigencia, el alta de la aceptación y la compuerta de las rutas
+# clínicas preguntan por esta misma versión: una aceptación de otra versión no
+# habilita el monitoreo.
 CURRENT_VERSION = 1
+
+# Referencia del documento que la plataforma publica para esa versión. La
+# escribe el servidor y el cliente no la envía: una aceptación no puede
+# referirse a un documento que la plataforma nunca emitió.
+CONSENT_CONTENT_REF = "consentimiento-informado-v1"
 
 
 async def _account_id(conn: AsyncConnection, patient_id: UUID) -> UUID:
@@ -57,10 +67,13 @@ async def _account_id(conn: AsyncConnection, patient_id: UUID) -> UUID:
 async def accept(
     conn: AsyncConnection,
     patient_id: UUID,
-    version: int,
-    content_ref: str,
 ) -> UUID:
     """Registra una aceptación nueva y devuelve su identificador.
+
+    La versión y la referencia del documento las fija el servidor con
+    ``CURRENT_VERSION`` y ``CONSENT_CONTENT_REF``; el cliente no las envía, de
+    modo que no puede registrar la aceptación de una versión o de un documento
+    que la plataforma nunca emitió.
 
     Siempre inserta una fila, aunque ya exista una aceptación de la misma
     versión: la tabla guarda cada aceptación como un hecho propio y una segunda
@@ -73,7 +86,7 @@ async def accept(
             await conn.execute(
                 "insert into consents (patient_id, version, content_ref) "
                 "values (%s, %s, %s) returning id",
-                (patient_id, version, content_ref),
+                (patient_id, CURRENT_VERSION, CONSENT_CONTENT_REF),
             )
         ).fetchone()
     )[0]
@@ -83,7 +96,7 @@ async def accept(
         "consent.accepted",
         entity="consents",
         entity_id=consent_id,
-        details={"version": version},
+        details={"version": CURRENT_VERSION},
     )
     await conn.commit()
     return consent_id

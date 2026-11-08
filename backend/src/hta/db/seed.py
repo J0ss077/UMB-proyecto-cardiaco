@@ -37,18 +37,11 @@ from psycopg.types.json import Jsonb
 
 from hta.accounts.service import normalize_email
 from hta.auth.passwords import hash_password
+from hta.clinical.validation import plausibility
+from hta.consent.service import CONSENT_CONTENT_REF, CURRENT_VERSION
 
 # Contraseña común de las siete cuentas de demostración.
 DEMO_PASSWORD = "Demo2026!"
-
-# Rangos fisiológicos plausibles del manual, en mmHg. No son umbrales clínicos:
-# una lectura fuera de ellos se conserva con ``out_of_range`` en lugar de
-# descartarse, y una lectura elevada pero plausible queda ``valid``.
-_PLAUSIBLE_SYSTOLIC = (80, 200)
-_PLAUSIBLE_DIASTOLIC = (40, 130)
-
-_CURRENT_CONSENT_VERSION = 1
-_CONSENT_CONTENT_REF = "consentimiento-informado-v1"
 
 # Umbrales globales de la propuesta documentada en
 # docs/research/2026-10-18-umbrales-clinicos-hta.md, Tabla 9. Para las métricas
@@ -328,21 +321,6 @@ _SYMPTOM_TEXT = "mareo y dolor de cabeza desde la tarde"
 _SYMPTOM_MOOD = "ansioso"
 
 
-def _validation_status(systolic: int, diastolic: int) -> str:
-    """Marca solo los valores fuera del rango fisiológico plausible.
-
-    El estado existe para conservar una lectura atípica, no para clasificar la
-    presión elevada: una lectura de 138/88 es plausible y queda ``valid``. Los
-    rangos son los del manual, sistólica de 80 a 200 mmHg y diastólica de 40 a
-    130 mmHg, ambos inclusive.
-    """
-    if not _PLAUSIBLE_SYSTOLIC[0] <= systolic <= _PLAUSIBLE_SYSTOLIC[1]:
-        return "out_of_range"
-    if not _PLAUSIBLE_DIASTOLIC[0] <= diastolic <= _PLAUSIBLE_DIASTOLIC[1]:
-        return "out_of_range"
-    return "valid"
-
-
 def _heart_rate(index: int, offset: int) -> int:
     """Frecuencia cardiaca determinista entre 58 y 93 lpm."""
     return 58 + (index * 7 + offset) % 36
@@ -442,7 +420,7 @@ def _seed_consent(
         vigentes = conn.execute(
             "select id, accepted_at from consents "
             "where patient_id = %s and version = %s and revoked_at is null",
-            (patient_id, _CURRENT_CONSENT_VERSION),
+            (patient_id, CURRENT_VERSION),
         ).fetchall()
         if vigentes:
             for consent_id, existing_accepted_at in vigentes:
@@ -458,7 +436,7 @@ def _seed_consent(
 
     row = conn.execute(
         "select 1 from consents where patient_id = %s and version = %s",
-        (patient_id, _CURRENT_CONSENT_VERSION),
+        (patient_id, CURRENT_VERSION),
     ).fetchone()
     if row is not None:
         return
@@ -469,9 +447,9 @@ def _seed_consent(
         "values (%s, %s, %s, %s, %s)",
         (
             patient_id,
-            _CURRENT_CONSENT_VERSION,
+            CURRENT_VERSION,
             accepted_at,
-            _CONSENT_CONTENT_REF,
+            CONSENT_CONTENT_REF,
             revoked_at,
         ),
     )
@@ -518,7 +496,7 @@ def _seed_readings(
                 source,
                 device_id if source == "device" else None,
                 measured_at,
-                _validation_status(systolic, diastolic),
+                plausibility(systolic, diastolic),
             ),
         )
 

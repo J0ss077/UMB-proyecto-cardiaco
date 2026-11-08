@@ -219,6 +219,31 @@ def test_future_measured_at_is_rejected(client, db, consented_patient_headers):
     assert db.execute("select count(*) from readings").fetchone()[0] == 0
 
 
+def test_empty_symptom_discards_the_reading_and_its_audit(
+    client, db, consented_patient_headers
+):
+    """Una lectura válida con un síntoma vacío se rechaza sin escribir nada.
+
+    La lectura se construye antes de validar el síntoma y la transacción se
+    revierte entera: el 422 no deja lectura ni fila de auditoría clínica.
+    """
+    response = client.post(
+        "/api/readings",
+        json={"systolic": 138, "diastolic": 88, "symptom": {}},
+        headers=consented_patient_headers,
+    )
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "El síntoma necesita un texto o un estado de ánimo"
+    )
+    assert db.execute("select count(*) from readings").fetchone()[0] == 0
+    assert db.execute(
+        "select count(*) from audit_logs "
+        "where action in ('reading.created', 'symptom.created')"
+    ).fetchone()[0] == 0
+
+
 def _profile_id(db, user_id):
     """Devuelve el perfil de paciente de una cuenta creada por una fixture."""
     return db.execute(

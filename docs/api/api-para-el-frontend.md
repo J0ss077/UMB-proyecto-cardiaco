@@ -443,16 +443,18 @@ tiene perfil.
 
 ### `POST /api/consent`
 
-Exige sesión con rol `patient`. Registra una aceptación nueva. El historial es
-de solo agregar: aceptar no reescribe aceptaciones anteriores.
+Exige sesión con rol `patient`. Registra una aceptación nueva. La petición no
+lleva cuerpo: el servidor graba la versión vigente y la referencia del documento
+que la plataforma publica. El cliente no elige ninguna de las dos, así que no
+puede registrar la aceptación de una versión o de un documento que la plataforma
+nunca emitió. El historial es de solo agregar: aceptar no reescribe aceptaciones
+anteriores.
 
 Petición:
 
-```json
-{
-    "version": 1,
-    "content_ref": "docs/manual/consentimiento-informado.md"
-}
+```http
+POST /api/consent
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
 ```
 
 Respuesta 201:
@@ -837,7 +839,8 @@ o `limit` quedan fuera de rango.
 
 Exige sesión con rol `patient`, `physician` o `caregiver`. Devuelve una alerta
 visible para la cuenta, con los mismos campos de un elemento del listado, sin la
-envoltura y con el campo adicional `dismissal_reason`. No se pagina.
+envoltura y con dos campos adicionales: `validated_by_name` y
+`dismissal_reason`. No se pagina.
 
 Petición:
 
@@ -859,15 +862,19 @@ Respuesta 200 real de la sesión del paciente de demostración:
     "created_at": "2026-11-07T21:00:00Z",
     "validated_by": null,
     "validated_at": null,
+    "validated_by_name": null,
     "dismissal_reason": null
 }
 ```
 
-`dismissal_reason` es el único campo que no está en el listado. Vale `null`
+`validated_by_name` es el nombre de la cuenta que validó y vale `null` mientras
+la alerta no esté validada; el cliente lo usa para mostrar quién la firmó sin
+pedir el listado administrativo de cuentas. `dismissal_reason` vale `null`
 mientras la alerta no esté descartada; en una alerta `dismissed` trae el motivo
 del evento `alert.dismissed` más reciente de la auditoría, no el texto de
-`note`, que conserva la descripción clínica. `GET /api/alerts` no devuelve este
-campo para no consultar la auditoría una vez por cada fila de la página.
+`note`, que conserva la descripción clínica. `GET /api/alerts` no devuelve
+ninguno de los dos campos para no consultar la auditoría ni la cuenta una vez
+por cada fila de la página.
 
 Respuesta 200 real de una alerta descartada:
 
@@ -882,6 +889,7 @@ Respuesta 200 real de una alerta descartada:
     "created_at": "2026-11-08T21:58:36.048776Z",
     "validated_by": null,
     "validated_at": null,
+    "validated_by_name": null,
     "dismissal_reason": "Lectura mal tomada; se confirmó en consulta."
 }
 ```
@@ -941,12 +949,15 @@ devuelve el estado y la persona que la firmó:
     "created_at": "2026-11-07T21:00:00Z",
     "validated_by": "1106cf54-2606-47f6-a368-cb15e834ca56",
     "validated_at": "2026-11-08T21:18:18.139814Z",
+    "validated_by_name": "Julián Andrés Morales Vega",
     "dismissal_reason": null
 }
 ```
 
 `validated_by` es el identificador de la cuenta que validó y `validated_at` la
-marca en UTC. Una alerta validada no vuelve a moverse: el intento responde 409
+marca en UTC. `validated_by_name` es el nombre de esa cuenta, resuelto en la
+misma consulta para que la pantalla del médico no tenga que pedir el listado
+administrativo. Una alerta validada no vuelve a moverse: el intento responde 409
 con el estado actual.
 
 Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es
@@ -1102,7 +1113,8 @@ Existe una ruta de escritura que no usa la sesión: `POST /api/ingest/readings`
 recibe lecturas de un dispositivo autenticado con la clave compartida
 `X-Device-Key`. La interfaz web no la llama: el navegador no tiene la clave y no
 debe tenerla. El contrato completo, con los campos, la deduplicación por
-`device_id` y `measured_at` y los dos almacenes, está en `docs/api/ingesta.md`.
+paciente, dispositivo e instante y los dos almacenes, está en
+`docs/api/ingesta.md`.
 
 ## Regenerar el contrato
 

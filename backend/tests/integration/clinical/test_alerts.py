@@ -216,9 +216,42 @@ def test_alert_detail_publishes_the_account_and_never_the_profile(
         "created_at",
         "validated_by",
         "validated_at",
+        "validated_by_name",
         "dismissal_reason",
     }
     assert str(_profile_id(db, consented_patient_id)) not in response.text
+
+
+def test_alert_detail_publishes_the_name_of_the_physician_who_validated(
+    client,
+    db,
+    physician_headers,
+    physician_id,
+    validated_alert_id,
+    open_alert_id,
+):
+    """El detalle resuelve ``validated_by`` a un nombre legible.
+
+    La consulta de una alerta validada trae el nombre de la cuenta que la
+    firmó; una alerta abierta lo deja en ``null`` y el listado no publica el
+    campo.
+    """
+    name = db.execute(
+        "select full_name from users where id = %s", (physician_id,)
+    ).fetchone()[0]
+    detail = client.get(
+        f"/api/alerts/{validated_alert_id}", headers=physician_headers
+    ).json()
+    assert detail["validated_by"] == str(physician_id)
+    assert detail["validated_by_name"] == name
+
+    open_detail = client.get(
+        f"/api/alerts/{open_alert_id}", headers=physician_headers
+    ).json()
+    assert open_detail["validated_by_name"] is None
+
+    listing = client.get("/api/alerts", headers=physician_headers).json()
+    assert all("validated_by_name" not in item for item in listing["items"])
 
 
 def test_alert_responses_never_expose_the_profile_id(

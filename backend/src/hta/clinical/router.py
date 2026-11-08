@@ -203,14 +203,17 @@ class AlertResponse(BaseModel):
 
 
 class AlertDetailResponse(AlertResponse):
-    """Detalle de una alerta, con el motivo del descarte leído de la auditoría.
+    """Detalle de una alerta, con el validador legible y el motivo del descarte.
 
-    ``dismissal_reason`` es ``null`` salvo que la alerta esté descartada; en ese
-    caso trae la nota del evento ``alert.dismissed`` más reciente. Solo lo
-    devuelve ``GET /api/alerts/{alert_id}``: el listado no lo incluye para no
-    consultar la auditoría una vez por fila.
+    ``validated_by_name`` es el nombre de la cuenta que validó y vale ``null``
+    mientras la alerta no esté validada; el listado no lo lleva. ``dismissal_reason``
+    es ``null`` salvo que la alerta esté descartada; en ese caso trae la nota del
+    evento ``alert.dismissed`` más reciente. Solo lo devuelve
+    ``GET /api/alerts/{alert_id}``: el listado no incluye ninguno de los dos para
+    no pagar una consulta por fila.
     """
 
+    validated_by_name: str | None
     dismissal_reason: str | None
 
 

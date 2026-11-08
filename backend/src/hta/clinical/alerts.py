@@ -78,9 +78,11 @@ class Alert:
 
     ``patient_id`` es el identificador de la cuenta del paciente, nunca el de
     ``patient_profiles``: el perfil no sale del servidor. ``validated_by`` es
-    la cuenta que validó y queda nula mientras la alerta no esté validada.
-    ``dismissal_reason`` solo lo llena la consulta individual y solo para una
-    alerta descartada; el listado lo deja en ``None`` porque no lo publica.
+    la cuenta que validó y queda nula mientras la alerta no esté validada;
+    ``validated_by_name`` es el nombre de esa cuenta, leído con una unión y
+    nulo cuando no hay validador. ``dismissal_reason`` solo lo llena la consulta
+    individual y solo para una alerta descartada; el listado lo deja en ``None``
+    porque no lo publica.
     """
 
     id: UUID
@@ -92,13 +94,15 @@ class Alert:
     created_at: datetime
     validated_by: UUID | None
     validated_at: datetime | None
+    validated_by_name: str | None = None
     dismissal_reason: str | None = None
 
 
 _SELECT = (
     "select a.id, p.user_id, a.type, a.severity, a.status, a.note, "
-    "a.created_at, a.validated_by, a.validated_at "
+    "a.created_at, a.validated_by, a.validated_at, v.full_name "
     "from alerts a join patient_profiles p on p.id = a.patient_id "
+    "left join users v on v.id = a.validated_by "
 )
 
 
@@ -275,12 +279,10 @@ async def transition(
             "validated_at = now() where id = %s",
             (target, actor.user_id, alert_id),
         )
-    elif action == "dismiss":
-        await conn.execute(
-            "update alerts set status = %s where id = %s",
-            (target, alert_id),
-        )
     else:
+        # ``acknowledge`` y ``dismiss`` solo cambian el estado. El motivo del
+        # descarte vive en la auditoría y no se escribe en ``note``: la
+        # descripción clínica de la alerta se conserva.
         await conn.execute(
             "update alerts set status = %s where id = %s",
             (target, alert_id),

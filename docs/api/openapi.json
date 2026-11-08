@@ -1,25 +1,6 @@
 {
   "components": {
     "schemas": {
-      "AcceptRequest": {
-        "description": "Versión y referencia del documento que el paciente acepta.",
-        "properties": {
-          "content_ref": {
-            "title": "Content Ref",
-            "type": "string"
-          },
-          "version": {
-            "title": "Version",
-            "type": "integer"
-          }
-        },
-        "required": [
-          "version",
-          "content_ref"
-        ],
-        "title": "AcceptRequest",
-        "type": "object"
-      },
       "AcceptedConsent": {
         "description": "Identificador de la aceptación recién registrada.",
         "properties": {
@@ -71,7 +52,7 @@
         "type": "object"
       },
       "AlertDetailResponse": {
-        "description": "Detalle de una alerta, con el motivo del descarte leído de la auditoría.\n\n``dismissal_reason`` es ``null`` salvo que la alerta esté descartada; en ese\ncaso trae la nota del evento ``alert.dismissed`` más reciente. Solo lo\ndevuelve ``GET /api/alerts/{alert_id}``: el listado no lo incluye para no\nconsultar la auditoría una vez por fila.",
+        "description": "Detalle de una alerta, con el validador legible y el motivo del descarte.\n\n``validated_by_name`` es el nombre de la cuenta que validó y vale ``null``\nmientras la alerta no esté validada; el listado no lo lleva. ``dismissal_reason``\nes ``null`` salvo que la alerta esté descartada; en ese caso trae la nota del\nevento ``alert.dismissed`` más reciente. Solo lo devuelve\n``GET /api/alerts/{alert_id}``: el listado no incluye ninguno de los dos para\nno pagar una consulta por fila.",
         "properties": {
           "created_at": {
             "format": "date-time",
@@ -145,6 +126,17 @@
               }
             ],
             "title": "Validated By"
+          },
+          "validated_by_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validated By Name"
           }
         },
         "required": [
@@ -157,6 +149,7 @@
           "created_at",
           "validated_by",
           "validated_at",
+          "validated_by_name",
           "dismissal_reason"
         ],
         "title": "AlertDetailResponse",
@@ -1724,18 +1717,8 @@
         ]
       },
       "post": {
-        "description": "Registra una aceptación nueva del documento firmada por el paciente.",
+        "description": "Registra una aceptación nueva del documento firmada por el paciente.\n\nLa petición no lleva cuerpo: la versión y la referencia del documento las\nfija el servidor con la versión vigente y el contenido que la plataforma\npublica. Así el paciente no puede aceptar una versión o un documento que la\nplataforma nunca emitió.",
         "operationId": "accept_api_consent_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AcceptRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "201": {
             "content": {
@@ -1752,16 +1735,6 @@
           },
           "403": {
             "description": "Permiso denegado, o No hay consentimiento informado vigente"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "security": [

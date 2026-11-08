@@ -11,8 +11,9 @@ dispositivo sin clave no necesita un cuerpo correcto para saber que no puede
 escribir.
 
 La respuesta es la misma lectura que publica el alta manual, con
-``source='device'``. Un reintento de la misma pareja ``device_id`` y
-``measured_at`` responde 200 con el mismo cuerpo en lugar de 201.
+``source='device'``. Un reintento de la misma terna ``patient_id``,
+``device_id`` y ``measured_at`` responde 200 con el mismo cuerpo en lugar de
+201.
 """
 
 from __future__ import annotations
