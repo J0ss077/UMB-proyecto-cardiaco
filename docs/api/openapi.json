@@ -4365,7 +4365,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Informa el estado de cada dependencia sin lanzar excepción.\n\nResponde 200 aunque una dependencia falle: el cuerpo distingue la\ndependencia degradada y el campo ``status`` queda en ``degraded``.",
+        "description": "Informa el estado de cada dependencia sin lanzar excepción.\n\nResponde 200 aunque una dependencia falle: el cuerpo distingue la\ndependencia degradada y el campo ``status`` queda en ``degraded``. Si el\ncliente es un navegador (``Accept: text/html``) o pide ``?format=html``,\nrecibe una página con el detalle de cada componente; el contrato JSON no\ncambia para los demás clientes.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {

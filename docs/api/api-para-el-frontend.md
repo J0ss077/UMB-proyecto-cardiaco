@@ -239,6 +239,10 @@ aunque una dependencia esté caída; el campo `status` lo distingue.
 
 `status` vale `ok` o `degraded`; `database` y `mongo` valen `ok` o `fail`.
 
+Si quien consulta es un navegador (`Accept: text/html`) o la dirección lleva
+`?format=html`, la respuesta es una página HTML con el estado, la latencia y el
+detalle de la API, PostgreSQL y MongoDB. `?format=json` fuerza el JSON.
+
 ### `POST /api/auth/login`
 
 Sin sesión.
