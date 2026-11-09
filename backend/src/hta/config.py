@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     # Orígenes que el navegador puede llamar, separados por comas. Vacío deja
     # los puertos de desarrollo de la interfaz web que fija ``api.cors``.
     allowed_origins: str = ""
+    # Dirección interna de la interfaz web, solo para la página de estado.
+    web_url: str = ""
 
     @field_validator("jwt_secret")
     @classmethod

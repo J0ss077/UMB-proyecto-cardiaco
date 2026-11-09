@@ -60,6 +60,7 @@ services:
       HTA_REFRESH_TTL_SECONDS: ${HTA_REFRESH_TTL_SECONDS:-604800}
       HTA_ENVIRONMENT: ${HTA_ENVIRONMENT:-local}
       HTA_ALLOWED_ORIGINS: ${HTA_ALLOWED_ORIGINS:-}
+      HTA_WEB_URL: "http://web:3000"
       # Clave compartida de los dispositivos. Vacía deja la ingesta cerrada con
       # 503; se configura en .env y nunca se publica en el navegador.
       HTA_DEVICE_KEY: ${HTA_DEVICE_KEY:-}
