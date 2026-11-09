@@ -189,6 +189,7 @@ async def deactivate(conn: AsyncConnection, actor: UUID, user_id: UUID) -> None:
         "email = 'deactivated+' || id::text, "
         "full_name = %s, "
         "phone = null, avatar = null, license_number = null, specialty = null, "
+        "pending_password_hash = null, password_change_requested_at = null, "
         "password_hash = %s, "
         "active = false, "
         "updated_at = now() "

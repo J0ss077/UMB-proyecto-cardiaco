@@ -340,3 +340,17 @@ def test_demo_consultations_cover_review_meet_and_checkup(db):
     seed(db)
     assert db.execute("select count(*) from teleconsultations").fetchone()[0] == 5
 
+
+
+def test_demo_staff_have_fictitious_contact_data_and_only_the_physician_a_license(db):
+    seed(db)
+    rows = {
+        role: (phone, license_number, specialty)
+        for role, phone, license_number, specialty in db.execute(
+            "select role::text, phone, license_number, specialty from users where role <> 'patient'"
+        ).fetchall()
+    }
+    assert set(rows) == {"admin", "physician", "caregiver"}
+    assert all(phone for phone, _, _ in rows.values())
+    assert rows["physician"][1] and rows["physician"][2]
+    assert rows["admin"][1:] == (None, None) and rows["caregiver"][1:] == (None, None)

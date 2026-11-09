@@ -23,6 +23,8 @@ from hta.consultations.router import router as consultations_router
 from hta.db.mongo import ensure_collections, get_database
 from hta.db.pool import close_pool, get_pool
 from hta.ingest.router import router as ingest_router
+from hta.passwordchange.router import admin_router as password_requests_router
+from hta.passwordchange.router import router as password_change_router
 from hta.profile.router import router as profile_router
 from hta.staffprofile.router import router as staff_profile_router
 
@@ -95,6 +97,8 @@ def create_app() -> FastAPI:
     app.include_router(accounts_router)
     app.include_router(admin_router)
     app.include_router(consent_router)
+    app.include_router(password_change_router)
+    app.include_router(password_requests_router)
     app.include_router(profile_router)
     app.include_router(staff_profile_router)
     app.include_router(consultations_router)
