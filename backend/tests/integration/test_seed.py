@@ -31,6 +31,10 @@ IDEMPOTENT_TABLES = (
     "caregiver_links",
     "reminders",
     "alert_config",
+    "teleconsultations",
+    "medications",
+    "adherence_events",
+    "reports",
 )
 
 
@@ -168,8 +172,8 @@ def test_alert_scenario_has_a_seeded_symptom(db):
     """El escenario crítico deja un síntoma con el texto fijo de la siembra.
 
     La fila cuelga del paciente que tiene la alerta abierta y conserva el texto
-    y el estado de ánimo que documenta el contrato. Es la única fila sembrada:
-    el resto de pacientes empieza sin síntomas.
+    y el estado de ánimo que documenta el contrato. Los otros dos pacientes con
+    consentimiento vigente tienen un síntoma propio; el revocado no.
     """
     seed(db)
     rows = db.execute(
@@ -182,7 +186,7 @@ def test_alert_scenario_has_a_seeded_symptom(db):
     assert rows == [
         ("paciente2@hta.demo", "mareo y dolor de cabeza desde la tarde", "ansioso")
     ]
-    assert db.execute("select count(*) from symptoms_mood").fetchone()[0] == 1
+    assert db.execute("select count(*) from symptoms_mood").fetchone()[0] == 3
 
 
 def test_revoked_scenario_keeps_one_revoked_consent(db):
@@ -285,3 +289,54 @@ def test_alert_config_has_documented_global_thresholds(db):
         ("diastolic", None, 90, None, 120, ["physician"]),
         ("systolic", None, 140, None, 180, ["physician"]),
     ]
+
+
+def test_every_demo_patient_has_fictitious_contact_data(db):
+    seed(db)
+    rows = db.execute(
+        "select document_number, phone, trusted_contact_phone, trusted_contact_email "
+        "from patient_profiles"
+    ).fetchall()
+    assert len(rows) == 4
+    for document_number, phone, trusted_phone, trusted_email in rows:
+        assert document_number and phone and trusted_phone
+        assert trusted_email.endswith("@example.com")
+    assert len({row[0] for row in rows}) == 4
+
+
+def test_demo_consultations_cover_review_meet_and_checkup(db):
+    """Las consultas cubren revisión, reunión pendiente y cierre con formato.
+
+    La del dolor de cabeza queda completada, con enlace de Meet y los cuatro
+    textos del chequeo. Una segunda siembra no añade filas.
+    """
+    seed(db)
+    rows = db.execute(
+        "select u.email, t.status, t.wants_meet, t.meet_url is not null, "
+        "       (t.checkup_general is not null and t.checkup_pressure is not null "
+        "        and t.checkup_symptoms is not null and t.checkup_conduct is not null), "
+        "       t.response is not null "
+        "from teleconsultations t "
+        "join patient_profiles p on p.id = t.patient_id "
+        "join users u on u.id = p.user_id "
+        "order by u.email, t.created_at"
+    ).fetchall()
+    assert rows == [
+        ("paciente1@hta.demo", "completed", False, False, True, True),
+        ("paciente2@hta.demo", "completed", True, True, True, True),
+        ("paciente2@hta.demo", "pending", True, True, False, False),
+        ("paciente2@hta.demo", "in_review", True, False, False, False),
+        ("paciente4@hta.demo", "in_review", False, False, False, False),
+    ]
+    headache = db.execute(
+        "select t.response, t.checkup_general is not null "
+        "from teleconsultations t "
+        "join patient_profiles p on p.id = t.patient_id "
+        "join users u on u.id = p.user_id "
+        "where u.email = 'paciente2@hta.demo' and t.message = 'Tengo dolor de cabeza desde ayer'"
+    ).fetchone()
+    assert headache[0] == "Gracias por avisar. Registra tus lecturas de hoy y mañana."
+    assert headache[1] is True
+    seed(db)
+    assert db.execute("select count(*) from teleconsultations").fetchone()[0] == 5
+

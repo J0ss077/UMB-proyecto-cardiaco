@@ -25,6 +25,7 @@ from hta.auth.deps import (
     get_conn,
     require_role,
 )
+from hta.consent.service import CURRENT_VERSION
 
 # El registro público no exige sesión, así que vive en su propio enrutador y no
 # declara el 401 ni el 403 de la compuerta.
@@ -74,7 +75,13 @@ class RoleRequest(BaseModel):
 
 
 class AccountSummary(BaseModel):
-    """Datos de una cuenta que ve quien administra el sistema."""
+    """Datos de una cuenta que ve quien administra el sistema.
+
+    ``consent`` solo tiene valor en una cuenta de paciente: ``active`` si hay
+    una aceptación vigente, ``revoked`` si hubo alguna y ya no está vigente, y
+    ``pending`` si nunca aceptó. ``active_sessions`` cuenta refrescos sin
+    revocar y sin vencer. Ninguno de los dos campos trae datos clínicos.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -83,6 +90,8 @@ class AccountSummary(BaseModel):
     full_name: str
     role: str
     active: bool
+    consent: str | None
+    active_sessions: int
 
 
 class PaginatedAccounts(BaseModel):
@@ -136,6 +145,16 @@ async def deactivate(
     await service.deactivate(conn, actor.user_id, user_id)
 
 
+@router.post("/{user_id}/revoke-sessions", status_code=204)
+async def revoke_sessions(
+    user_id: UUID,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    actor: Annotated[CurrentUser, Depends(require_role("admin"))],
+) -> None:
+    """Cierra las sesiones de otra cuenta sin desactivarla."""
+    await service.revoke_sessions(conn, actor.user_id, user_id)
+
+
 @router.get("", response_model=PaginatedAccounts)
 async def list_accounts(
     conn: Annotated[AsyncConnection, Depends(get_conn)],
@@ -155,9 +174,24 @@ async def list_accounts(
     ).fetchone()
     rows = await (
         await conn.execute(
-            "select id, email, full_name, role, active from users "
-            "order by email limit %s offset %s",
-            (limit, offset),
+            "select u.id, u.email, u.full_name, u.role, u.active, "
+            "(select count(*) from refresh_tokens rt "
+            " where rt.user_id = u.id and rt.revoked_at is null "
+            " and rt.expires_at > now()), "
+            "case "
+            " when u.role <> 'patient' then null "
+            " when exists (select 1 from patient_profiles p "
+            "   join consents c on c.patient_id = p.id "
+            "   where p.user_id = u.id and c.version = %s and c.revoked_at is null) "
+            "   then 'active' "
+            " when exists (select 1 from patient_profiles p "
+            "   join consents c on c.patient_id = p.id "
+            "   where p.user_id = u.id) "
+            "   then 'revoked' "
+            " else 'pending' "
+            "end "
+            "from users u order by u.email limit %s offset %s",
+            (CURRENT_VERSION, limit, offset),
         )
     ).fetchall()
     items = [
@@ -167,6 +201,8 @@ async def list_accounts(
             full_name=row[2],
             role=row[3],
             active=row[4],
+            active_sessions=row[5],
+            consent=row[6],
         )
         for row in rows
     ]

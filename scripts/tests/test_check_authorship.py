@@ -79,3 +79,11 @@ def test_exempts_only_the_top_level_agents_guide(tmp_path):
     nested.mkdir()
     (nested / "AGENTS.md").write_text(claim, encoding="utf-8")
     assert run_check(tmp_path) == 1
+
+
+def test_ignores_integrity_hashes_in_a_generated_lockfile(tmp_path):
+    # Un hash de integridad en base64 puede contener cualquier subcadena.
+    lock = tmp_path / "web" / "package-lock.json"
+    lock.parent.mkdir()
+    lock.write_text('{"integrity": "sha512-/' "LL" "M" 'yas0ljj"}', encoding="utf-8")
+    assert run_check(tmp_path) == 0

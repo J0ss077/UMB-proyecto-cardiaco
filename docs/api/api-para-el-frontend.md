@@ -356,14 +356,18 @@ Respuesta 200:
             "email": "admin.demo@example.com",
             "full_name": "Administrador de demostración",
             "role": "admin",
-            "active": true
+            "active": true,
+            "consent": null,
+            "active_sessions": 1
         },
         {
             "id": "bf652215-8ac5-4c95-b884-a293cc1477af",
             "email": "ana.demo@example.com",
             "full_name": "Ana María Rojas",
             "role": "patient",
-            "active": true
+            "active": true,
+            "consent": "active",
+            "active_sessions": 0
         }
     ],
     "total": 2
@@ -371,8 +375,11 @@ Respuesta 200:
 ```
 
 Una cuenta desactivada sigue en la lista con `active` en `false`; su correo y
-su nombre ya no identifican a la persona. Errores: 401 sin sesión válida, 403
-si el rol no es `admin`.
+su nombre ya no identifican a la persona. `consent` vale `active`, `pending` o
+`revoked` solo en cuentas de paciente, y `null` en el resto. `active_sessions`
+cuenta refrescos sin revocar y sin vencer. Ninguno de los dos campos trae
+lecturas ni síntomas. Errores: 401 sin sesión válida, 403 si el rol no es
+`admin`.
 
 ### `PATCH /api/accounts/{user_id}/role`
 
@@ -408,6 +415,139 @@ Respuesta 204, sin cuerpo.
 
 Errores: 404 con `La cuenta no existe`; 409 con
 `No puedes desactivar tu propia cuenta`.
+
+### `POST /api/accounts/{user_id}/revoke-sessions`
+
+Exige sesión con rol `admin`. Revoca los tokens de refresco vigentes de otra
+cuenta sin desactivarla y sin borrar historial. La auditoría registra
+`accounts.sessions_revoked` sin guardar los tokens.
+
+Respuesta 204, sin cuerpo.
+
+Errores: 404 con `La cuenta no existe`; 409 con
+`No puedes cerrar tus propias sesiones`.
+
+### `GET /api/admin/links`
+
+Exige sesión con rol `admin`. Devuelve las asignaciones de médicos y las
+autorizaciones de cuidadores, con nombres y sin cifras clínicas.
+
+```json
+{
+    "physicians": [
+        {
+            "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
+            "patient_name": "Ana María Rojas",
+            "physician_user_id": "1106cf54-2606-47f6-a368-cb15e834ca56",
+            "physician_name": "Julián Andrés Morales Vega",
+            "assigned_at": "2026-11-01T12:00:00Z"
+        }
+    ],
+    "caregivers": [
+        {
+            "id": "c8646730-68d7-4ff7-9f02-8c2f4846ccb1",
+            "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
+            "patient_name": "Ana María Rojas",
+            "caregiver_user_id": "058f72ca-eaed-4ab8-8303-8b08a9292f86",
+            "caregiver_name": "Cuidador de demostración",
+            "authorized_scope": "readings",
+            "created_at": "2026-11-01T12:00:00Z"
+        }
+    ]
+}
+```
+
+`authorized_scope` vale `minimal` o `readings`. Errores: 401 sin sesión válida;
+403 si el rol no es `admin`.
+
+### `POST /api/admin/physicians`
+
+Asigna un médico activo a un paciente con perfil.
+
+```json
+{
+    "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
+    "physician_user_id": "1106cf54-2606-47f6-a368-cb15e834ca56"
+}
+```
+
+Respuesta 204. Errores: 404 con `La cuenta no existe`; 409 con
+`La cuenta está desactivada` o `Ese médico ya está asignado a este paciente`;
+422 si el rol no corresponde o el paciente no tiene perfil.
+
+### `DELETE /api/admin/physicians/{patient_user_id}/{physician_user_id}`
+
+Quita la asignación. Respuesta 204. 404 con `El vínculo no existe` si no estaba.
+
+### `POST /api/admin/caregivers`
+
+Autoriza a un cuidador. El cuerpo lleva `patient_user_id`, `caregiver_user_id`
+y `authorized_scope` (`minimal` o `readings`). Respuesta 201 con `id`. 409 con
+`Ese cuidador ya está autorizado para este paciente`. 422 con
+`Alcance desconocido` si el alcance no es uno de los dos.
+
+### `PATCH /api/admin/caregivers/{link_id}`
+
+```json
+{ "authorized_scope": "minimal" }
+```
+
+Respuesta 204. 404 con `El vínculo no existe`.
+
+### `DELETE /api/admin/caregivers/{link_id}`
+
+Revoca la autorización. Respuesta 204. 404 con `El vínculo no existe`.
+
+### `GET /api/admin/alert-config`
+
+Lista los umbrales, con la envoltura de listado. `recipients` es una lista de
+`patient`, `caregiver` y `physician`. Un `patient_user_id` nulo es la
+configuración general. No incluye lecturas. Los cuatro números pueden ser nulos:
+esa orilla no dispara aviso.
+
+### `PATCH /api/admin/alert-config/{config_id}/recipients`
+
+```json
+{ "recipients": ["patient", "physician"] }
+```
+
+Cambia solo los destinatarios. Un cuerpo con `high_threshold` u otro campo
+responde 422. Un destinatario fuera del conjunto responde 422 con
+`Destinatario desconocido`. 404 con `La configuración no existe`.
+
+### `PATCH /api/admin/alert-config/{config_id}`
+
+```json
+{
+    "low_threshold": 90,
+    "high_threshold": 140,
+    "critical_low": 80,
+    "critical_high": 180
+}
+```
+
+Sustituye la banda completa. Los cuatro campos van siempre; un `null` borra esa
+orilla. El aviso desde tiene que ser menor que el aviso hasta, y el crítico
+tiene que quedar por fuera de ese aviso. Para la sistólica cada número va de
+40 a 260, y para la diastólica de 20 a 180. Una banda invertida o fuera de ese
+intervalo responde 422 con el motivo. 404 con `La configuración no existe`.
+La auditoría registra `alert_config.thresholds_updated` con la banda anterior y
+la nueva. Estos números siguen sin ser evidencia clínica hasta la firma.
+
+### `GET /api/admin/audit`
+
+Lista el rastro, del más reciente al más antiguo, con `limit` y `offset`.
+Acepta `action`, `topic`, `since` y `until`. `action` es el identificador
+exacto. `topic` es el tipo, el tramo anterior al punto: `auth`, `accounts`,
+`profile`, `staff`, `links`, `consent`, `reading`, `symptom`, `alert`,
+`consultation` o `alert_config`. Un tipo desconocido responde 422 con
+`Tipo de actividad desconocido`. Las fechas son ISO 8601 con desplazamiento
+horario. Cada evento trae `actor_name`, `action`, `entity`, `ip`,
+`occurred_at` y `details`. Si la acción es de lectura, síntoma, alerta, consulta
+o ingesta, `details` vale `null` y `details_withheld` vale `true`.
+
+Errores de todas las rutas de `/api/admin`: 401 sin sesión válida y 403 con
+`Permiso denegado` si el rol no es `admin`.
 
 ### `GET /api/consent`
 
@@ -494,6 +634,256 @@ Respuesta 204, sin cuerpo.
 Después de revocar, la consulta vuelve a informar la versión pendiente de
 aceptación. Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la
 cuenta de paciente no tiene perfil.
+
+### `GET /api/profile`
+
+Exige sesión con rol `patient`. Devuelve el perfil del paciente que firma la petición. No recibe
+identificador: el perfil se resuelve desde la sesión.
+
+```http
+GET /api/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200:
+
+```json
+{
+    "user_id": "bc30c07c-44d3-4525-bfa3-33a26a2d06e2",
+    "email": "paciente1@hta.demo",
+    "full_name": "Carlos Alberto Pérez Ruiz",
+    "birth_date": "1958-03-14",
+    "sex": "masculino",
+    "document_number": "10.000.001",
+    "phone": "+57 300 000 0001",
+    "diagnosis_date": "2015-06-10",
+    "trusted_contact_phone": "+57 310 000 0001",
+    "trusted_contact_email": "contacto1@example.com",
+    "avatar": null
+}
+```
+
+Todos los campos salvo `user_id`, `email` y `full_name` pueden ser `null`. `avatar` es la foto de
+perfil como URL de datos (`data:image/jpeg;base64,...`) o `null` si no hay foto. El sexo se guarda en
+minúsculas. Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es `patient`
+o la cuenta no tiene perfil.
+
+### `PATCH /api/profile`
+
+Exige sesión con rol `patient`. Actualiza de forma parcial el nombre completo, el teléfono, el
+contacto de confianza y la foto, y devuelve el perfil resultante con la misma forma de `GET /api/profile`.
+
+```json
+{
+    "full_name": "Manuel Alejandro González",
+    "phone": "+57 316 8765 432",
+    "trusted_contact_phone": "+57 300 1112233",
+    "trusted_contact_email": "familiar@correo.com"
+}
+```
+
+Reglas:
+
+- Solo cambian los campos enviados. Un campo opcional enviado con `null` o con una cadena vacía
+  borra el dato; el nombre no se puede vaciar.
+- El teléfono admite un `+` o un paréntesis inicial, dígitos y espacios, paréntesis o guiones, con
+  7 a 20 caracteres. El correo del contacto se guarda en minúsculas.
+- `avatar` acepta una URL de datos `image/jpeg`, `image/png` o `image/webp` de hasta 150 000
+  caracteres, con base64 válido y una cabecera de archivo que coincida con el tipo; `null` o vacío
+  quita la foto. El cliente la envía ya recortada y reducida (256 píxeles). Cualquier otro valor
+  responde 422. No se admite SVG.
+- El correo de la cuenta, `birth_date`, `sex`, `document_number` y `diagnosis_date` no se pueden
+  cambiar: enviarlos responde 422, igual que un cuerpo vacío o un campo desconocido.
+- No exige consentimiento informado: son datos personales, no clínicos.
+- La auditoría registra `profile.updated` con los nombres de los campos, no con sus valores; de la foto no guarda el contenido.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es `patient`; 422 con la
+lista de validación si el cuerpo no cumple las reglas.
+
+### `GET /api/staff/profile`
+
+Exige sesión con rol `physician`, `caregiver` o `admin`. Devuelve el perfil de la cuenta que firma la
+petición; no recibe identificador.
+
+Respuesta 200:
+
+```json
+{
+    "user_id": "bc30c07c-44d3-4525-bfa3-33a26a2d06e2",
+    "email": "medico@hta.demo",
+    "full_name": "Julián Andrés Morales Vega",
+    "role": "physician",
+    "phone": "+57 300 000 0200",
+    "avatar": null,
+    "license_number": "RM-10020",
+    "specialty": "Medicina interna"
+}
+```
+
+`phone`, `avatar`, `license_number` y `specialty` pueden ser `null`. Errores: 401 sin sesión válida;
+403 con `Permiso denegado` si el rol es `patient`.
+
+### `PATCH /api/staff/profile`
+
+Mismo control de acceso. Actualiza de forma parcial `full_name`, `phone` y `avatar` en cualquier rol
+del personal, y además `license_number` y `specialty` si el rol es `physician`. Devuelve el perfil con
+la forma de `GET /api/staff/profile`.
+
+Reglas:
+
+- Solo cambian los campos enviados; `null` o cadena vacía borra un dato opcional y el nombre no se puede vaciar.
+- El nombre, el teléfono y la foto siguen las mismas reglas que en `PATCH /api/profile`.
+- `license_number` admite de 3 a 30 caracteres entre letras, dígitos, espacio, punto, barra y guion,
+  y `specialty` hasta 100 caracteres. Enviarlos desde un rol que no es médico responde 422 y no cambia nada.
+- El correo, el rol y el estado no se pueden cambiar; un campo desconocido o un cuerpo vacío responde 422.
+- La auditoría registra `staff.profile_updated` con los nombres de los campos, no con sus valores.
+- La desactivación de la cuenta vacía las cuatro columnas.
+
+### `POST /api/consultations`
+
+Exige sesión con rol `patient` y consentimiento informado vigente. Envía una consulta rápida al
+médico vinculado al paciente y la acompaña con su última lectura válida.
+
+Petición:
+
+```json
+{
+    "message": "Tengo mareos desde ayer con presión 150/95",
+    "reason": "high_pressure",
+    "onset": "since_yesterday",
+    "medications": "Losartán 50 mg",
+    "wants_meet": true,
+    "share_phone": true,
+    "physician_id": "1106cf54-2606-47f6-a368-cb15e834ca56"
+}
+```
+
+- `message` se recorta y admite de 1 a 2000 caracteres.
+- `reason` es obligatorio: `high_pressure`, `dizziness_headache`, `chest_pain_or_breathing`,
+  `medication` u `other`.
+- `onset` es obligatorio: `today`, `since_yesterday`, `few_days` u `over_a_week`.
+- `medications` es opcional, de hasta 500 caracteres; vacío equivale a no enviarlo.
+- `wants_meet` y `share_phone` son opcionales y valen `false` por omisión. `wants_meet` pide una
+  reunión; sin esa marca la consulta se cierra solo con comentarios. `share_phone` copia el
+  teléfono del perfil a la consulta: el paciente no envía el número.
+- `physician_id` es opcional y debe ser uno de los médicos de `GET /api/consultations/recipients`;
+  sin él, la consulta va al médico que lleva más tiempo vinculado.
+
+La lectura que acompaña a la consulta la fija el servidor. Cualquier otro campo responde 422.
+
+Respuesta 201:
+
+```json
+{
+    "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+    "patient_id": "7d39cdbb-9e5d-406b-a762-bcd5369d8834",
+    "patient_name": "Jorge Enrique Ramírez Salas",
+    "physician_id": "1106cf54-2606-47f6-a368-cb15e834ca56",
+    "physician_name": "Julián Andrés Morales Vega",
+    "message": "Tengo mareos desde ayer con presión 150/95",
+    "response": null,
+    "status": "in_review",
+    "created_at": "2026-11-09T14:02:11Z",
+    "responded_at": null,
+    "reason": "high_pressure",
+    "onset": "since_yesterday",
+    "medications": "Losartán 50 mg",
+    "urgent": false,
+    "wants_meet": true,
+    "contact_phone": "+57 316 8765 432",
+    "meet_url": null,
+    "checkup_general": null,
+    "checkup_pressure": null,
+    "checkup_symptoms": null,
+    "checkup_conduct": null,
+    "reading": {
+        "systolic": 170,
+        "diastolic": 110,
+        "measured_at": "2026-11-09T13:57:00Z"
+    }
+}
+```
+
+`reading` es la última lectura válida del paciente al enviar, o `null` si no tiene. `reason`, `onset` y `contact_phone` son `null` en las consultas anteriores a estos campos y `contact_phone` también cuando el paciente no lo compartió. `meet_url` queda `null` hasta que el médico envía el enlace, y los cuatro textos `checkup_*` quedan `null` hasta el cierre. `urgent` se conserva y sale en falso: el paciente ya no lo envía. `status` vale
+`in_review`, `pending` o `completed`. Los identificadores son los de la cuenta.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es `patient`; 403 con
+`No hay consentimiento informado vigente` si falta la aceptación; 409 con
+`Aún no tienes un médico asignado` si no hay un médico vinculado, o con
+`Agrega tu teléfono en tu perfil para compartirlo` si pidió compartirlo y no tiene uno; 403 con
+`Permiso denegado` también si `physician_id` no es uno de sus médicos; 422 si el cuerpo no cumple
+las reglas.
+
+### `GET /api/consultations/recipients`
+
+Exige sesión con rol `patient`. Devuelve los médicos activos vinculados al paciente, del más antiguo
+al más reciente, para que elija a cuál enviarle la consulta.
+
+```json
+{
+    "items": [{ "id": "1106cf54-2606-47f6-a368-cb15e834ca56", "full_name": "Julián Andrés Morales Vega" }],
+    "total": 1
+}
+```
+
+Sin médicos vinculados responde `{"items": [], "total": 0}`. Errores: 401 sin sesión válida; 403 con
+`Permiso denegado` si el rol no es `patient`.
+
+### `GET /api/consultations`
+
+Exige sesión con rol `patient` o `physician`. El paciente ve sus consultas y el médico las que le
+llegaron, de la más reciente a la más antigua, con la envoltura y la paginación de la sección de
+listados. No exige consentimiento: es historia clínica.
+
+Parámetros: `patient_id` es opcional (el médico lo usa para ver un paciente; un paciente que pide
+otro responde 403), `status` vale `in_review`, `pending` o `completed`, y `limit` y `offset` son los de la
+paginación general. Cada elemento tiene la forma de la respuesta anterior.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` para el cuidador y el administrador;
+422 si `status` o `limit` quedan fuera de rango.
+
+### `POST /api/consultations/{consultation_id}/meet`
+
+Exige sesión con rol `physician`. Solo cuando el paciente pidió Meet y la consulta está en
+`in_review`. El enlace deja la consulta en `pending`.
+
+```json
+{
+    "meet_url": "https://meet.google.com/abc-defg-hij"
+}
+```
+
+`meet_url` tiene que ser `https` de `meet.google.com` con una sala en la ruta. Devuelve 200 con la
+consulta en `pending` y ese enlace. No exige consentimiento.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es `physician` o la consulta
+no le llegó; 404 con `La consulta no existe`; 409 con `Esta consulta es solo de comentarios`,
+`El enlace de Meet ya fue enviado` o `La consulta ya fue completada`; 422 si el enlace no cumple.
+La auditoría registra `consultation.meet_sent` sin el enlace.
+
+### `POST /api/consultations/{consultation_id}/complete`
+
+Exige sesión con rol `physician`. Cierra la consulta con el formato y el comentario, escritos a
+mano. Si el paciente pidió Meet, solo vale cuando ya está en `pending`. Si pidió solo comentarios,
+vale desde `in_review`.
+
+```json
+{
+    "response": "Gracias por avisar. Registra tus lecturas de hoy y mañana.",
+    "checkup_general": "Estable, sin dolor.",
+    "checkup_pressure": "Revisé 150/95.",
+    "checkup_symptoms": "Mareo de ayer.",
+    "checkup_conduct": "Seguir el registro diario."
+}
+```
+
+Cada texto se recorta y admite de 1 a 2000 caracteres. Devuelve 200 con la consulta en `completed`,
+con `response`, `responded_at` y los cuatro textos. No exige consentimiento.
+
+Errores: 401 sin sesión válida; 403 con `Permiso denegado` si el rol no es `physician` o la consulta
+no le llegó; 404 con `La consulta no existe`; 409 con `Primero envía el enlace de Meet` o
+`La consulta ya fue completada`; 422 si el cuerpo no cumple. La auditoría registra
+`consultation.completed` sin el texto.
 
 ### Alcance de los datos clínicos
 

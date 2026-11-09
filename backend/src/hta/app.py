@@ -12,15 +12,19 @@ from pymongo.errors import PyMongoError
 
 from hta.accounts.router import public_router as accounts_public_router
 from hta.accounts.router import router as accounts_router
+from hta.adminconsole.router import router as admin_router
 from hta.api.cors import allowed_origins
 from hta.api.health import router as health_router
 from hta.auth.router import router as auth_router
 from hta.clinical.router import router as clinical_router
 from hta.config import Settings
 from hta.consent.router import router as consent_router
+from hta.consultations.router import router as consultations_router
 from hta.db.mongo import ensure_collections, get_database
 from hta.db.pool import close_pool, get_pool
 from hta.ingest.router import router as ingest_router
+from hta.profile.router import router as profile_router
+from hta.staffprofile.router import router as staff_profile_router
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +93,11 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(accounts_public_router)
     app.include_router(accounts_router)
+    app.include_router(admin_router)
     app.include_router(consent_router)
+    app.include_router(profile_router)
+    app.include_router(staff_profile_router)
+    app.include_router(consultations_router)
     app.include_router(clinical_router)
     app.include_router(ingest_router)
     return app

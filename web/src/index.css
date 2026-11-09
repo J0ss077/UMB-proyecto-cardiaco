@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens extracted from the Figma export. RGB triplets so Tailwind
+ * can apply alpha modifiers. Primary blue is the action color of the login
+ * button; the indigo accent is the secondary action color; the dark red is
+ * the alert color used for dangerous readings.
+ */
+:root {
+    --background: 255 255 255;
+    --surface: 249 249 249;
+    --muted: 245 245 245;
+    --foreground: 17 17 17;
+    --subtle: 107 114 128;
+    --border: 209 213 219;
+
+    --primary: 0 132 255;
+    --primary-soft: 204 229 255;
+    --primary-foreground: 255 255 255;
+    --accent: 59 94 230;
+
+    --status-normal: 21 128 61;
+    --status-normal-soft: 220 252 231;
+    --status-elevated: 27 42 123;
+    --status-elevated-soft: 224 231 255;
+    --status-warning: 161 98 7;
+    --status-warning-soft: 254 243 199;
+    --status-critical: 139 0 0;
+    --status-critical-soft: 254 226 226;
+
+    --chart-systolic: 0 132 255;
+    --chart-diastolic: 6 182 212;
+
+    color-scheme: light;
+}
+
+/*
+ * Dark palette. It applies when the system prefers dark and the user has not
+ * chosen light, and always when the user chose dark with the switch. The two
+ * blocks hold the same values; a test keeps them equal.
+ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --background: 15 23 42;
+        --surface: 22 32 56;
+        --muted: 8 14 30;
+        --foreground: 226 232 240;
+        --subtle: 148 163 184;
+        --border: 51 65 99;
+
+        --primary: 56 163 255;
+        --primary-soft: 18 50 96;
+        --primary-foreground: 255 255 255;
+        --accent: 129 140 248;
+
+        --status-normal: 52 211 153;
+        --status-normal-soft: 6 55 49;
+        --status-elevated: 165 180 252;
+        --status-elevated-soft: 38 44 99;
+        --status-warning: 251 191 36;
+        --status-warning-soft: 66 44 8;
+        --status-critical: 251 113 133;
+        --status-critical-soft: 76 20 36;
+
+        --chart-systolic: 56 163 255;
+        --chart-diastolic: 34 211 238;
+
+        color-scheme: dark;
+    }
+}
+
+:root[data-theme="dark"] {
+    --background: 15 23 42;
+    --surface: 22 32 56;
+    --muted: 8 14 30;
+    --foreground: 226 232 240;
+    --subtle: 148 163 184;
+    --border: 51 65 99;
+
+    --primary: 56 163 255;
+    --primary-soft: 18 50 96;
+    --primary-foreground: 255 255 255;
+    --accent: 129 140 248;
+
+    --status-normal: 52 211 153;
+    --status-normal-soft: 6 55 49;
+    --status-elevated: 165 180 252;
+    --status-elevated-soft: 38 44 99;
+    --status-warning: 251 191 36;
+    --status-warning-soft: 66 44 8;
+    --status-critical: 251 113 133;
+    --status-critical-soft: 76 20 36;
+
+    --chart-systolic: 56 163 255;
+    --chart-diastolic: 34 211 238;
+
+    color-scheme: dark;
+}
+
+/*
+ * Theme change: the new page is revealed as a growing circle (see lib/themeTransition.ts).
+ * The browser's default cross-fade is turned off so only the circle is seen.
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 2;
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+    body {
+        @apply bg-muted font-sans text-foreground antialiased;
+        margin: 0;
+    }
+    :focus-visible {
+        @apply outline-none ring-2 ring-primary ring-offset-2;
+    }
+}

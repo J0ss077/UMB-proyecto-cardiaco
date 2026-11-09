@@ -122,15 +122,19 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-17 Reportes de seguimiento
 
-**Estado:** Declarado
+**Estado:** Parcial
 
 **Texto:** Generar reportes de seguimiento automáticos por paciente (tendencias de presión arterial, adherencia y alertas).
 
+**Motivo:** El paciente genera desde la interfaz un historial de automonitoreo con estadísticas del período, lecturas, síntomas y alertas. No es automático ni periódico, no incluye adherencia porque no existe la ruta de medicamentos, y el médico todavía no genera reportes por paciente.
+
 ## RF-18 Exportación de reportes
 
-**Estado:** Pendiente
+**Estado:** Parcial
 
 **Texto:** Permitir la exportación de reportes en formato descargable para el médico y el paciente.
+
+**Motivo:** El paciente descarga su historial de automonitoreo en Excel y en PDF, generados en el navegador. Falta la exportación desde la vista del médico y un formato de intercambio clínico, y el archivo del paciente no está firmado ni sustituye la historia clínica.
 
 ## RF-19 Visualización de datos y tendencias
 
@@ -138,7 +142,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 **Texto:** Permitir la visualización de los datos clínicos y sus tendencias en la interfaz web.
 
-**Motivo:** La API publica el directorio de pacientes, el listado de lecturas, el resumen de la ventana domiciliaria y las alertas, y la ingesta guarda lecturas de dispositivo; la interfaz web sigue siendo una página en construcción, así que no hay gráficas ni pantalla de tendencias.
+**Motivo:** La API publica el directorio de pacientes, el listado de lecturas, el resumen de la ventana domiciliaria y las alertas, y la ingesta guarda lecturas de dispositivo; la interfaz web ya tiene la pantalla de tendencias del paciente, con las líneas de referencia de la OMS y de la ACC/AHA, y la tabla de pacientes del médico. Faltan la bandeja de alertas con sus tres transiciones, la vista del cuidador con su propio alcance y el reporte exportable.
 
 ## RF-20 Chat con el modelo de IA
 
@@ -166,9 +170,11 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-24 Teleconsulta
 
-**Estado:** Declarado
+**Estado:** Parcial
 
 **Texto:** Soportar tele consulta síncrona y asíncrona entre el paciente y el médico tratante.
+
+**Motivo:** La modalidad asíncrona existe como consulta rápida: el paciente envía un mensaje con su última lectura al médico vinculado y este lo responde. No hay modalidad síncrona, agendamiento ni videollamada, y un paciente con varios médicos escribe siempre al más antiguo.
 
 ## RF-25 Interoperabilidad HL7 FHIR y MQTT
 

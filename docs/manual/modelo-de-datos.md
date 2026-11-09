@@ -49,6 +49,10 @@ entidades clínicas referencian al paciente por identificador interno.
 | `role`          | `user_role`   | NOT NULL                        | Rol de acceso: `patient`, `physician`, `caregiver`, `admin`      |
 | `full_name`     | `TEXT`        | NOT NULL                        | Nombre completo del usuario                                      |
 | `active`        | `BOOLEAN`     | NOT NULL, `DEFAULT TRUE`        | Indica si la cuenta está habilitada; falso tras la desactivación |
+| `phone`         | `TEXT`        | NULL                            | Teléfono del personal; se vacía al desactivar la cuenta          |
+| `avatar`        | `TEXT`        | NULL                            | Foto de perfil del personal como URL de datos; se vacía al desactivar |
+| `license_number`| `TEXT`        | NULL                            | Registro profesional del médico; se vacía al desactivar          |
+| `specialty`     | `TEXT`        | NULL                            | Especialidad del médico; se vacía al desactivar                  |
 | `created_at`    | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`       | Fecha de creación de la cuenta                                   |
 | `updated_at`    | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`       | Fecha de la última modificación                                  |
 
@@ -65,6 +69,13 @@ Perfil clínico del paciente. Existe exactamente un perfil por usuario paciente.
 | `diagnosis_date` | `DATE`    |                                                     | Fecha de diagnóstico de hipertensión |
 | `height_cm`      | `NUMERIC` |                                                     | Talla en centímetros                 |
 | `weight_kg`      | `NUMERIC` |                                                     | Peso en kilogramos                   |
+| `document_number` | `TEXT` |                                                    | Documento de identidad               |
+| `phone`          | `TEXT`    |                                                     | Teléfono del paciente                |
+| `trusted_contact_phone` | `TEXT` |                                              | Teléfono del contacto de confianza   |
+| `trusted_contact_email` | `TEXT` |                                              | Correo del contacto de confianza     |
+| `avatar`         | `TEXT`    |                                                     | Foto de perfil como URL de datos     |
+
+Las cuatro columnas de contacto las justifica `docs/adr/0004-datos-de-contacto-en-el-perfil-del-paciente.md` y `avatar`, `docs/adr/0005-foto-de-perfil-como-imagen-pequena-en-la-base.md`. La desactivación de la cuenta las vacía.
 
 ### `patient_physician`
 
@@ -229,6 +240,24 @@ Teleconsultas síncronas y asíncronas entre paciente y médico. El manual titul
 | `mode`         | `teleconsultation_mode` | NOT NULL                                              | Modalidad: `sync` o `async`      |
 | `status`       | `TEXT`                  | NOT NULL, `DEFAULT 'scheduled'`                       | Estado de la consulta            |
 | `notes`        | `TEXT`                  |                                                       | Notas clínicas de la consulta    |
+| `message`      | `TEXT`                  |                                                       | Mensaje del paciente en la consulta rápida |
+| `response`     | `TEXT`                  |                                                       | Respuesta del médico             |
+| `created_at`   | `TIMESTAMPTZ`           | NOT NULL, `DEFAULT now()`                             | Cuándo se envió                  |
+| `responded_at` | `TIMESTAMPTZ`           |                                                       | Cuándo se respondió              |
+| `reading_id`   | `UUID`                  | FK `readings(id)` ON DELETE SET NULL                  | Última lectura válida al enviar  |
+| `reason`       | `TEXT`                  |                                                       | Motivo de la consulta rápida     |
+| `onset`        | `TEXT`                  |                                                       | Desde cuándo tiene los síntomas  |
+| `medications`  | `TEXT`                  |                                                       | Medicamentos que dice tomar      |
+| `urgent`       | `BOOLEAN`               | NOT NULL, `DEFAULT FALSE`                             | Ya no se pide; queda en falso     |
+| `wants_meet`   | `BOOLEAN`               | NOT NULL, `DEFAULT FALSE`                             | El paciente pidió atención por Meet |
+| `contact_phone`| `TEXT`                  |                                                       | Teléfono que decide compartir    |
+| `meet_url`     | `TEXT`                  |                                                       | Enlace de Meet que envía el médico |
+| `checkup_general` | `TEXT`               |                                                       | Cómo está, escrito por el médico |
+| `checkup_pressure` | `TEXT`              |                                                       | Presión que consigna el médico   |
+| `checkup_symptoms` | `TEXT`              |                                                       | Síntomas que consigna el médico  |
+| `checkup_conduct` | `TEXT`               |                                                       | Conducta del chequeo             |
+
+Las columnas `message` a `reading_id` las justifica `docs/adr/0006-consulta-rapida-al-medico.md`, las cinco de la consulta rápida `docs/adr/0007-datos-y-destinatario-de-la-consulta.md`, el enlace con el formato de chequeo `docs/adr/0009-formato-de-chequeo-y-enlace-de-meet.md`, y el paso por revisión, reunión y cierre `docs/adr/0010-revision-reunion-y-cierre-de-la-consulta.md`. La consulta rápida usa la modalidad `async` y los estados `in_review`, `pending` y `completed`.
 
 ### `audit_logs`
 

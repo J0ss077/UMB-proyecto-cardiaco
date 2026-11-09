@@ -44,6 +44,10 @@ EXCLUDED_DIRS = frozenset(
 
 EXCLUDED_SUBPATHS = (("docs", "superpowers"), ("ml", "data"))
 
+# Los archivos de bloqueo los genera el gestor de paquetes y sus hashes de
+# integridad en base64 pueden contener cualquier subcadena.
+GENERATED_FILES = frozenset({"package-lock.json"})
+
 # El verificador no se escanea a sí mismo: este archivo nombra las fórmulas
 # prohibidas como datos de trabajo, no declara autoría.
 SELF_PATH = Path(__file__).resolve()
@@ -92,7 +96,7 @@ def _iter_files(root: Path) -> Iterator[Path]:
         )
         for name in sorted(filenames):
             path = current / name
-            if path.suffix.lower() in EXTENSIONS:
+            if path.suffix.lower() in EXTENSIONS and name not in GENERATED_FILES:
                 yield path
 
 

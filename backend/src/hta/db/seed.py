@@ -4,8 +4,9 @@ Datos de demostración para recorrer la aplicación con las cuatro cuentas.
 
 La siembra es infraestructura, no una funcionalidad: crea las siete cuentas de
 demostración, los cuatro perfiles de paciente y los datos clínicos que cada
-escenario necesita. No escribe auditoría, porque el rastro de auditoría cuenta
-lo que hicieron las personas y una siembra no es una persona.
+escenario necesita. No escribe auditoría de las personas: la única fila es el
+motivo del descarte de una alerta de demostración, porque esa pantalla lo lee
+de la auditoría y no de la alerta.
 
 Los datos son deterministas por día: la rejilla de lecturas se ancla en la
 medianoche UTC del día actual, con dos mediciones diarias a las 07:00 y a las
@@ -18,15 +19,18 @@ por diseño.
 
 La siembra es idempotente por correo y también para las filas que cuelgan de
 cada cuenta: si un paciente ya tiene alguna lectura, no se le añade ninguna
-serie, y si un síntoma, una alerta, una aceptación, un vínculo o un
-recordatorio ya existe, no se vuelve a insertar. Lo mismo vale para los dos
-umbrales globales de ``alert_config``. No confirma la transacción; la conexión
-de la prueba y la del punto de entrada están en autocommit.
+serie, y si un síntoma, una alerta, una consulta, un medicamento, un reporte,
+una aceptación, un vínculo o un recordatorio ya existe, no se vuelve a insertar.
+Lo mismo vale para los dos umbrales globales de ``alert_config``. ``--reset``
+borra antes los datos clínicos de estas siete cuentas y deja las cuentas, los
+perfiles, los consentimientos y los vínculos. No confirma la transacción; la
+conexión de la prueba y la del punto de entrada están en autocommit.
 """
 
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from uuid import UUID
@@ -77,6 +81,10 @@ class _Profile:
     diagnosis_date: date
     height_cm: int
     weight_kg: int
+    document_number: str
+    phone: str
+    trusted_contact_phone: str
+    trusted_contact_email: str
 
 
 @dataclass(frozen=True)
@@ -147,6 +155,10 @@ _PROFILES: dict[str, _Profile] = {
         diagnosis_date=date(2015, 6, 10),
         height_cm=170,
         weight_kg=78,
+        document_number="10.000.001",
+        phone="+57 300 000 0001",
+        trusted_contact_phone="+57 310 000 0001",
+        trusted_contact_email="contacto1@example.com",
     ),
     "patient_alert": _Profile(
         birth_date=date(1962, 7, 22),
@@ -154,6 +166,10 @@ _PROFILES: dict[str, _Profile] = {
         diagnosis_date=date(2018, 2, 20),
         height_cm=158,
         weight_kg=71,
+        document_number="10.000.002",
+        phone="+57 300 000 0002",
+        trusted_contact_phone="+57 310 000 0002",
+        trusted_contact_email="contacto2@example.com",
     ),
     "patient_revoked": _Profile(
         birth_date=date(1970, 11, 5),
@@ -161,6 +177,10 @@ _PROFILES: dict[str, _Profile] = {
         diagnosis_date=date(2020, 9, 3),
         height_cm=175,
         weight_kg=83,
+        document_number="10.000.003",
+        phone="+57 300 000 0003",
+        trusted_contact_phone="+57 310 000 0003",
+        trusted_contact_email="contacto3@example.com",
     ),
     "patient_caregiver": _Profile(
         birth_date=date(1955, 1, 30),
@@ -168,6 +188,10 @@ _PROFILES: dict[str, _Profile] = {
         diagnosis_date=date(2012, 4, 18),
         height_cm=162,
         weight_kg=69,
+        document_number="10.000.004",
+        phone="+57 300 000 0004",
+        trusted_contact_phone="+57 310 000 0004",
+        trusted_contact_email="contacto4@example.com",
     ),
 }
 
@@ -320,6 +344,13 @@ _ALERT_NOTE = (
 _SYMPTOM_TEXT = "mareo y dolor de cabeza desde la tarde"
 _SYMPTOM_MOOD = "ansioso"
 
+# Síntomas de los otros pacientes con consentimiento vigente. El del escenario
+# crítico sigue siendo el de arriba y no se repite aquí.
+_EXTRA_SYMPTOMS: dict[str, tuple[str, str, int, int]] = {
+    "patient_out_of_range": ("cansancio al subir escaleras", "cansado", 4, 21),
+    "patient_caregiver": ("dormí mal anoche", "inquieto", 2, 22),
+}
+
 
 def _heart_rate(index: int, offset: int) -> int:
     """Frecuencia cardiaca determinista entre 58 y 93 lpm."""
@@ -337,6 +368,15 @@ def _day_anchor(conn: Connection) -> datetime:
     ).fetchone()[0]
 
 
+# Datos de contacto y profesionales del personal de demostración. Se escriben solo al
+# crear la cuenta: lo que la persona edite después en su perfil no se pisa al resembrar.
+_STAFF_CONTACT: dict[str, tuple[str, str | None, str | None]] = {
+    "admin": ("+57 300 000 0100", None, None),
+    "physician": ("+57 300 000 0200", "RM-10020", "Medicina interna"),
+    "caregiver": ("+57 300 000 0300", None, None),
+}
+
+
 def _ensure_account(conn: Connection, account: _Account) -> UUID:
     """Devuelve la cuenta existente o crea la que falta, con su correo normalizado."""
     email = normalize_email(account.email)
@@ -351,9 +391,15 @@ def _ensure_account(conn: Connection, account: _Account) -> UUID:
         "returning id",
         (email, hash_password(DEMO_PASSWORD), account.role, account.full_name),
     ).fetchone()
-    if row is not None:
-        return row[0]
-    return conn.execute("select id from users where email = %s", (email,)).fetchone()[0]
+    if row is None:
+        return conn.execute("select id from users where email = %s", (email,)).fetchone()[0]
+    contact = _STAFF_CONTACT.get(account.key)
+    if contact is not None:
+        conn.execute(
+            "update users set phone = %s, license_number = %s, specialty = %s where id = %s",
+            (*contact, row[0]),
+        )
+    return row[0]
 
 
 def _ensure_profile(conn: Connection, user_id: UUID, profile: _Profile) -> UUID:
@@ -367,8 +413,9 @@ def _ensure_profile(conn: Connection, user_id: UUID, profile: _Profile) -> UUID:
 
     return conn.execute(
         "insert into patient_profiles "
-        "(user_id, birth_date, sex, diagnosis_date, height_cm, weight_kg) "
-        "values (%s, %s, %s, %s, %s, %s) returning id",
+        "(user_id, birth_date, sex, diagnosis_date, height_cm, weight_kg, "
+        "document_number, phone, trusted_contact_phone, trusted_contact_email) "
+        "values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) returning id",
         (
             user_id,
             profile.birth_date,
@@ -376,6 +423,10 @@ def _ensure_profile(conn: Connection, user_id: UUID, profile: _Profile) -> UUID:
             profile.diagnosis_date,
             profile.height_cm,
             profile.weight_kg,
+            profile.document_number,
+            profile.phone,
+            profile.trusted_contact_phone,
+            profile.trusted_contact_email,
         ),
     ).fetchone()[0]
 
@@ -558,6 +609,288 @@ def _seed_symptom(
     )
 
 
+@dataclass(frozen=True)
+class _Consultation:
+    """Una consulta de demostración. Los textos no son consejo clínico."""
+
+    days_ago: int
+    hour: int
+    message: str
+    reason: str
+    onset: str
+    wants_meet: bool
+    status: str
+    medications: str | None = None
+    response: str | None = None
+    meet_url: str | None = None
+    checkup_general: str | None = None
+    checkup_pressure: str | None = None
+    checkup_symptoms: str | None = None
+    checkup_conduct: str | None = None
+    share_phone: bool = False
+
+
+_CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
+    "patient_alert": (
+        _Consultation(
+            days_ago=3,
+            hour=9,
+            message="Tengo dolor de cabeza desde ayer",
+            reason="dizziness_headache",
+            onset="since_yesterday",
+            medications="Losartán 50 mg",
+            wants_meet=True,
+            status="completed",
+            response="Gracias por avisar. Registra tus lecturas de hoy y mañana.",
+            meet_url="https://meet.google.com/hta-demo-cabeza",
+            checkup_general="Estable en este momento, sin dolor de pecho ni falta de aire.",
+            checkup_pressure="Revisé 186/122 y 184/120 de ayer. Siguen por encima de lo habitual en casa.",
+            checkup_symptoms="Mareo y dolor de cabeza desde la tarde, según lo que contó.",
+            checkup_conduct="Seguir el registro de mañana y tarde. Si vuelve el dolor de pecho, la falta de aire o la confusión, llamar al 123 o al 911.",
+            share_phone=True,
+        ),
+        _Consultation(
+            days_ago=0,
+            hour=9,
+            message="Tengo mareos desde ayer con presión 150/95",
+            reason="high_pressure",
+            onset="since_yesterday",
+            wants_meet=True,
+            status="pending",
+            meet_url="https://meet.google.com/hta-demo-mareos",
+        ),
+        _Consultation(
+            days_ago=0,
+            hour=11,
+            message="Desde esta mañana siento la cabeza pesada",
+            reason="dizziness_headache",
+            onset="today",
+            wants_meet=True,
+            status="in_review",
+        ),
+    ),
+    "patient_out_of_range": (
+        _Consultation(
+            days_ago=2,
+            hour=10,
+            message="Varias tomas me salieron altas y una no la entendí",
+            reason="high_pressure",
+            onset="few_days",
+            wants_meet=False,
+            status="completed",
+            response="La toma de 78/46 quedó fuera de rango y no entra en el resumen. Sigue registrando mañana y tarde.",
+            checkup_general="Sin dolor de pecho. La serie de casa mezcla tomas altas con otras normales.",
+            checkup_pressure="Revisé las tomas altas de la semana y la de 78/46, que no es usable.",
+            checkup_symptoms="No refirió dolor ni falta de aire.",
+            checkup_conduct="Repetir la toma si sale un valor raro. Esto no es un diagnóstico.",
+        ),
+    ),
+    "patient_caregiver": (
+        _Consultation(
+            days_ago=1,
+            hour=8,
+            message="Quisiera saber cómo va la presión de esta semana",
+            reason="other",
+            onset="few_days",
+            wants_meet=False,
+            status="in_review",
+        ),
+    ),
+}
+
+
+def _seed_consultations(
+    conn: Connection,
+    patient_id: UUID,
+    physician_id: UUID,
+    plans: tuple[_Consultation, ...],
+    anchor: datetime,
+    phone: str | None,
+) -> None:
+    """Deja las consultas del paciente si todavía no tiene ninguna.
+
+    Cubre revisión, reunión pendiente y cierre con el formato escrito a mano.
+    La guarda es por paciente. Los textos son de demostración.
+    """
+    row = conn.execute(
+        "select 1 from teleconsultations where patient_id = %s limit 1",
+        (patient_id,),
+    ).fetchone()
+    if row is not None:
+        return
+    for plan in plans:
+        created = anchor - timedelta(days=plan.days_ago) + timedelta(hours=plan.hour)
+        reading = conn.execute(
+            "select id from readings where patient_id = %s and validation_status = 'valid' "
+            "and measured_at <= %s order by measured_at desc limit 1",
+            (patient_id, created),
+        ).fetchone()
+        conn.execute(
+            "insert into teleconsultations "
+            "(patient_id, physician_id, mode, status, message, response, created_at, responded_at, "
+            " reading_id, reason, onset, medications, wants_meet, contact_phone, meet_url, "
+            " checkup_general, checkup_pressure, checkup_symptoms, checkup_conduct) "
+            "values (%s, %s, 'async', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            (
+                patient_id,
+                physician_id,
+                plan.status,
+                plan.message,
+                plan.response,
+                created,
+                created + timedelta(hours=2) if plan.status == "completed" else None,
+                None if reading is None else reading[0],
+                plan.reason,
+                plan.onset,
+                plan.medications,
+                plan.wants_meet,
+                phone if plan.share_phone else None,
+                plan.meet_url,
+                plan.checkup_general,
+                plan.checkup_pressure,
+                plan.checkup_symptoms,
+                plan.checkup_conduct,
+            ),
+        )
+
+
+def _seed_extra_symptoms(conn: Connection, patient_id: UUID, anchor: datetime, plan: tuple[str, str, int, int]) -> None:
+    """Añade un síntoma si el paciente todavía no tiene ninguno."""
+    row = conn.execute(
+        "select 1 from symptoms_mood where patient_id = %s limit 1",
+        (patient_id,),
+    ).fetchone()
+    if row is not None:
+        return
+    text, mood, days_ago, hour = plan
+    conn.execute(
+        "insert into symptoms_mood (patient_id, free_text, mood, recorded_at) values (%s, %s, %s, %s)",
+        (patient_id, text, mood, anchor - timedelta(days=days_ago) + timedelta(hours=hour)),
+    )
+
+
+@dataclass(frozen=True)
+class _Medication:
+    name: str
+    dose: str
+    unit: str
+    frequency: str
+    start_date: date
+
+
+_MEDICATIONS: dict[str, tuple[_Medication, ...]] = {
+    "patient_alert": (_Medication("Losartán", "50", "mg", "cada 24 horas", date(2018, 2, 20)),),
+    "patient_out_of_range": (
+        _Medication("Losartán", "50", "mg", "cada 12 horas", date(2016, 1, 10)),
+        _Medication("Hidroclorotiazida", "25", "mg", "cada 24 horas", date(2019, 5, 2)),
+    ),
+    "patient_caregiver": (_Medication("Enalapril", "10", "mg", "cada 24 horas", date(2014, 8, 1)),),
+    "patient_revoked": (_Medication("Amlodipino", "5", "mg", "cada 24 horas", date(2020, 9, 3)),),
+}
+
+
+def _seed_medications(conn: Connection, patient_id: UUID, plans: tuple[_Medication, ...]) -> list[UUID]:
+    """Inserta la medicación del paciente si todavía no tiene ninguna."""
+    row = conn.execute("select id from medications where patient_id = %s", (patient_id,)).fetchall()
+    if row:
+        return [item[0] for item in row]
+    ids: list[UUID] = []
+    for plan in plans:
+        created = conn.execute(
+            "insert into medications (patient_id, name, dose, unit, frequency, start_date) "
+            "values (%s, %s, %s, %s, %s, %s) returning id",
+            (patient_id, plan.name, plan.dose, plan.unit, plan.frequency, plan.start_date),
+        ).fetchone()
+        ids.append(created[0])
+    return ids
+
+
+def _seed_adherence(conn: Connection, patient_id: UUID, medication_ids: list[UUID], anchor: datetime) -> None:
+    """Deja tomas de los últimos tres días, una de ellas sin confirmar."""
+    if not medication_ids:
+        return
+    row = conn.execute(
+        "select 1 from adherence_events where patient_id = %s limit 1",
+        (patient_id,),
+    ).fetchone()
+    if row is not None:
+        return
+    for index, medication_id in enumerate(medication_ids):
+        for days_ago in (1, 2, 3):
+            conn.execute(
+                "insert into adherence_events (patient_id, medication_id, taken_at, confirmed) "
+                "values (%s, %s, %s, %s)",
+                (
+                    patient_id,
+                    medication_id,
+                    anchor - timedelta(days=days_ago) + timedelta(hours=8),
+                    not (index == 0 and days_ago == 1),
+                ),
+            )
+
+
+def _seed_report(conn: Connection, patient_id: UUID, account_key: str, anchor: datetime) -> None:
+    """Deja un reporte de la semana anterior si el paciente no tiene ninguno."""
+    row = conn.execute("select 1 from reports where patient_id = %s limit 1", (patient_id,)).fetchone()
+    if row is not None:
+        return
+    period_end = (anchor - timedelta(days=1)).date()
+    conn.execute(
+        "insert into reports (patient_id, period_start, period_end, generated_at, content_ref) "
+        "values (%s, %s, %s, %s, %s)",
+        (
+            patient_id,
+            period_end - timedelta(days=6),
+            period_end,
+            anchor - timedelta(hours=2),
+            f"demo://seguimiento/{account_key}",
+        ),
+    )
+
+
+def _seed_other_alerts(conn: Connection, profile_ids: dict[str, UUID], physician_id: UUID, anchor: datetime) -> None:
+    """Cubre los otros estados de una alerta sin tocar la crítica abierta.
+
+    El descarte guarda el motivo en la auditoría porque esa pantalla lo lee de ahí.
+    """
+    carlos = profile_ids["patient_out_of_range"]
+    if conn.execute("select 1 from alerts where patient_id = %s and type = 'presion_alta'", (carlos,)).fetchone() is None:
+        conn.execute(
+            "insert into alerts (patient_id, type, severity, status, note, created_at) "
+            "values (%s, 'presion_alta', 'high', 'acknowledged', %s, %s)",
+            (carlos, "Tomas de la semana por encima de 140/90. El médico ya la recibió.", anchor - timedelta(days=4) + timedelta(hours=21)),
+        )
+    if conn.execute("select 1 from alerts where patient_id = %s and type = 'lectura_aislada'", (carlos,)).fetchone() is None:
+        alert_id = conn.execute(
+            "insert into alerts (patient_id, type, severity, status, note, created_at) "
+            "values (%s, 'lectura_aislada', 'medium', 'dismissed', %s, %s) returning id",
+            (carlos, "Una toma alta que no se repitió al día siguiente.", anchor - timedelta(days=6) + timedelta(hours=21)),
+        ).fetchone()[0]
+        conn.execute(
+            "insert into audit_logs (actor_user_id, action, entity, entity_id, occurred_at, details) "
+            "values (%s, 'alert.dismissed', 'alerts', %s, %s, %s)",
+            (
+                physician_id,
+                alert_id,
+                anchor - timedelta(days=5) + timedelta(hours=10),
+                Jsonb({"note": "Lectura aislada, no se repitió."}),
+            ),
+        )
+    ana = profile_ids["patient_caregiver"]
+    if conn.execute("select 1 from alerts where patient_id = %s and type = 'presion_alta'", (ana,)).fetchone() is None:
+        conn.execute(
+            "insert into alerts (patient_id, type, severity, status, note, created_at, validated_by, validated_at) "
+            "values (%s, 'presion_alta', 'high', 'validated', %s, %s, %s, %s)",
+            (
+                ana,
+                "La serie de la semana quedó revisada.",
+                anchor - timedelta(days=5) + timedelta(hours=20),
+                physician_id,
+                anchor - timedelta(days=4) + timedelta(hours=11),
+            ),
+        )
+
+
 def _seed_caregiver_link(
     conn: Connection,
     patient_id: UUID,
@@ -633,9 +966,9 @@ def seed(conn: Connection) -> dict[str, UUID]:
     """Siembra las siete cuentas de demostración y devuelve sus identificadores.
 
     Es idempotente por correo y por fila relacionada: volver a ejecutarla no
-    duplica cuentas, lecturas, síntomas, alertas, consentimientos, vínculos ni
-    recordatorios, ni añade un segundo par de umbrales globales. No escribe
-    auditoría y no confirma la transacción.
+    duplica cuentas, lecturas, síntomas, alertas, consultas, medicamentos,
+    reportes, consentimientos, vínculos ni recordatorios, ni añade un segundo
+    par de umbrales globales. No confirma la transacción.
     """
     anchor = _day_anchor(conn)
     ids: dict[str, UUID] = {}
@@ -655,9 +988,32 @@ def seed(conn: Connection) -> dict[str, UUID]:
         _ensure_physician_link(conn, profile_id, ids["physician"], anchor)
         _seed_consent(conn, profile_id, _CONSENTS[account.key], anchor)
         _seed_readings(conn, account.key, profile_id, anchor)
+        plans = _CONSULTATIONS.get(account.key)
+        if plans is not None:
+            _seed_consultations(
+                conn,
+                profile_id,
+                ids["physician"],
+                plans,
+                anchor,
+                profile.phone,
+            )
+        medications = _MEDICATIONS.get(account.key)
+        if medications is not None:
+            medication_ids = _seed_medications(conn, profile_id, medications)
+            # El escenario revocado conserva el medicamento anterior, sin tomas
+            # ni reporte posteriores a la revocación.
+            if account.key != "patient_revoked":
+                _seed_adherence(conn, profile_id, medication_ids, anchor)
+        if account.key != "patient_revoked":
+            _seed_report(conn, profile_id, account.key, anchor)
+        extra = _EXTRA_SYMPTOMS.get(account.key)
+        if extra is not None:
+            _seed_extra_symptoms(conn, profile_id, anchor, extra)
 
     _seed_alert(conn, profile_ids["patient_alert"], anchor)
     _seed_symptom(conn, profile_ids["patient_alert"], anchor)
+    _seed_other_alerts(conn, profile_ids, ids["physician"], anchor)
     _seed_caregiver_link(
         conn,
         profile_ids["patient_caregiver"],
@@ -670,12 +1026,48 @@ def seed(conn: Connection) -> dict[str, UUID]:
     return ids
 
 
+_CLINICAL_TABLES = (
+    "adherence_events",
+    "teleconsultations",
+    "alerts",
+    "symptoms_mood",
+    "reports",
+    "readings",
+    "medications",
+)
+
+
+def reset_demo_clinical(conn: Connection) -> None:
+    """Borra los datos clínicos de las siete cuentas y deja las cuentas.
+
+    No toca usuarios, perfiles, consentimientos, vínculos, recordatorios,
+    umbrales ni sesiones. Sirve para volver a sembrar un recorrido que ya
+    tenía filas, porque la siembra no pisa lo que ya existe.
+    """
+    emails = [account.email for account in _ACCOUNTS]
+    patients = (
+        "select p.id from patient_profiles p "
+        "join users u on u.id = p.user_id where u.email = any(%s)"
+    )
+    conn.execute(
+        "delete from audit_logs where entity = 'alerts' and entity_id in "
+        f"(select id from alerts where patient_id in ({patients}))",
+        (emails,),
+    )
+    for table in _CLINICAL_TABLES:
+        conn.execute(
+            f"delete from {table} where patient_id in ({patients})",
+            (emails,),
+        )
+
+
 def main() -> int:
     """Siembra los datos con la URL de PostgreSQL que describe el entorno.
 
     El punto de entrada solo necesita ``HTA_DATABASE_URL``: no exige la URL de
     Mongo ni la clave JWT, que esta operación no usa. Esa es también la variable
-    que define el contenedor del backend.
+    que define el contenedor del backend. ``--reset`` borra antes los datos
+    clínicos de estas cuentas.
     """
     database_url = os.environ.get("HTA_DATABASE_URL")
     if not database_url:
@@ -683,6 +1075,8 @@ def main() -> int:
             "Falta HTA_DATABASE_URL: define la conexión a PostgreSQL para sembrar."
         )
     with psycopg.connect(database_url, autocommit=True) as connection:
+        if "--reset" in sys.argv:
+            reset_demo_clinical(connection)
         ids = seed(connection)
     print(f"Datos de demostración sembrados: {len(ids)} cuentas.")
     for account in _ACCOUNTS:

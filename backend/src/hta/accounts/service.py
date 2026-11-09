@@ -31,6 +31,7 @@ _DUPLICATE_EMAIL = "El correo ya está registrado"
 _UNKNOWN_ROLE = "Rol desconocido"
 _ACCOUNT_NOT_FOUND = "La cuenta no existe"
 _SELF_DEACTIVATION = "No puedes desactivar tu propia cuenta"
+_SELF_REVOKE = "No puedes cerrar tus propias sesiones"
 
 # Valores de la seudonimización: la cuenta desactivada deja de identificar a la
 # persona y no puede volver a iniciar sesión aunque alguien conozca la cuenta.
@@ -165,7 +166,10 @@ async def deactivate(conn: AsyncConnection, actor: UUID, user_id: UUID) -> None:
     la persona que administra el sistema. El correo se sustituye por uno
     derivado del identificador, el nombre por una etiqueta fija, la contraseña
     deja de ser verificable y la cuenta queda inactiva; las lecturas, alertas y
-    demás filas clínicas siguen apuntando al mismo perfil. La auditoría no
+    demás filas clínicas siguen apuntando al mismo perfil. Los datos de contacto del
+    perfil, que también identifican a la persona, se vacían: el documento, el
+    teléfono, el contacto de confianza y la foto; en la cuenta, el teléfono, la foto,
+    el registro profesional y la especialidad. La auditoría no
     guarda la identidad anterior, que es justo lo que se quiere olvidar.
     """
     if actor == user_id:
@@ -184,11 +188,23 @@ async def deactivate(conn: AsyncConnection, actor: UUID, user_id: UUID) -> None:
         "update users set "
         "email = 'deactivated+' || id::text, "
         "full_name = %s, "
+        "phone = null, avatar = null, license_number = null, specialty = null, "
         "password_hash = %s, "
         "active = false, "
         "updated_at = now() "
         "where id = %s",
         (_PSEUDONYM_NAME, _PSEUDONYM_PASSWORD, user_id),
+    )
+    await conn.execute(
+        "update patient_profiles set document_number = null, phone = null, "
+        "trusted_contact_phone = null, trusted_contact_email = null, avatar = null "
+        "where user_id = %s",
+        (user_id,),
+    )
+    await conn.execute(
+        "update teleconsultations set contact_phone = null "
+        "where patient_id in (select id from patient_profiles where user_id = %s)",
+        (user_id,),
     )
     await conn.execute(
         "update refresh_tokens set revoked_at = now() "
@@ -199,6 +215,37 @@ async def deactivate(conn: AsyncConnection, actor: UUID, user_id: UUID) -> None:
         conn,
         actor,
         "accounts.deactivated",
+        entity="users",
+        entity_id=user_id,
+    )
+    await conn.commit()
+
+
+async def revoke_sessions(conn: AsyncConnection, actor: UUID, user_id: UUID) -> None:
+    """Revoca los refrescos vigentes de otra cuenta, sin desactivarla.
+
+    Cerrar la propia sesión por esta vía dejaría al administrador fuera sin
+    un cierre explícito, así que se rechaza igual que la desactivación propia.
+    La auditoría no guarda los tokens.
+    """
+    if actor == user_id:
+        raise HTTPException(status_code=409, detail=_SELF_REVOKE)
+
+    row = await (
+        await conn.execute("select 1 from users where id = %s", (user_id,))
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=_ACCOUNT_NOT_FOUND)
+
+    await conn.execute(
+        "update refresh_tokens set revoked_at = now() "
+        "where user_id = %s and revoked_at is null",
+        (user_id,),
+    )
+    await record(
+        conn,
+        actor,
+        "accounts.sessions_revoked",
         entity="users",
         entity_id=user_id,
     )
