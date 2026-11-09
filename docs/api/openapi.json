@@ -1254,6 +1254,30 @@
         "title": "PaginatedSymptoms",
         "type": "object"
       },
+      "PasswordChangeRequest": {
+        "additionalProperties": false,
+        "description": "Contraseña actual y contraseña nueva.",
+        "properties": {
+          "current_password": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequest",
+        "type": "object"
+      },
       "PatientSummaryResponse": {
         "description": "Paciente del directorio, con el identificador de su cuenta.",
         "properties": {
@@ -1285,6 +1309,57 @@
           "birth_date"
         ],
         "title": "PatientSummaryResponse",
+        "type": "object"
+      },
+      "PendingOut": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "full_name": {
+            "title": "Full Name",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "full_name",
+          "role",
+          "requested_at"
+        ],
+        "title": "PendingOut",
+        "type": "object"
+      },
+      "PendingPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PendingOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "PendingPage",
         "type": "object"
       },
       "PhysicianAssignment": {
@@ -1966,6 +2041,33 @@
         "title": "StaffProfileUpdate",
         "type": "object"
       },
+      "StatusOut": {
+        "description": "``none``, ``pending`` o ``changed`` (el administrador cambia la suya al momento).",
+        "properties": {
+          "requested_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "requested_at"
+        ],
+        "title": "StatusOut",
+        "type": "object"
+      },
       "SymptomRequest": {
         "additionalProperties": false,
         "description": "Texto libre y estado de ánimo que acompañan a una lectura.\n\nLos dos campos son opcionales, pero al menos uno debe traer texto: un\nobjeto vacío no es un síntoma. La regla la aplica el servicio, que es quien\ntambién atiende el alta de un síntoma suelto.",
@@ -2245,6 +2347,114 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/account/password-change": {
+      "delete": {
+        "description": "Retira la solicitud propia pendiente.",
+        "operationId": "cancel_request_api_account_password_change_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Cancel Request",
+        "tags": [
+          "password-change"
+        ]
+      },
+      "get": {
+        "description": "Estado de la solicitud propia.",
+        "operationId": "read_status_api_account_password_change_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Status",
+        "tags": [
+          "password-change"
+        ]
+      },
+      "post": {
+        "description": "Pide cambiar la contraseña. Responde 202 con ``pending`` hasta que un administrador la apruebe.\n\nEl administrador cambia la suya al momento y recibe 200 con ``changed``; se\ncierran sus sesiones. La contraseña actual incorrecta responde 400.",
+        "operationId": "request_change_api_account_password_change_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Change",
+        "tags": [
+          "password-change"
+        ]
+      }
+    },
     "/api/accounts": {
       "get": {
         "description": "Lista las cuentas ordenadas por correo; solo para administradores.\n\nDevuelve una página de la envoltura del contrato. ``total`` cuenta todas las\nfilas de ``users`` antes de recortar la página, de modo que el cliente sepa\ncuántas faltan; ``limit`` y ``offset`` se aplican en la consulta y no en\nmemoria.",
@@ -2979,6 +3189,135 @@
           }
         ],
         "summary": "List Links",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/password-requests": {
+      "get": {
+        "description": "Solicitudes pendientes, de la más antigua a la más reciente. Nunca incluye contraseñas.",
+        "operationId": "list_requests_api_admin_password_requests_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Requests",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/password-requests/{user_id}/approve": {
+      "post": {
+        "description": "Aprueba: la contraseña pedida pasa a ser la vigente y se cierran las sesiones de la cuenta.",
+        "operationId": "approve_api_admin_password_requests__user_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/password-requests/{user_id}/reject": {
+      "post": {
+        "description": "Rechaza: la contraseña vigente no cambia y la solicitud se descarta.",
+        "operationId": "reject_api_admin_password_requests__user_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject",
         "tags": [
           "admin"
         ]

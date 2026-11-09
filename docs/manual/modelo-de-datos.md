@@ -53,6 +53,8 @@ entidades clínicas referencian al paciente por identificador interno.
 | `avatar`        | `TEXT`        | NULL                            | Foto de perfil del personal como URL de datos; se vacía al desactivar |
 | `license_number`| `TEXT`        | NULL                            | Registro profesional del médico; se vacía al desactivar          |
 | `specialty`     | `TEXT`        | NULL                            | Especialidad del médico; se vacía al desactivar                  |
+| `pending_password_hash` | `TEXT` | NULL                            | Hash de la contraseña nueva a la espera de aprobación; se vacía al aprobar, rechazar o desactivar |
+| `password_change_requested_at` | `TIMESTAMPTZ` | NULL              | Instante de la solicitud de cambio de contraseña                 |
 | `created_at`    | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`       | Fecha de creación de la cuenta                                   |
 | `updated_at`    | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`       | Fecha de la última modificación                                  |
 

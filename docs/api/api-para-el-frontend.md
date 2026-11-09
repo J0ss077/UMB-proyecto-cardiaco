@@ -739,6 +739,25 @@ Reglas:
 - La auditoría registra `staff.profile_updated` con los nombres de los campos, no con sus valores.
 - La desactivación de la cuenta vacía las cuatro columnas.
 
+### Cambio de contraseña del personal
+
+Rutas con sesión `physician`, `caregiver` o `admin`; el paciente recibe 403. El cambio del médico y
+del cuidador lo aprueba un administrador; el administrador cambia la suya al momento.
+
+- `GET /api/account/password-change` devuelve `{"status": "none" | "pending", "requested_at": ... }`.
+- `POST /api/account/password-change` con `{"current_password": "...", "new_password": "..."}`. La nueva
+  admite de 8 a 128 caracteres y debe ser distinta de la actual (422 si no). Con la actual incorrecta
+  responde 400. Médico y cuidador reciben 202 con `{"status": "pending", "requested_at": ...}`; la
+  contraseña vigente no cambia hasta la aprobación y una solicitud nueva reemplaza a la anterior. El
+  administrador recibe 200 con `{"status": "changed", "requested_at": null}` y sus sesiones se cierran.
+- `DELETE /api/account/password-change` retira la solicitud propia; responde 204.
+- `GET /api/admin/password-requests` (solo `admin`) devuelve `{"items": [{"user_id", "email",
+  "full_name", "role", "requested_at"}]}`, de la más antigua a la más reciente, sin contraseñas.
+- `POST /api/admin/password-requests/{user_id}/approve` y `/reject` (solo `admin`) responden 204. Al
+  aprobar se cierran las sesiones de esa cuenta; sin solicitud pendiente responden 404.
+- La auditoría registra `password.change_requested`, `password.change_approved`,
+  `password.change_rejected`, `password.change_cancelled` y `password.changed`, sin contraseñas.
+
 ### `POST /api/consultations`
 
 Exige sesión con rol `patient` y consentimiento informado vigente. Envía una consulta rápida al

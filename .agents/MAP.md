@@ -2,7 +2,7 @@
 
 Generado por `scripts/build_map.py` desde las anotaciones `@requirement` del código. No se edita a mano: se regenera con `make docs`. El estado y el texto de cada requerimiento están en `docs/manual/requerimientos.md`.
 
-Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 145 (127 módulos y 18 pruebas). Archivos de infraestructura (`@requirement none`): 42. Archivos sin anotación: 32.
+Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 167 (144 módulos y 23 pruebas). Archivos de infraestructura (`@requirement none`): 44. Archivos sin anotación: 38.
 
 ## RF-01 Registro, autenticación y recuperación de credenciales
 
@@ -19,15 +19,20 @@ Módulos:
 - `backend/src/hta/profile/router.py`
 - `backend/src/hta/profile/schemas.py`
 - `backend/src/hta/profile/service.py`
+- `backend/src/hta/staffprofile/router.py`
+- `backend/src/hta/staffprofile/schemas.py`
+- `backend/src/hta/staffprofile/service.py`
 - `web/src/App.tsx`
 - `web/src/api.ts`
 - `web/src/auth.ts`
 - `web/src/components/AuthForm.tsx`
+- `web/src/components/AvatarPicker.tsx`
 - `web/src/components/patient/PatientProfile.tsx`
 - `web/src/components/staff/StaffProfile.tsx`
 - `web/src/test/AuthForm.test.tsx`
 - `web/src/test/PatientProfile.test.tsx`
 - `web/src/test/StaffPages.test.tsx`
+- `web/src/test/StaffProfile.test.tsx`
 - `web/src/test/api.test.ts`
 - `web/src/test/auth.test.ts`
 
@@ -36,7 +41,9 @@ Pruebas:
 - `backend/tests/integration/auth/test_login.py`
 - `backend/tests/integration/auth/test_refresh.py`
 - `backend/tests/integration/profile/test_profile.py`
+- `backend/tests/integration/staffprofile/test_staff_profile.py`
 - `backend/tests/unit/test_profile_schemas.py`
+- `backend/tests/unit/test_staff_profile_schemas.py`
 
 ## RF-02 Roles y permisos
 
@@ -48,15 +55,21 @@ Módulos:
 - `backend/src/hta/adminconsole/__init__.py`
 - `backend/src/hta/adminconsole/router.py`
 - `backend/src/hta/adminconsole/service.py`
+- `backend/src/hta/passwordchange/router.py`
+- `backend/src/hta/passwordchange/schemas.py`
+- `backend/src/hta/passwordchange/service.py`
 - `web/src/App.tsx`
 - `web/src/api.ts`
 - `web/src/components/staff/AdminAccounts.tsx`
 - `web/src/components/staff/AdminLinks.tsx`
+- `web/src/components/staff/AdminPasswordRequests.tsx`
+- `web/src/components/staff/PasswordChangeCard.tsx`
 - `web/src/components/staff/StaffApp.tsx`
 - `web/src/lib/accounts.ts`
 - `web/src/test/AdminAccounts.test.tsx`
 - `web/src/test/AdminLinks.test.tsx`
 - `web/src/test/App.test.tsx`
+- `web/src/test/PasswordChange.test.tsx`
 - `web/src/test/StaffApp.test.tsx`
 - `web/src/test/accounts.test.ts`
 - `web/src/test/apiStaff.test.ts`
@@ -67,6 +80,8 @@ Pruebas:
 - `backend/tests/integration/accounts/test_register.py`
 - `backend/tests/integration/accounts/test_roles.py`
 - `backend/tests/integration/adminconsole/test_adminconsole.py`
+- `backend/tests/integration/passwordchange/test_password_change.py`
+- `backend/tests/unit/test_password_change_schemas.py`
 
 ## RF-03 Consentimiento informado
 
@@ -166,14 +181,16 @@ Ninguno.
 
 Módulos:
 
+- `backend/src/hta/adminconsole/thresholds.py`
 - `web/src/api.ts`
 - `web/src/components/staff/AdminThresholds.tsx`
+- `web/src/lib/thresholds.ts`
 - `web/src/test/AdminThresholds.test.tsx`
 - `web/src/test/apiStaff.test.ts`
 
 Pruebas:
 
-Ninguno.
+- `backend/tests/unit/test_thresholds.py`
 
 ## RF-16 Historial de alertas
 
@@ -185,6 +202,7 @@ Módulos:
 - `web/src/components/PhysicianView.tsx`
 - `web/src/components/patient/PatientHome.tsx`
 - `web/src/components/staff/AlertInbox.tsx`
+- `web/src/components/staff/RankBars.tsx`
 - `web/src/components/staff/StaffApp.tsx`
 - `web/src/components/staff/StaffHome.tsx`
 - `web/src/lib/staff.ts`
@@ -330,12 +348,14 @@ Módulos:
 - `web/src/components/staff/ConsultationInbox.tsx`
 - `web/src/components/staff/StaffApp.tsx`
 - `web/src/components/staff/StaffHome.tsx`
+- `web/src/lib/checkup.ts`
 - `web/src/lib/consultation.ts`
 - `web/src/test/ConsultationInbox.test.tsx`
 - `web/src/test/HelpScreen.test.tsx`
 - `web/src/test/PhysicianRoles.test.tsx`
 - `web/src/test/StaffApp.test.tsx`
 - `web/src/test/StaffHome.test.tsx`
+- `web/src/test/checkup.test.ts`
 
 Pruebas:
 
@@ -348,6 +368,7 @@ Módulos:
 
 - `web/src/api.ts`
 - `web/src/components/staff/AdminAudit.tsx`
+- `web/src/lib/audit.ts`
 - `web/src/test/AdminAudit.test.tsx`
 - `web/src/test/apiStaff.test.ts`
 
@@ -383,6 +404,8 @@ Estos archivos no declaran ningún requerimiento; el hueco queda a la vista para
 - `backend/src/hta/db/migrate.py`
 - `backend/src/hta/db/mongo.py`
 - `backend/src/hta/db/pool.py`
+- `backend/src/hta/passwordchange/__init__.py`
+- `backend/src/hta/staffprofile/__init__.py`
 - `backend/tests/__init__.py`
 - `backend/tests/integration/__init__.py`
 - `backend/tests/integration/conftest.py`
@@ -402,6 +425,10 @@ Estos archivos no declaran ningún requerimiento; el hueco queda a la vista para
 - `db/migrations/0003_patient_avatar.sql`
 - `db/migrations/0004_consultation_messages.sql`
 - `db/migrations/0005_consultation_details.sql`
+- `db/migrations/0006_staff_profile.sql`
+- `db/migrations/0007_consultation_checkup.sql`
+- `db/migrations/0008_consultation_flow.sql`
+- `db/migrations/0009_password_change_request.sql`
 - `web/src/test/setup.ts`
 - `web/src/vite-env.d.ts`
 - `web/vite.config.ts`
