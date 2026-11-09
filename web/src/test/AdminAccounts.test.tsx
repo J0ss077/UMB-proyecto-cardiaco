@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
     setAccountRole: vi.fn(),
     deactivateAccount: vi.fn(),
     revokeSessions: vi.fn(),
+    listPasswordRequests: vi.fn(),
+    approvePasswordRequest: vi.fn(),
+    rejectPasswordRequest: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => ({
@@ -54,6 +57,7 @@ describe("AdminAccounts", () => {
         Object.values(mocks).forEach((mock) => {
             mock.mockReset();
         });
+        mocks.listPasswordRequests.mockResolvedValue({ items: [] });
         mocks.listAccounts.mockResolvedValue({ items: accounts, total: accounts.length });
         mocks.setAccountRole.mockResolvedValue(undefined);
         mocks.deactivateAccount.mockResolvedValue(undefined);

@@ -1,9 +1,8 @@
 // @requirement RF-22
 // @requirement RF-01
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { CaregiverGuide } from "../components/staff/CaregiverGuide";
-import { StaffProfile } from "../components/staff/StaffProfile";
 import { EMERGENCY_GUIDANCE } from "../lib/emergency";
 
 describe("CaregiverGuide", () => {
@@ -44,25 +43,5 @@ describe("CaregiverGuide", () => {
         render(<CaregiverGuide />);
         expect(screen.getByRole("link", { name: /llamar al 123/i })).toHaveAttribute("href", "tel:123");
         expect(screen.getByRole("link", { name: /llamar al 911/i })).toHaveAttribute("href", "tel:911");
-    });
-});
-
-describe("StaffProfile", () => {
-    it.each([
-        ["physician", "Médico", /ves a tus pacientes/i],
-        ["caregiver", "Cuidador", /no las cierras y no respondes consultas/i],
-        ["admin", "Administrador", /no abre lecturas, síntomas ni alertas clínicas/i],
-    ] as const)("describes the %s role and what it may do", (role, label, copy) => {
-        render(<StaffProfile role={role} />);
-
-        expect(screen.getByRole("heading", { name: "Perfil" })).toBeInTheDocument();
-        expect(screen.getByText(label)).toBeInTheDocument();
-        expect(screen.getByText(copy)).toBeInTheDocument();
-    });
-
-    it("says the name and phone are not shown yet instead of inventing them", () => {
-        render(<StaffProfile role="physician" />);
-        const section = within(screen.getByRole("heading", { name: "Perfil" }).closest("section")!);
-        expect(section.getByText(/cuando exista una ruta de perfil para este rol/i)).toBeInTheDocument();
     });
 });

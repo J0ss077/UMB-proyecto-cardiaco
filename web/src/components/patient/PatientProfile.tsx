@@ -1,14 +1,14 @@
 // @requirement RF-01
 // @requirement RF-03
 // @requirement RF-19
-import { Activity, Camera, HeartPulse, Pencil, Phone, Save, ShieldOff, Trash2, Upload, User } from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { Activity, HeartPulse, Pencil, Phone, Save, ShieldOff, User } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ApiError, getProfile, revokeConsent, updateProfile } from "../../api";
 import { cn } from "../../lib/cn";
 import { ageFromBirthDate, formatLongDate } from "../../lib/format";
-import { canvasRenderer, type PhotoRenderer } from "../../lib/photoRenderer";
+import type { PhotoRenderer } from "../../lib/photoRenderer";
 import type { Profile, ProfileUpdate, ReadingsSummary } from "../../types";
-import { PhotoEditor } from "../PhotoEditor";
+import { AvatarPicker } from "../AvatarPicker";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
 import { Input } from "../ui/Input";
@@ -22,9 +22,6 @@ interface PatientProfileProps {
     onProfileChange?: (profile: Profile) => void;
     photoRenderer?: PhotoRenderer;
 }
-
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 interface Draft {
     full_name: string;
@@ -92,15 +89,6 @@ function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode
     );
 }
 
-function initials(fullName: string): string {
-    return fullName
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part.charAt(0).toUpperCase())
-        .join("");
-}
-
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const NONE = <span className="text-subtle">No registrado</span>;
 
@@ -113,11 +101,7 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
     const [nameError, setNameError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [revoking, setRevoking] = useState(false);
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [pickedFile, setPickedFile] = useState<File | null>(null);
-    const [photoError, setPhotoError] = useState<string | null>(null);
     const [photoBusy, setPhotoBusy] = useState(false);
-    const fileInput = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -171,32 +155,14 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
         }
     }
 
-    function onPhotoPicked(event: ChangeEvent<HTMLInputElement>) {
-        const file = event.target.files?.[0];
-        event.target.value = "";
-        if (!file) return;
-        if (!PHOTO_TYPES.includes(file.type)) {
-            setPhotoError("Elige una imagen JPEG, PNG o WebP.");
-            return;
-        }
-        if (file.size > PHOTO_MAX_BYTES) {
-            setPhotoError("La imagen pesa más de 10 MB.");
-            return;
-        }
-        setPhotoError(null);
-        setPickedFile(file);
-    }
-
     async function savePhoto(avatar: string | null) {
         setPhotoBusy(true);
         try {
             const saved = await updateProfile({ avatar });
             setProfile(saved);
             onProfileChange?.(saved);
-            setPickedFile(null);
             toast.success(avatar ? "Foto actualizada." : "Foto eliminada.");
         } catch (error) {
-            setPickedFile(null);
             toast.error(error instanceof ApiError ? error.message : "No se pudo guardar la foto");
         } finally {
             setPhotoBusy(false);
@@ -226,77 +192,19 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
             <Card>
                 <CardContent className="flex flex-col gap-6">
                     <div className="flex flex-col items-center gap-3 text-center">
-                        <div className="relative">
-                            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-muted bg-primary-soft text-3xl font-medium text-primary">
-                                {profile?.avatar ? (
-                                    <img src={profile.avatar} alt="Foto de perfil" className="h-full w-full object-cover" />
-                                ) : profile ? (
-                                    <span aria-hidden="true">{initials(profile.full_name)}</span>
-                                ) : (
-                                    <User className="h-10 w-10" aria-hidden="true" />
-                                )}
-                            </div>
-                            {profile ? (
-                                <>
-                                    <button
-                                        type="button"
-                                        aria-label="Cambiar foto"
-                                        aria-haspopup="menu"
-                                        aria-expanded={menuOpen}
-                                        disabled={photoBusy}
-                                        onClick={() => setMenuOpen((open) => !open)}
-                                        className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow hover:bg-primary/90"
-                                    >
-                                        <Camera className="h-4 w-4" aria-hidden="true" />
-                                    </button>
-                                    {menuOpen ? (
-                                        <div role="menu" className="absolute left-1/2 top-full z-10 mt-2 w-48 -translate-x-1/2 rounded-card border border-border bg-background p-1 text-left shadow-lg">
-                                            <button
-                                                type="button"
-                                                role="menuitem"
-                                                onClick={() => {
-                                                    setMenuOpen(false);
-                                                    fileInput.current?.click();
-                                                }}
-                                                className="flex w-full items-center gap-2 rounded-field px-3 py-2 text-sm hover:bg-muted"
-                                            >
-                                                <Upload className="h-4 w-4" aria-hidden="true" />
-                                                {profile.avatar ? "Cambiar foto" : "Subir foto"}
-                                            </button>
-                                            {profile.avatar ? (
-                                                <button
-                                                    type="button"
-                                                    role="menuitem"
-                                                    onClick={() => {
-                                                        setMenuOpen(false);
-                                                        void savePhoto(null);
-                                                    }}
-                                                    className="flex w-full items-center gap-2 rounded-field px-3 py-2 text-sm text-critical hover:bg-muted"
-                                                >
-                                                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                                                    Quitar foto
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    ) : null}
-                                </>
-                            ) : null}
-                            <input
-                                ref={fileInput}
-                                data-testid="avatar-file-input"
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                tabIndex={-1}
-                                className="hidden"
-                                aria-label="Elegir archivo de foto"
-                                onChange={onPhotoPicked}
+                        {profile ? (
+                            <AvatarPicker
+                                fullName={profile.full_name}
+                                avatar={profile.avatar}
+                                busy={photoBusy}
+                                onChange={savePhoto}
+                                renderer={photoRenderer}
                             />
-                        </div>
-                        {photoError ? (
-                            <p role="alert" className="text-sm text-critical">
-                                {photoError}
-                            </p>
-                        ) : null}
+                        ) : (
+                            <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-muted bg-primary-soft text-primary">
+                                <User className="h-10 w-10" aria-hidden="true" />
+                            </div>
+                        )}
                         {profile ? (
                             <h2 className="text-2xl font-medium">{profile.full_name}</h2>
                         ) : loadFailed ? (
@@ -470,14 +378,6 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
                     </Button>
                 </CardContent>
             </Card>
-            {pickedFile ? (
-                <PhotoEditor
-                    file={pickedFile}
-                    renderer={photoRenderer ?? canvasRenderer}
-                    onApply={(dataUrl) => void savePhoto(dataUrl)}
-                    onCancel={() => setPickedFile(null)}
-                />
-            ) : null}
         </div>
     );
 }

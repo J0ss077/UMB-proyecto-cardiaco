@@ -37,7 +37,7 @@ describe("PhotoEditor", () => {
         await screen.findByRole("slider", { name: "Zoom" });
 
         expect(renderer.load).toHaveBeenCalledWith(file);
-        expect(lastDraw(renderer)).toEqual({ zoom: 1, rotation: 0, offsetX: 0, offsetY: 0 });
+        await waitFor(() => expect(lastDraw(renderer)).toEqual({ zoom: 1, rotation: 0, offsetX: 0, offsetY: 0 }));
     });
 
     it("is a labelled modal dialog", async () => {

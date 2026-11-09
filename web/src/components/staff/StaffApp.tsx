@@ -5,7 +5,7 @@
 // @requirement RF-24
 import { BookOpen, House, Link2, MessageSquare, ScrollText, SlidersHorizontal, TriangleAlert, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listAlerts, listConsultations, listPatients, listReadings } from "../../api";
+import { getStaffProfile, listAlerts, listPasswordRequests, listConsultations, listPatients, listReadings } from "../../api";
 import { useNotifications } from "../useNotifications";
 import type { Alert, Reading, Role } from "../../types";
 import { AppShell, type NavItem } from "../AppShell";
@@ -21,6 +21,8 @@ import { CaregiverGuide } from "./CaregiverGuide";
 import { ConsultationInbox } from "./ConsultationInbox";
 import { StaffHome } from "./StaffHome";
 import { StaffProfile } from "./StaffProfile";
+import { initialsOf } from "../AvatarPicker";
+import type { StaffProfile as StaffProfileData } from "../../types";
 
 type StaffRole = Exclude<Role, "patient">;
 
@@ -55,17 +57,42 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
     const items = NAV[role];
     const [tab, setTab] = useState(items[0]?.id ?? "home");
     const [profileOpen, setProfileOpen] = useState(false);
+    const [staff, setStaff] = useState<StaffProfileData | null>(null);
     const [guideOpen, setGuideOpen] = useState(false);
     const [readings, setReadings] = useState<Reading[]>([]);
     const [alerts, setAlerts] = useState<Alert[]>([]);
-    const [counts, setCounts] = useState({ openAlerts: 0, pendingConsultations: 0 });
+    const [counts, setCounts] = useState({ openAlerts: 0, pendingConsultations: 0, passwordRequests: 0 });
     const [countsKey, setCountsKey] = useState(0);
     const refreshCounts = useCallback(() => setCountsKey((key) => key + 1), []);
 
+    // The header shows the photo and initials of the loaded profile; a failure keeps the role initials.
+    useEffect(() => {
+        let cancelled = false;
+        getStaffProfile().then(
+            (loaded) => {
+                if (!cancelled) setStaff(loaded);
+            },
+            () => undefined,
+        );
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     // Pending work shown as a count on the navigation. A failed count shows nothing.
     useEffect(() => {
-        if (role === "admin") return;
         let cancelled = false;
+        if (role === "admin") {
+            listPasswordRequests().then(
+                (page) => {
+                    if (!cancelled) setCounts((c) => ({ ...c, passwordRequests: page.items.length }));
+                },
+                () => undefined,
+            );
+            return () => {
+                cancelled = true;
+            };
+        }
         Promise.all([
             listAlerts({ status: "open", limit: 1 }).then((page) => page.total, () => 0),
             role === "physician"
@@ -75,7 +102,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
                   ]).then(([review, waiting]) => review + waiting)
                 : Promise.resolve(0),
         ]).then(([openAlerts, pendingConsultations]) => {
-            if (!cancelled) setCounts({ openAlerts, pendingConsultations });
+            if (!cancelled) setCounts((c) => ({ ...c, openAlerts, pendingConsultations }));
         });
         return () => {
             cancelled = true;
@@ -86,7 +113,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
         () =>
             items.map((item) => ({
                 ...item,
-                badge: item.id === "alerts" ? counts.openAlerts : item.id === "consultations" ? counts.pendingConsultations : undefined,
+                badge: item.id === "alerts" ? counts.openAlerts : item.id === "consultations" ? counts.pendingConsultations : item.id === "accounts" ? counts.passwordRequests : undefined,
             })),
         [items, counts],
     );
@@ -127,7 +154,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
     const notices = useNotifications({ readings, symptoms: [], alerts });
 
     function renderTab() {
-        if (profileOpen) return <StaffProfile role={role} />;
+        if (profileOpen) return <StaffProfile role={role} onProfileChange={setStaff} onPasswordChangedNow={onLogout} />;
         if (role === "physician") {
             if (tab === "patients") return <PhysicianView onOpenAlerts={() => open("alerts")} onOpenConsultations={() => open("consultations")} />;
             if (tab === "alerts") return <AlertInbox canAct onChanged={refreshCounts} />;
@@ -161,7 +188,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
         if (tab === "links") return <AdminLinks />;
         if (tab === "thresholds") return <AdminThresholds />;
         if (tab === "audit") return <AdminAudit />;
-        return <AdminAccounts />;
+        return <AdminAccounts onRequestsChanged={refreshCounts} />;
     }
 
     return (
@@ -170,7 +197,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
             active={tab}
             onChange={open}
             onLogout={onLogout}
-            profile={{ initials: INITIALS[role], onOpen: () => setProfileOpen(true) }}
+            profile={{ initials: staff ? initialsOf(staff.full_name) : INITIALS[role], avatar: staff?.avatar ?? null, onOpen: () => setProfileOpen(true) }}
             notifications={
                 <NotificationBell
                     notifications={role === "admin" ? [] : notices.notifications}

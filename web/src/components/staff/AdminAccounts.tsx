@@ -6,6 +6,7 @@ import { fetchAllAccounts } from "../../lib/accounts";
 import { cn } from "../../lib/cn";
 import { CONSENT_LABEL, ROLE_LABEL } from "../../lib/staff";
 import type { Account, Role } from "../../types";
+import { AdminPasswordRequests } from "./AdminPasswordRequests";
 import { Button } from "../ui/Button";
 import { Card, CardContent } from "../ui/Card";
 import { useToast } from "../ui/Toast";
@@ -18,7 +19,7 @@ const ROLE_PLURAL: Record<Role, string> = {
     admin: "Administradores",
 };
 
-export function AdminAccounts() {
+export function AdminAccounts({ onRequestsChanged }: { onRequestsChanged?: () => void } = {}) {
     const toast = useToast();
     const me = currentUserId();
     const [accounts, setAccounts] = useState<Account[] | null>(null);
@@ -104,7 +105,9 @@ export function AdminAccounts() {
                 </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-5">
+            <AdminPasswordRequests onChanged={onRequestsChanged} />
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                 {ROLES.map((item) => (
                     <button
                         key={item}
@@ -112,7 +115,7 @@ export function AdminAccounts() {
                         aria-pressed={role === item}
                         onClick={() => setRole(role === item ? "" : item)}
                         className={cn(
-                            "rounded-card border bg-background p-5 text-left transition-colors hover:bg-surface",
+                            "rounded-card border bg-background p-4 text-left sm:p-5 transition-colors hover:bg-surface",
                             role === item ? "border-accent ring-2 ring-accent/30" : "border-border/70",
                         )}
                     >
@@ -122,7 +125,7 @@ export function AdminAccounts() {
                         </span>
                     </button>
                 ))}
-                <Card data-testid="kpi-active">
+                <Card data-testid="kpi-active" className="col-span-2 sm:col-span-1">
                     <CardContent>
                         <p className="text-sm text-subtle">Activas</p>
                         <p className="text-2xl font-semibold tabular-nums">{counts.active}</p>

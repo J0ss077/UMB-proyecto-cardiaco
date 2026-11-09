@@ -32,6 +32,9 @@ import type {
     Patient,
     Profile,
     ProfileUpdate,
+    PasswordChangeInput,
+    PasswordChangeStatus,
+    PasswordRequest,
     StaffProfile,
     StaffProfileUpdate,
     Reading,
@@ -179,6 +182,15 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
         getStaffProfile: () => request<StaffProfile>("/api/staff/profile"),
         updateStaffProfile: (body: StaffProfileUpdate) =>
             request<StaffProfile>("/api/staff/profile", { method: "PATCH", body }),
+        getPasswordChange: () => request<PasswordChangeStatus>("/api/account/password-change"),
+        requestPasswordChange: (body: PasswordChangeInput) =>
+            request<PasswordChangeStatus>("/api/account/password-change", { method: "POST", body }),
+        cancelPasswordChange: () => request<void>("/api/account/password-change", { method: "DELETE" }),
+        listPasswordRequests: () => request<{ items: PasswordRequest[] }>("/api/admin/password-requests"),
+        approvePasswordRequest: (userId: string) =>
+            request<void>(`/api/admin/password-requests/${userId}/approve`, { method: "POST" }),
+        rejectPasswordRequest: (userId: string) =>
+            request<void>(`/api/admin/password-requests/${userId}/reject`, { method: "POST" }),
         createConsultation: (input: ConsultationInput) =>
             request<Consultation>("/api/consultations", { method: "POST", body: input }),
         listRecipients: () => request<Page<Recipient>>("/api/consultations/recipients"),
@@ -258,6 +270,12 @@ export const {
     getProfile,
     updateProfile,
     getStaffProfile,
+    getPasswordChange,
+    requestPasswordChange,
+    cancelPasswordChange,
+    listPasswordRequests,
+    approvePasswordRequest,
+    rejectPasswordRequest,
     updateStaffProfile,
     createConsultation,
     listRecipients,

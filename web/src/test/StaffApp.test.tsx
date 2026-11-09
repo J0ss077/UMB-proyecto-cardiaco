@@ -22,6 +22,14 @@ const mocks = vi.hoisted(() => ({
     listLinks: vi.fn(),
     listAlertConfig: vi.fn(),
     listAudit: vi.fn(),
+    getStaffProfile: vi.fn(),
+    updateStaffProfile: vi.fn(),
+    getPasswordChange: vi.fn(),
+    requestPasswordChange: vi.fn(),
+    cancelPasswordChange: vi.fn(),
+    listPasswordRequests: vi.fn(),
+    approvePasswordRequest: vi.fn(),
+    rejectPasswordRequest: vi.fn(),
 }));
 
 vi.mock("../api", async (importOriginal) => ({
@@ -42,7 +50,20 @@ const recentCritical = {
     validated_at: null,
 };
 
+let currentRole: "physician" | "caregiver" | "admin" = "physician";
+const staffProfileFor = (role: "physician" | "caregiver" | "admin") => ({
+    user_id: "s1",
+    email: "staff@hta.demo",
+    full_name: "Julián Morales",
+    role,
+    phone: null,
+    avatar: null,
+    license_number: null,
+    specialty: null,
+});
+
 const mount = (role: "physician" | "caregiver" | "admin", onLogout = vi.fn()) => {
+    currentRole = role;
     render(
         <ToastProvider>
             <StaffApp role={role} onLogout={onLogout} />
@@ -75,6 +96,9 @@ describe("StaffApp", () => {
         mocks.listLinks.mockResolvedValue({ physicians: [], caregivers: [] });
         mocks.listAlertConfig.mockResolvedValue(empty);
         mocks.listAudit.mockResolvedValue(empty);
+        mocks.listPasswordRequests.mockResolvedValue({ items: [] });
+        mocks.getPasswordChange.mockResolvedValue({ status: "none", requested_at: null });
+        mocks.getStaffProfile.mockImplementation(() => Promise.resolve(staffProfileFor(currentRole)));
         mocks.getAlert.mockResolvedValue({ ...recentCritical, validated_by_name: null, dismissal_reason: null });
         mocks.acknowledgeAlert.mockResolvedValue(undefined);
     });
@@ -251,6 +275,60 @@ describe("StaffApp", () => {
             const onLogout = mount("physician");
             await userEvent.click(screen.getByRole("button", { name: /cerrar sesión/i }));
             expect(onLogout).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("the header follows the profile", () => {
+        it("shows the photo of the loaded profile", async () => {
+            mocks.getStaffProfile.mockResolvedValue({ ...staffProfileFor("physician"), avatar: "data:image/jpeg;base64,/9j/AA==" });
+            mount("physician");
+            const button = screen.getByRole("button", { name: "Ir al perfil" });
+            await waitFor(() => expect(button.querySelector("img")?.getAttribute("src")).toContain("data:image/jpeg"));
+        });
+
+        it("shows the initials of the loaded name, and the role initials when it does not load", async () => {
+            mount("physician");
+            await waitFor(() => expect(screen.getByRole("button", { name: "Ir al perfil" })).toHaveTextContent("JM"));
+        });
+
+        it("keeps the role initials when the profile does not load", async () => {
+            mocks.getStaffProfile.mockRejectedValue(new Error("down"));
+            mount("caregiver");
+            expect(screen.getByRole("button", { name: "Ir al perfil" })).toHaveTextContent("Cu");
+        });
+    });
+
+    describe("password changes", () => {
+        it("shows the administrator how many requests wait, on Cuentas", async () => {
+            mocks.listPasswordRequests.mockResolvedValue({
+                items: [{ user_id: "m1", email: "m@hta.demo", full_name: "Julián Morales", role: "physician", requested_at: new Date().toISOString() }],
+            });
+            mount("admin");
+            await waitFor(() => expect(screen.getByRole("button", { name: "Cuentas" })).toHaveAccessibleDescription("1 pendientes"));
+            expect(await screen.findByRole("heading", { name: "Solicitudes de cambio de contraseña" })).toBeInTheDocument();
+        });
+
+        it("signs the administrator out after changing their own password", async () => {
+            mocks.requestPasswordChange.mockResolvedValue({ status: "changed", requested_at: null });
+            const onLogout = mount("admin");
+            await userEvent.click(screen.getByRole("button", { name: /configuración y perfil/i }));
+            await userEvent.type(await screen.findByLabelText("Contraseña actual"), "actual-1");
+            await userEvent.type(screen.getByLabelText("Contraseña nueva"), "nueva-clave-9");
+            await userEvent.type(screen.getByLabelText("Repite la contraseña nueva"), "nueva-clave-9");
+            await userEvent.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+            await waitFor(() => expect(onLogout).toHaveBeenCalledTimes(1));
+        });
+
+        it("keeps the physician signed in after asking for a change", async () => {
+            mocks.requestPasswordChange.mockResolvedValue({ status: "pending", requested_at: new Date().toISOString() });
+            const onLogout = mount("physician");
+            await userEvent.click(screen.getByRole("button", { name: /configuración y perfil/i }));
+            await userEvent.type(await screen.findByLabelText("Contraseña actual"), "actual-1");
+            await userEvent.type(screen.getByLabelText("Contraseña nueva"), "nueva-clave-9");
+            await userEvent.type(screen.getByLabelText("Repite la contraseña nueva"), "nueva-clave-9");
+            await userEvent.click(screen.getByRole("button", { name: "Pedir cambio de contraseña" }));
+            expect(await screen.findByText(/pediste cambiar tu contraseña/i)).toBeInTheDocument();
+            expect(onLogout).not.toHaveBeenCalled();
         });
     });
 

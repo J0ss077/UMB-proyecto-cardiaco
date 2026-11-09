@@ -43,7 +43,7 @@ function Logo({ compact = false }: { compact?: boolean }) {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-field bg-accent text-primary-foreground">
                 <HeartPulse className="h-6 w-6" aria-hidden="true" />
             </div>
-            {compact ? null : <span className="text-xl">HipertAI</span>}
+            {compact ? null : <span className="hidden text-xl min-[390px]:inline lg:inline">HipertAI</span>}
         </div>
     );
 }
@@ -158,12 +158,12 @@ export function AppShell<Id extends string>({
             ) : null}
 
             <div className="flex min-w-0 flex-col">
-                <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border/70 bg-background px-4 py-3 lg:px-8">
-                    <div className={cn(hasNav && "lg:invisible")}>
+                <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border/70 bg-background px-3 py-3 sm:px-4 lg:px-8">
+                    <div className={cn("min-w-0", hasNav && "lg:invisible")}>
                         <Logo />
                     </div>
-                    <div className="flex items-center gap-1 sm:gap-2">
-                        <ThemeToggle className="mr-1" />
+                    <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+                        <ThemeToggle className="mr-0.5 sm:mr-1" />
                         {notifications}
                         {profile ? (
                             <>

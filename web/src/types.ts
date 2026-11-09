@@ -167,6 +167,25 @@ export interface StaffProfileUpdate {
     specialty?: string | null;
 }
 
+// "changed" is only returned to an administrator, whose own change needs no approval.
+export interface PasswordChangeStatus {
+    status: "none" | "pending" | "changed";
+    requested_at: string | null;
+}
+
+export interface PasswordChangeInput {
+    current_password: string;
+    new_password: string;
+}
+
+export interface PasswordRequest {
+    user_id: string;
+    email: string;
+    full_name: string;
+    role: Role;
+    requested_at: string;
+}
+
 export type ConsultationStatus = "in_review" | "pending" | "completed";
 export type ConsultationReason = "high_pressure" | "dizziness_headache" | "chest_pain_or_breathing" | "medication" | "other";
 export type ConsultationOnset = "today" | "since_yesterday" | "few_days" | "over_a_week";

@@ -110,6 +110,23 @@ describe("api client", () => {
         await expect(client.revokeConsent()).resolves.toBeUndefined();
     });
 
+    it("reads and patches the staff profile with the bearer token", async () => {
+        saveSession({ access_token: "a1", refresh_token: "r1", role: "physician" });
+        const fetcher = vi.fn().mockImplementation(() => Promise.resolve(json(200, { user_id: "u1" })));
+        const client = createClient({ baseUrl: "http://api", fetcher });
+
+        await client.getStaffProfile();
+        await client.updateStaffProfile({ specialty: null });
+
+        const [readUrl, readInit] = fetcher.mock.calls[0] as [string, RequestInit];
+        expect(readUrl).toBe("http://api/api/staff/profile");
+        expect(readInit.method).toBe("GET");
+        const [patchUrl, patchInit] = fetcher.mock.calls[1] as [string, RequestInit];
+        expect(patchUrl).toBe("http://api/api/staff/profile");
+        expect(patchInit.method).toBe("PATCH");
+        expect(JSON.parse(patchInit.body as string)).toEqual({ specialty: null });
+    });
+
     it("reads and patches the profile with the bearer token", async () => {
         saveSession({ access_token: "a1", refresh_token: "r1", role: "patient" });
         const fetcher = vi.fn().mockImplementation(() => Promise.resolve(json(200, { user_id: "u1" })));
