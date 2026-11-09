@@ -1,0 +1,11 @@
+@startuml
+title Estados de Reminder
+
+[*] --> Programado : el paciente o el médico lo crea
+Programado --> Enviado : llega la hora y se notifica
+Enviado --> Programado : se reprograma la siguiente
+Programado --> Deshabilitado : el paciente lo desactiva
+Enviado --> Deshabilitado : el paciente lo desactiva
+Deshabilitado --> Programado : el paciente lo reactiva
+Deshabilitado --> [*] : se retira
+@enduml

@@ -1,0 +1,24 @@
+@startuml
+title CU-05 Análisis y clasificación de riesgo: colaboración
+
+object "Disparador del análisis" as trigger
+object "Servicio de riesgo" as risk
+object "Repositorio de lecturas" as readings
+object "Ventana domiciliaria" as window
+object "Clasificador por reglas" as rules
+object "Modelo de apoyo" as model
+object "Explicador" as explain
+object "Auditoría" as audit
+
+trigger --> risk : 1: assess(patientId)
+risk --> readings : 2: lastSevenDays(patientId)
+readings --> risk : 3: readings
+risk --> window : 4: build(readings)
+window --> risk : 5: suficiente / media
+risk --> rules : 6: classify(window)
+risk --> model : 7: score(window)
+model --> risk : 8: probability
+risk --> explain : 9: factors(assessment)
+explain --> risk : 10: riskFactors
+risk --> audit : 11: record("risk.assessed")
+@enduml

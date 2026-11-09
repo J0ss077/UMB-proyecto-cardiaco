@@ -1,0 +1,14 @@
+@startuml
+title Diagrama de actividad CU-06. Generación y gestión de alertas
+start
+:Sistema detecta un evento o un riesgo;
+:Sistema estratifica la severidad;
+:Sistema notifica a los destinatarios configurados;
+:Médico tratante revisa la alerta;
+if (¿El médico valida o descarta la alerta?) then (sí)
+  :Registrar validated_by, validated_at y el estado de gestión;
+else (no)
+  :Mantener la alerta abierta;
+endif
+stop
+@enduml

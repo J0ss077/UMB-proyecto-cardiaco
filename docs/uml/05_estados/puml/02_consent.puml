@@ -1,0 +1,14 @@
+@startuml
+title Estados de Consent
+
+[*] --> Vigente : aceptación de la versión publicada
+Vigente --> Revocado : revocación por el paciente
+Vigente --> Superado : publicación de una versión nueva
+Superado --> Vigente : aceptación de la versión nueva
+Revocado --> Vigente : nueva aceptación
+Revocado --> [*]
+note right of Superado
+  existe una aceptación con revokedAt nulo,
+  pero no corresponde a la versión requerida
+end note
+@enduml

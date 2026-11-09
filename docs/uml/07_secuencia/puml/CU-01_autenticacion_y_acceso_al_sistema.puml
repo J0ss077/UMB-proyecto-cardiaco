@@ -1,0 +1,37 @@
+@startuml
+title CU-01 Autenticación y acceso al sistema
+autonumber
+
+actor "Usuario" as u
+participant "Interfaz web" as ui
+participant "API de sesión" as api
+database "PostgreSQL" as pg
+
+u -> ui : correo y contraseña
+ui -> api : POST /api/auth/login
+api -> pg : select user by email
+alt correo desconocido o contraseña incorrecta
+  api -> pg : insert audit_logs (login_failed, actor nulo)
+  api --> ui : 401 Credenciales inválidas
+  ui --> u : error genérico
+else credenciales válidas
+  api -> api : verifyPassword()
+  api -> pg : insert refresh_tokens (solo el hash)
+  api -> pg : insert audit_logs (login)
+  api --> ui : 200 access, refresh, role
+  ui --> u : sesión iniciada
+end
+
+u -> ui : refrescar
+ui -> api : POST /api/auth/refresh
+api -> pg : update refresh_tokens set revoked_at where revoked_at is null
+alt token ya revocado
+  api -> pg : revoke all refresh_tokens of the account
+  api -> pg : insert audit_logs (refresh_reuse)
+  api --> ui : 401 Sesión inválida o expirada
+else token vigente y cuenta activa
+  api -> pg : insert refresh_tokens (nuevo)
+  api -> pg : insert audit_logs (refresh)
+  api --> ui : 200 par nuevo
+end
+@enduml

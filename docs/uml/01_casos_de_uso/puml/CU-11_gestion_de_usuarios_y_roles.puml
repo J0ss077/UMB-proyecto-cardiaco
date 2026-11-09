@@ -1,0 +1,28 @@
+@startuml CU-11_Gestion_usuarios_y_roles
+title CU-11 · Gestión de usuarios y roles
+
+left to right direction
+
+actor Administrador
+
+rectangle Sistema {
+  usecase "Gestionar usuarios\ny roles" as UC11
+  usecase "Seleccionar usuario" as UC11a
+  usecase "Asignar o modificar rol" as UC11b
+  usecase "Configurar permisos" as UC11c
+  usecase "Aplicar y registrar\ncambios" as UC11d
+}
+
+Administrador --> UC11
+
+UC11 ..> UC11a : <<include>>
+UC11 ..> UC11b : <<include>>
+UC11 ..> UC11c : <<include>>
+UC11 ..> UC11d : <<include>>
+
+note bottom of UC11
+  Postcondición: los cambios
+  quedan aplicados y auditados
+end note
+
+@enduml

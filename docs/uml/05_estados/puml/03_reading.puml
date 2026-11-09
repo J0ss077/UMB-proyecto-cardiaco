@@ -1,0 +1,19 @@
+@startuml
+title Estados de Reading
+
+[*] --> Recibida : ingesta del dispositivo
+[*] --> Registrada : registro manual del paciente
+Recibida --> Validada : valores plausibles
+Registrada --> Validada : valores plausibles
+Recibida --> FueraDeRango : valor fisiológicamente implausible
+Registrada --> FueraDeRango : valor fisiológicamente implausible
+Validada --> Observada : marcada para revisión médica
+FueraDeRango --> Observada : el médico revisa el valor atípico
+Validada --> [*]
+Observada --> [*]
+FueraDeRango --> [*]
+note right of FueraDeRango
+  el valor se conserva:
+  validationStatus = out_of_range
+end note
+@enduml

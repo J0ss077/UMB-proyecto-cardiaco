@@ -1,0 +1,30 @@
+@startuml CU-10_Tele_consulta
+title CU-10 · Teleconsulta
+
+left to right direction
+
+actor "Médico tratante" as Medico
+actor Paciente
+
+rectangle Sistema {
+  usecase "Realizar tele\nconsulta" as UC10
+  usecase "Solicitar consulta o\nagendar cita" as UC10a
+  usecase "Establecer sesión" as UC10b
+  usecase "Realizar intercambio\nclínico" as UC10c
+  usecase "Cerrar sesión y\nregistrar" as UC10d
+}
+
+Medico --> UC10
+Paciente --> UC10
+
+UC10 ..> UC10a : <<include>>
+UC10 ..> UC10b : <<include>>
+UC10 ..> UC10c : <<include>>
+UC10 ..> UC10d : <<include>>
+
+note bottom of UC10
+  Soporta modalidad
+  síncrona y asíncrona
+end note
+
+@enduml

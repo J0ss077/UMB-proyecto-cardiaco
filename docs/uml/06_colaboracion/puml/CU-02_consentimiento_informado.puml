@@ -1,0 +1,19 @@
+@startuml
+title CU-02 Consentimiento informado: colaboración
+
+object "Interfaz del paciente" as ui
+object "Controlador de consentimiento" as ctrl
+object "Servicio de consentimiento" as svc
+object "Repositorio de consentimientos" as repo
+object "Resolvedor de perfil" as profile
+object "Auditoría" as audit
+
+ui --> ctrl : 1: aceptar(version, contentRef)
+ctrl --> profile : 2: resolve(authToken)
+profile --> ctrl : 3: patientProfile
+ctrl --> svc : 4: accept(patientId, version, contentRef)
+svc --> repo : 5: append(consent)
+svc --> audit : 6: record("consent.accepted")
+svc --> ctrl : 7: consentId
+ctrl --> ui : 8: consentimiento vigente
+@enduml

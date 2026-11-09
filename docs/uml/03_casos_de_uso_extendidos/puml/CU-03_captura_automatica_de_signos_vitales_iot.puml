@@ -1,0 +1,23 @@
+@startuml
+title Diagrama de actividad CU-03. Captura automática de signos vitales (IoT)
+start
+:Dispositivo realiza la medición;
+:Dispositivo transmite por Bluetooth Low Energy;
+if (¿Hay conexión con el sistema?) then (sí)
+  :Almacenar la lectura cruda en raw_readings;
+else (no)
+  :Almacenar la lectura localmente;
+  :Sincronizar al restablecer la conexión;
+  :Almacenar la lectura cruda en raw_readings;
+endif
+if (¿La lectura está dentro de rango?) then (sí)
+  :Persistir la lectura validada con validation_status valid;
+else (no)
+  :Persistir con validation_status out_of_range;
+  :Enrutar para revisión;
+endif
+if (¿El valor es anómalo?) then (sí)
+  :Disparar el análisis y las alertas;
+endif
+stop
+@enduml

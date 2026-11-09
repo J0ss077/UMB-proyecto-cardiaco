@@ -1,0 +1,13 @@
+@startuml
+title Estados de Teleconsultation
+
+[*] --> Agendada : el médico la programa
+Agendada --> EnCurso : se inicia la sesión
+Agendada --> Cancelada : se cancela antes de empezar
+EnCurso --> Finalizada : se cierra con notas
+EnCurso --> Interrumpida : se pierde la conexión
+Interrumpida --> EnCurso : se reanuda
+Interrumpida --> Finalizada : se cierra con notas
+Finalizada --> [*]
+Cancelada --> [*]
+@enduml

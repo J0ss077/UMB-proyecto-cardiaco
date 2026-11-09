@@ -1,0 +1,12 @@
+@startuml
+title Estados de Medication
+
+[*] --> Indicado : el médico prescribe
+Indicado --> Activo : inicia el tratamiento
+Activo --> Suspendido : suspensión temporal
+Suspendido --> Activo : reanudación
+Activo --> Finalizado : fin del tratamiento
+Suspendido --> Finalizado : fin del tratamiento
+Activo --> Finalizado : cambio de medicamento
+Finalizado --> [*]
+@enduml

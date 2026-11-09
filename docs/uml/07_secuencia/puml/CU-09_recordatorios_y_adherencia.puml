@@ -1,0 +1,27 @@
+@startuml
+title CU-09 Recordatorios y adherencia
+autonumber
+
+participant "Planificador" as sch
+participant "Servicio de recordatorios" as rem
+database "PostgreSQL" as pg
+participant "Notificador" as noti
+actor "Paciente" as p
+participant "Servicio de adherencia" as adh
+
+loop cada minuto
+  sch -> rem : dueReminders(now)
+  rem -> pg : select reminders where enabled
+  rem -> noti : send(reminder)
+  noti -> p : aviso en la aplicación
+  rem -> pg : update lastSentAt
+end
+
+p -> pg : confirma la dosis
+pg --> adh : evento pendiente
+adh -> pg : update adherence_events set confirmed
+adh -> adh : recalcula tasa del periodo
+alt la ventana venció sin confirmación
+  adh -> pg : registra el evento como omitido
+end
+@enduml

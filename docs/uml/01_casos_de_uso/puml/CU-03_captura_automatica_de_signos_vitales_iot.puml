@@ -1,0 +1,37 @@
+@startuml CU-03_Captura_automatica_signos_vitales_IoT
+title CU-03 · Captura automática de signos vitales (IoT)
+
+left to right direction
+
+actor Paciente
+actor "Dispositivo\nbiomédico" as Dispositivo
+
+rectangle Sistema {
+  usecase "Capturar signos vitales\nautomáticamente" as UC03
+  usecase "Transmitir datos por\nBluetooth Low Energy" as UC03a
+  usecase "Recibir y validar\nrangos fisiológicos" as UC03b
+  usecase "Almacenar lectura con\nmarca de tiempo" as UC03c
+  usecase "Disparar análisis y\nalertas (valor anómalo)" as UC03ext1
+  usecase "Almacenar localmente y\nsincronizar sin conexión" as UC03ext2
+}
+
+Paciente --> UC03
+Dispositivo --> UC03
+
+UC03 ..> UC03a : <<include>>
+UC03 ..> UC03b : <<include>>
+UC03 ..> UC03c : <<include>>
+UC03ext1 ..> UC03 : <<extend>>
+UC03ext2 ..> UC03 : <<extend>>
+
+note right of UC03ext1
+  Se activa si el valor
+  medido es anómalo
+end note
+
+note right of UC03ext2
+  Se activa si no hay
+  conexión disponible
+end note
+
+@enduml

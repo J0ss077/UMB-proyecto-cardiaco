@@ -1,0 +1,17 @@
+@startuml
+title Diagrama de actividad CU-02. Gestión del consentimiento informado
+start
+:Sistema presenta el documento de consentimiento vigente;
+:Paciente revisa el alcance y el uso de sus datos;
+if (¿El paciente acepta?) then (sí)
+  :Registrar versión, fecha y referencia en consents;
+  :Habilitar las funciones de monitoreo;
+else (no)
+  :Registrar la decisión sin habilitar el monitoreo;
+endif
+if (¿El paciente revoca un consentimiento vigente?) then (sí)
+  :Registrar revoked_at;
+  :Suspender el tratamiento de nuevos datos;
+endif
+stop
+@enduml

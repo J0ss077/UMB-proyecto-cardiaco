@@ -1,0 +1,16 @@
+@startuml
+title Estados de Alert
+
+[*] --> Abierta : la regla de umbrales dispara la alerta
+Abierta --> Reconocida : el médico acusa recibo
+Abierta --> Validada : el médico valida
+Abierta --> Descartada : el médico descarta con motivo
+Reconocida --> Validada : el médico valida
+Reconocida --> Descartada : el médico descarta con motivo
+Validada --> [*]
+Descartada --> [*]
+note right of Validada
+  validatedBy y validatedAt quedan escritos;
+  ninguna alerta se cierra sin una persona
+end note
+@enduml

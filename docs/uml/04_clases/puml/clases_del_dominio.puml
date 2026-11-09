@@ -1,0 +1,80 @@
+@startuml
+title Diagrama de clases del dominio
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam nodesep 15
+skinparam ranksep 35
+hide empty members
+
+package "Identidad y acceso" {
+  class User
+  class RefreshToken
+  class AuditLog
+}
+
+package "Paciente y seguimiento" {
+  class PatientProfile
+  class PatientPhysician
+  class CaregiverLink
+  class Consent
+  class Reminder
+}
+
+package "Registro clínico" {
+  class Reading
+  class SymptomMood
+  class Medication
+  class AdherenceEvent
+}
+
+package "Alertas y atención" {
+  class Alert
+  class AlertRule
+  class Report
+  class Teleconsultation
+}
+
+package "Análisis" {
+  class VitalSignsWindow {
+    + validCount() : Integer
+    + isSufficient() : Boolean
+    + meanSystolic() : Decimal
+    + meanDiastolic() : Decimal
+  }
+  class RiskAssessment {
+    + explain() : RiskFactor[]
+    + triggersAlert() : Boolean
+  }
+  class ModelScorer <<interfaz>> {
+    + score(window, history) : RiskAssessment
+  }
+}
+
+User "1" -- "0..1" PatientProfile : perfil
+User "1" -- "0..*" RefreshToken
+User "1" -- "0..*" AuditLog
+User "1" -- "0..*" CaregiverLink : cuida
+User "1" -- "0..*" PatientPhysician : atiende
+
+PatientProfile "1" -- "0..*" Consent
+PatientProfile "1" -- "0..*" Reading
+PatientProfile "1" -- "0..*" SymptomMood
+PatientProfile "1" -- "0..*" Medication
+PatientProfile "1" -- "0..*" Alert
+PatientProfile "1" -- "0..*" Report
+PatientProfile "1" -- "0..*" Reminder
+PatientProfile "1" -- "0..*" Teleconsultation
+PatientProfile "1" -- "0..*" CaregiverLink : autoriza
+PatientProfile "1" -- "0..*" PatientPhysician
+
+Medication "1" -- "0..*" AdherenceEvent
+VitalSignsWindow "1" o-- "0..*" Reading : agrupa
+
+AlertRule ..> VitalSignsWindow
+ModelScorer ..> RiskAssessment
+Alert ..> RiskAssessment
+Report ..> Reading
+
+@enduml

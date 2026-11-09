@@ -1,0 +1,18 @@
+@startuml
+title Diagrama de actividad CU-09. Gestión de recordatorios y adherencia
+start
+:Sistema evalúa la programación vigente;
+if (¿El recordatorio está habilitado y vigente?) then (sí)
+  :Generar y notificar el recordatorio;
+  :Paciente confirma la toma;
+  if (¿El paciente confirma?) then (sí)
+    :Registrar la adherencia con confirmed true;
+  else (no)
+    :Registrar el evento con confirmed false;
+    :Reprogramar el recordatorio;
+  endif
+else (no)
+  :Omitir la notificación;
+endif
+stop
+@enduml

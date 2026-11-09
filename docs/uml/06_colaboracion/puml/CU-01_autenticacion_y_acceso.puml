@@ -1,0 +1,20 @@
+@startuml
+title CU-01 Autenticación y acceso: colaboración
+
+object "Interfaz web" as ui
+object "Controlador de sesión" as ctrl
+object "Servicio de autenticación" as svc
+object "Repositorio de usuarios" as users
+object "Repositorio de tokens" as tokens
+object "Auditoría" as audit
+
+ui --> ctrl : 1: iniciarSesion(email, password)
+ctrl --> svc : 2: authenticate(email, password)
+svc --> users : 3: findByEmail(email)
+users --> svc : 4: user
+svc --> svc : 5: verifyPassword(password)
+svc --> tokens : 6: issueRefreshToken(user)
+svc --> audit : 7: record("auth.login")
+svc --> ctrl : 8: accessToken + refreshToken
+ctrl --> ui : 9: sesión iniciada
+@enduml

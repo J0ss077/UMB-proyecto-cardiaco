@@ -1,0 +1,20 @@
+@startuml
+title CU-03 Captura automática desde tensiómetros: colaboración
+
+object "Tensiómetro" as device
+object "Broker MQTT" as broker
+object "Servicio de ingesta" as ingest
+object "Flujo crudo" as mongo
+object "Validador fisiológico" as validator
+object "Repositorio de lecturas" as readings
+object "Motor de alertas" as alerts
+
+device --> broker : 1: publicar(medicion)
+broker --> ingest : 2: entregar(medicion)
+ingest --> ingest : 3: validateSignature()
+ingest --> mongo : 4: append(rawReading)
+ingest --> validator : 5: validate(reading)
+validator --> ingest : 6: validationStatus
+ingest --> readings : 7: save(reading)
+ingest --> alerts : 8: evaluate(reading)
+@enduml

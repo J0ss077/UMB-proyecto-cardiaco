@@ -1,0 +1,29 @@
+@startuml CU-04_Registro_manual_presion_arterial_sintomas
+title CU-04 · Registro manual de presión arterial y síntomas
+
+left to right direction
+
+actor Paciente
+
+rectangle Sistema {
+  usecase "Registrar datos\nmanualmente" as UC04
+  usecase "Seleccionar registro\nmanual" as UC04a
+  usecase "Ingresar valores\n(PA, FC, síntomas, ánimo)" as UC04b
+  usecase "Validar rangos\nfisiológicos" as UC04c
+  usecase "Confirmar y almacenar\nregistro" as UC04d
+}
+
+Paciente --> UC04
+
+UC04 ..> UC04a : <<include>>
+UC04 ..> UC04b : <<include>>
+UC04 ..> UC04c : <<include>>
+UC04 ..> UC04d : <<include>>
+
+note bottom of UC04
+  Precondición: paciente
+  autenticado y con
+  consentimiento activo
+end note
+
+@enduml

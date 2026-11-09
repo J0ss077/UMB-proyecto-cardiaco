@@ -1,0 +1,36 @@
+@startuml CU-06_Generacion_y_gestion_de_alertas
+title CU-06 · Generación y gestión de alertas
+
+left to right direction
+
+actor Paciente
+actor Cuidador
+actor "Médico tratante" as Medico
+actor Sistema as SistemaActor <<system>>
+
+rectangle Sistema {
+  usecase "Generar y gestionar\nalertas" as UC06
+  usecase "Detectar evento\no riesgo" as UC06a
+  usecase "Estratificar alerta\npor nivel" as UC06b
+  usecase "Notificar destinatarios\nconfigurados" as UC06c
+  usecase "Registrar estado y\nresolución" as UC06d
+  usecase "Validar y gestionar\nalerta" as UC06ext
+}
+
+SistemaActor --> UC06
+Paciente --> UC06c
+Cuidador --> UC06c
+Medico --> UC06ext
+
+UC06 ..> UC06a : <<include>>
+UC06 ..> UC06b : <<include>>
+UC06 ..> UC06c : <<include>>
+UC06 ..> UC06d : <<include>>
+UC06ext ..> UC06 : <<extend>>
+
+note right of UC06ext
+  Realizado por el médico
+  tratante tras la notificación
+end note
+
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+title Diagrama de actividad CU-04. Registro manual de presión arterial y síntomas
+start
+:Paciente selecciona el registro manual;
+:Paciente ingresa presión, frecuencia, síntomas y ánimo;
+if (¿Los datos están completos?) then (sí)
+  if (¿Los valores están dentro de rango?) then (sí)
+    :Persistir la lectura con origen manual;
+  else (no)
+    :Advertir y persistir con validation_status out_of_range;
+  endif
+  if (¿El paciente registró síntomas?) then (sí)
+    :Persistir el registro en symptoms_mood;
+  endif
+else (no)
+  :Rechazar el registro y señalar los campos obligatorios;
+endif
+stop
+@enduml

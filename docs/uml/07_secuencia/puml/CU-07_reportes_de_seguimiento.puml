@@ -1,0 +1,28 @@
+@startuml
+title CU-07 Reportes de seguimiento
+autonumber
+
+actor "Médico" as m
+participant "Interfaz web" as ui
+participant "API de reportes" as api
+database "PostgreSQL" as pg
+participant "Exportador" as exp
+
+m -> ui : paciente y periodo
+ui -> api : POST /api/reports
+api -> pg : lecturas del periodo
+api -> pg : alertas del periodo
+api -> pg : eventos de adherencia
+api -> api : calcula medias y adherencia
+api -> pg : insert reports
+api --> ui : 201 reporte
+m -> ui : exportar
+ui -> api : GET /api/reports/{id}?format=csv
+api -> exp : toCsv(report)
+exp --> api : archivo
+api --> ui : 200 text/csv
+note right of exp
+  el PDF se declara pendiente en el manual;
+  el CSV es la exportación entregada
+end note
+@enduml

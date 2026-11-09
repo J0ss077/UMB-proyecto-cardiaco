@@ -1,0 +1,22 @@
+@startuml
+title CU-07 Reportes de seguimiento: colaboración
+
+object "Tablero del médico" as dashboard
+object "Controlador de reportes" as ctrl
+object "Servicio de reportes" as svc
+object "Repositorio de lecturas" as readings
+object "Calculadora de adherencia" as adherence
+object "Repositorio de alertas" as alerts
+object "Exportador" as exporter
+object "Repositorio de reportes" as reports
+
+dashboard --> ctrl : 1: generar(patientId, periodo)
+ctrl --> svc : 2: build(patientId, periodStart, periodEnd)
+svc --> readings : 3: between(patientId, periodo)
+svc --> alerts : 4: between(patientId, periodo)
+svc --> adherence : 5: summary(patientId, periodo)
+adherence --> svc : 6: adherenceSummary
+svc --> reports : 7: save(report)
+ctrl --> exporter : 8: toCsv(report)
+exporter --> dashboard : 9: archivo
+@enduml

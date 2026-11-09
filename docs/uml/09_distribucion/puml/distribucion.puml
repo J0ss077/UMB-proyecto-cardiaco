@@ -1,0 +1,59 @@
+@startuml
+title Diagrama de distribución
+
+node "Equipo del paciente o del médico" as cliente {
+  artifact "Navegador" as browser
+}
+
+node "Servidor de aplicación" as app <<servidor>> {
+  node "Contenedor web" as webc {
+    artifact "Node 20: estáticos y proxy" as webart
+  }
+  node "Contenedor del backend" as apic {
+    artifact "Python 3.12: uvicorn + FastAPI" as apiart
+  }
+  node "Contenedor de base de datos" as dbc {
+    database "PostgreSQL 16" as pgart
+    artifact "Volumen db_data" as pgvol
+  }
+  node "Contenedor del flujo crudo" as mongoc {
+    database "MongoDB 7" as mongoart
+    artifact "Volumen mongo_data" as mongovol
+  }
+  node "Contenedor del broker" as brokerc {
+    artifact "Broker MQTT" as brokerart
+  }
+}
+
+node "Red doméstica" as home {
+  node "Tensiómetro" as dev <<dispositivo>> {
+    artifact "Firmware de medición" as fw
+  }
+}
+
+node "Estación de analítica" as ml <<servidor>> {
+  artifact "Python 3.12: entrenamiento y evaluación" as mlart
+  artifact "Modelo serializado" as model_art
+}
+
+cloud "Registro de imágenes" as registry
+
+browser --> webart : HTTPS 443
+webart --> apiart : HTTP 8000, red interna
+apiart --> pgart : 5432, red interna
+apiart --> mongoart : 27017, red interna
+fw --> brokerart : MQTT 1883
+brokerart --> apiart : HTTP, red interna
+mlart --> registry : publica la imagen del modelo
+registry --> apiart : descarga la versión
+model_art --> apiart : inferencia por HTTP
+
+note right of dbc
+  solo el puerto publicado del compose
+  es alcanzable desde el equipo del socio
+end note
+note bottom of ml
+  el entrenamiento no corre dentro de la pila:
+  usa el mismo repositorio y produce el artefacto
+end note
+@enduml

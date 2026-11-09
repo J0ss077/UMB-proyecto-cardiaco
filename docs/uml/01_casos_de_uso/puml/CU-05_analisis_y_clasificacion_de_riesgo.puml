@@ -1,0 +1,39 @@
+@startuml CU-05_Analisis_y_clasificacion_de_riesgo
+title CU-05 · Análisis y clasificación de riesgo
+
+left to right direction
+
+actor Paciente
+actor "Médico tratante" as Medico
+actor "Modelo de IA" as ModeloIA <<system>>
+
+rectangle Sistema {
+  usecase "Clasificar riesgo\ncardiovascular" as UC05
+  usecase "Ingresar datos\nal modelo" as UC05a
+  usecase "Generar explicación\ninterpretable" as UC05b
+  usecase "Registrar inferencia" as UC05c
+  usecase "Disparar alerta\n(riesgo alto)" as UC05ext
+}
+
+Paciente --> UC05
+Medico --> UC05
+ModeloIA --> UC05
+
+UC05 ..> UC05a : <<include>>
+UC05 ..> UC05b : <<include>>
+UC05 ..> UC05c : <<include>>
+UC05ext ..> UC05 : <<extend>>
+
+note right of UC05ext
+  Se activa si la
+  clasificación de riesgo
+  es alta
+end note
+
+note bottom of UC05
+  Postcondición: la clasificación
+  y su explicación quedan
+  disponibles para el médico
+end note
+
+@enduml

@@ -1,0 +1,41 @@
+@startuml CU-01_Autenticacion_y_acceso
+title CU-01 · Autenticación y acceso
+
+left to right direction
+
+actor Paciente
+actor "Médico tratante" as Medico
+actor Cuidador
+actor Administrador
+
+rectangle Sistema {
+  usecase "Autenticarse en\nel sistema" as UC01
+  usecase "Validar credenciales" as UC01a
+  usecase "Cargar perfil y\npermisos por rol" as UC01b
+  usecase "Registrar acceso\nen el log" as UC01c
+  usecase "Mostrar error de\ncredenciales inválidas" as UC01alt1
+  usecase "Recuperar credenciales" as UC01alt2
+}
+
+Paciente --> UC01
+Medico --> UC01
+Cuidador --> UC01
+Administrador --> UC01
+
+UC01 ..> UC01a : <<include>>
+UC01 ..> UC01b : <<include>>
+UC01 ..> UC01c : <<include>>
+UC01alt1 ..> UC01 : <<extend>>
+UC01alt2 ..> UC01 : <<extend>>
+
+note right of UC01alt1
+  Se activa si las
+  credenciales no son válidas
+end note
+
+note right of UC01alt2
+  Se activa si el usuario
+  olvidó su contraseña
+end note
+
+@enduml

@@ -1,0 +1,19 @@
+@startuml
+title CU-06 Generación y gestión de alertas: colaboración
+
+object "Motor de alertas" as engine
+object "Repositorio de umbrales" as config
+object "Repositorio de alertas" as alerts
+object "Destinatarios" as notify
+object "Tablero del médico" as dashboard
+object "Auditoría" as audit
+
+engine --> config : 1: thresholds(patientId, metric)
+config --> engine : 2: alertRule
+engine --> engine : 3: severityOf(window)
+engine --> alerts : 4: open(alert)
+engine --> notify : 5: deliver(alert, recipients)
+dashboard --> alerts : 6: listByStatus(open)
+dashboard --> alerts : 7: validate(alertId, physicianId)
+alerts --> audit : 8: record("alert.validated")
+@enduml

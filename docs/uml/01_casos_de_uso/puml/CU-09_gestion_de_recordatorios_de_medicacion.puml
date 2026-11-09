@@ -1,0 +1,30 @@
+@startuml CU-09_Gestion_recordatorios_medicacion
+title CU-09 · Gestión de recordatorios de medicación
+
+left to right direction
+
+actor Paciente
+actor Sistema as SistemaActor <<system>>
+
+rectangle Sistema {
+  usecase "Gestionar recordatorios\nde medicación" as UC09
+  usecase "Generar recordatorio\nsegún horario" as UC09a
+  usecase "Notificar al paciente" as UC09b
+  usecase "Confirmar toma" as UC09c
+  usecase "Registrar adherencia" as UC09d
+}
+
+SistemaActor --> UC09
+Paciente --> UC09c
+
+UC09 ..> UC09a : <<include>>
+UC09 ..> UC09b : <<include>>
+UC09 ..> UC09c : <<include>>
+UC09 ..> UC09d : <<include>>
+
+note bottom of UC09
+  Precondición: horarios y
+  prescripción configurados
+end note
+
+@enduml

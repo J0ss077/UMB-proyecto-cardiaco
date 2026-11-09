@@ -1,0 +1,21 @@
+@startuml
+title CU-04 Registro manual de presión y síntomas: colaboración
+
+object "Interfaz del paciente" as ui
+object "Controlador de lecturas" as ctrl
+object "Compuerta de consentimiento" as gate
+object "Validador fisiológico" as validator
+object "Repositorio de lecturas" as readings
+object "Repositorio de síntomas" as symptoms
+object "Motor de alertas" as alerts
+
+ui --> ctrl : 1: registrar(systolic, diastolic, symptoms)
+ctrl --> gate : 2: isActive(patientId, version)
+gate --> ctrl : 3: consentimiento vigente
+ctrl --> validator : 4: validate(reading)
+validator --> ctrl : 5: validationStatus
+ctrl --> readings : 6: save(reading)
+ctrl --> symptoms : 7: save(symptomMood)
+ctrl --> alerts : 8: evaluate(reading)
+ctrl --> ui : 9: lectura registrada
+@enduml

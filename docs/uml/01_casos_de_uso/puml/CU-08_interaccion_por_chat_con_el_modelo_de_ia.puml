@@ -1,0 +1,34 @@
+@startuml CU-08_Interaccion_chat_modelo_IA
+title CU-08 · Interacción por chat con el modelo de IA
+
+left to right direction
+
+actor Paciente
+actor "Módulo NLP\n(IA)" as ModuloNLP <<system>>
+
+rectangle Sistema {
+  usecase "Consultar chat\ncon el modelo de IA" as UC08
+  usecase "Abrir chat" as UC08a
+  usecase "Escribir consulta" as UC08b
+  usecase "Interpretar consulta\n(NLP)" as UC08c
+  usecase "Responder consulta" as UC08d
+  usecase "Registrar interacción" as UC08e
+  usecase "Derivar al médico\ntratante" as UC08ext
+}
+
+Paciente --> UC08
+ModuloNLP --> UC08c
+
+UC08 ..> UC08a : <<include>>
+UC08 ..> UC08b : <<include>>
+UC08 ..> UC08c : <<include>>
+UC08 ..> UC08d : <<include>>
+UC08 ..> UC08e : <<include>>
+UC08ext ..> UC08 : <<extend>>
+
+note right of UC08ext
+  Se activa si el sistema
+  detecta riesgo en la consulta
+end note
+
+@enduml

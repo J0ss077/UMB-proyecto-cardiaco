@@ -1,0 +1,90 @@
+@startuml
+title Diagrama de componentes del sistema
+
+skinparam componentStyle rectangle
+
+package "Cliente" {
+  [Aplicación web\n(React)] as web <<componente>>
+  [Aplicación móvil\n(responsiva)] as mobile <<componente>>
+}
+
+package "Servicios del sistema" {
+  [API de la plataforma\n(FastAPI)] as api <<componente>>
+
+  package "Módulos de la API" {
+    [Autenticación y sesión] as mod_auth <<módulo>>
+    [Cuentas y roles] as mod_acc <<módulo>>
+    [Consentimiento] as mod_cons <<módulo>>
+    [Registro clínico] as mod_clin <<módulo>>
+    [Riesgo y alertas] as mod_risk <<módulo>>
+    [Reportes] as mod_rep <<módulo>>
+    [Chat] as mod_chat <<módulo>>
+    [Auditoría] as mod_aud <<módulo>>
+  }
+
+  [Servicio de ingesta\nMQTT] as ingest <<componente>>
+  [Servicio del modelo\n(inferencia)] as model <<componente>>
+  [Notificador en la aplicación] as notify <<componente>>
+  [Exportador CSV y PDF] as export <<componente>>
+}
+
+package "Persistencia" {
+  database "PostgreSQL 16\nregistro clínico" as pg
+  database "MongoDB 7\nflujo crudo" as mongo
+}
+
+package "Dispositivos e integraciones" {
+  [Tensiómetro] as device <<dispositivo>>
+  [Broker MQTT] as broker <<infraestructura>>
+  [Sistema externo\nHL7 FHIR] as fhir <<externo>>
+}
+
+package "Analítica fuera de línea" {
+  [Cuaderno de entrenamiento] as train <<componente>>
+  [Registro de modelos] as registry <<componente>>
+}
+
+web --> api : HTTPS, JSON
+mobile --> api : HTTPS, JSON
+
+api --> mod_auth
+api --> mod_acc
+api --> mod_cons
+api --> mod_clin
+api --> mod_risk
+api --> mod_rep
+api --> mod_chat
+api --> mod_aud
+
+mod_auth --> pg
+mod_acc --> pg
+mod_cons --> pg
+mod_clin --> pg
+mod_risk --> pg
+mod_rep --> pg
+mod_aud --> pg
+
+mod_clin --> notify
+mod_risk --> notify
+mod_rep --> export
+
+device --> broker : MQTT
+broker --> ingest : MQTT
+ingest --> mongo : lecturas crudas
+ingest --> pg : lecturas validadas
+ingest --> mod_risk : evaluación
+
+mod_risk --> model : HTTP
+mod_chat --> model : HTTP
+
+train --> registry : artefacto
+registry --> model : versión desplegada
+model --> pg : lee variables clínicas
+
+api --> fhir : FHIR R4
+
+note bottom of mongo
+  conserva el mensaje original del dispositivo
+  aunque la lectura se rechace
+end note
+@enduml

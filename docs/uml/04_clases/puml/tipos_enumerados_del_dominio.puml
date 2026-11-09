@@ -1,0 +1,53 @@
+@startuml
+title Tipos enumerados del dominio
+
+skinparam packageStyle rectangle
+
+package "Identidad y acceso" {
+  enum UserRole {
+    patient
+    physician
+    caregiver
+    admin
+  }
+}
+
+package "Registro clínico" {
+  enum ReadingSource {
+    device
+    manual
+  }
+  enum ValidationStatus {
+    valid
+    out_of_range
+    flagged
+  }
+}
+
+package "Alertas" {
+  enum AlertSeverity {
+    low
+    medium
+    high
+    critical
+  }
+  enum AlertStatus {
+    open
+    acknowledged
+    validated
+    dismissed
+  }
+}
+
+package "Seguimiento" {
+  enum ReminderKind {
+    medication
+    measurement
+  }
+  enum TeleconsultationMode {
+    sync
+    async
+  }
+}
+
+@enduml

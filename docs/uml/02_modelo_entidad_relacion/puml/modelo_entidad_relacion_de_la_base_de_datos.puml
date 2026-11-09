@@ -1,0 +1,261 @@
+@startuml
+title Modelo entidad-relación de la base de datos
+!define PK <b><color:#b8860b>PK</color></b>
+!define FK <b><color:#2e6da4>FK</color></b>
+
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam entity {
+BackgroundColor #FDFDFD
+BorderColor #444444
+}
+
+' ---------------- Enums ----------------
+enum user_role <<enum>> {
+patient
+physician
+caregiver
+admin
+}
+enum reading_source <<enum>> {
+device
+manual
+}
+enum validation_status <<enum>> {
+valid
+out_of_range
+flagged
+}
+enum alert_severity <<enum>> {
+low
+medium
+high
+critical
+}
+enum alert_status <<enum>> {
+open
+acknowledged
+validated
+dismissed
+}
+enum reminder_kind <<enum>> {
+medication
+measurement
+}
+enum teleconsultation_mode <<enum>> {
+sync
+async
+}
+
+' ---------------- Usuarios ----------------
+entity users {
+PK id : UUID
+--
+email : TEXT <<UNIQUE>>
+password_hash : TEXT
+role : user_role
+full_name : TEXT
+active : BOOLEAN
+created_at : TIMESTAMPTZ
+updated_at : TIMESTAMPTZ
+}
+
+entity patient_profiles {
+PK id : UUID
+--
+FK user_id : UUID <<UNIQUE>>
+birth_date : DATE
+sex : TEXT
+diagnosis_date : DATE
+height_cm : NUMERIC
+weight_kg : NUMERIC
+}
+
+entity patient_physician {
+PK FK patient_id : UUID
+PK FK physician_id : UUID
+--
+assigned_at : TIMESTAMPTZ
+}
+
+entity caregiver_links {
+PK id : UUID
+--
+FK patient_id : UUID
+FK caregiver_id : UUID
+authorized_scope : TEXT
+created_at : TIMESTAMPTZ
+}
+
+entity consents {
+PK id : UUID
+--
+FK patient_id : UUID
+version : INTEGER
+accepted_at : TIMESTAMPTZ
+content_ref : TEXT
+revoked_at : TIMESTAMPTZ
+}
+
+' ---------------- Datos clinicos ----------------
+entity readings {
+PK id : UUID
+--
+FK patient_id : UUID
+systolic : INTEGER
+diastolic : INTEGER
+heart_rate : INTEGER
+source : reading_source
+device_id : TEXT
+measured_at : TIMESTAMPTZ
+validation_status : validation_status
+created_at : TIMESTAMPTZ
+}
+
+entity symptoms_mood {
+PK id : UUID
+--
+FK patient_id : UUID
+free_text : TEXT
+mood : TEXT
+recorded_at : TIMESTAMPTZ
+}
+
+entity medications {
+PK id : UUID
+--
+FK patient_id : UUID
+name : TEXT
+dose : TEXT
+unit : TEXT
+frequency : TEXT
+start_date : DATE
+end_date : DATE
+}
+
+entity adherence_events {
+PK id : UUID
+--
+FK patient_id : UUID
+FK medication_id : UUID
+taken_at : TIMESTAMPTZ
+confirmed : BOOLEAN
+}
+
+' ---------------- Alertas, reportes, recordatorios, teleconsulta ----------------
+entity alerts {
+PK id : UUID
+--
+FK patient_id : UUID
+type : TEXT
+severity : alert_severity
+status : alert_status
+note : TEXT
+created_at : TIMESTAMPTZ
+FK validated_by : UUID
+validated_at : TIMESTAMPTZ
+}
+
+entity alert_config {
+PK id : UUID
+--
+FK patient_id : UUID <<nullable>>
+metric : TEXT
+low_threshold : NUMERIC
+high_threshold : NUMERIC
+recipients : JSONB
+}
+
+entity reports {
+PK id : UUID
+--
+FK patient_id : UUID
+period_start : DATE
+period_end : DATE
+generated_at : TIMESTAMPTZ
+content_ref : TEXT
+}
+
+entity reminders {
+PK id : UUID
+--
+FK patient_id : UUID
+kind : reminder_kind
+schedule : TEXT
+enabled : BOOLEAN
+last_sent_at : TIMESTAMPTZ
+}
+
+entity teleconsultations {
+PK id : UUID
+--
+FK patient_id : UUID
+FK physician_id : UUID
+scheduled_at : TIMESTAMPTZ
+mode : teleconsultation_mode
+status : TEXT
+notes : TEXT
+}
+
+' ---------------- Auditoria y sesiones ----------------
+entity audit_logs {
+PK id : UUID
+--
+FK actor_user_id : UUID
+action : TEXT
+entity : TEXT
+entity_id : UUID
+ip : TEXT
+occurred_at : TIMESTAMPTZ
+details : JSONB
+}
+
+entity refresh_tokens {
+PK id : UUID
+--
+FK user_id : UUID
+token_hash : TEXT <<UNIQUE>>
+expires_at : TIMESTAMPTZ
+revoked_at : TIMESTAMPTZ
+created_at : TIMESTAMPTZ
+}
+
+' ---------------- Relaciones ----------------
+users ||--o| patient_profiles : "perfil (RESTRICT)"
+patient_profiles ||--o{ patient_physician : "asignado a"
+users ||--o{ patient_physician : "medico"
+patient_profiles ||--o{ caregiver_links : "cuidadores"
+users ||--o{ caregiver_links : "cuidador"
+patient_profiles ||--o{ consents
+patient_profiles ||--o{ readings
+patient_profiles ||--o{ symptoms_mood
+patient_profiles ||--o{ medications
+patient_profiles ||--o{ adherence_events
+medications ||--o{ adherence_events
+patient_profiles ||--o{ alerts
+users |o--o{ alerts : "validated_by"
+patient_profiles |o--o{ alert_config
+patient_profiles ||--o{ reports
+patient_profiles ||--o{ reminders
+patient_profiles ||--o{ teleconsultations
+users ||--o{ teleconsultations : "medico"
+users |o--o{ audit_logs : "actor"
+users ||--o{ refresh_tokens
+
+' ---------------- Uso de enums ----------------
+users ..> user_role
+readings ..> reading_source
+readings ..> validation_status
+alerts ..> alert_severity
+alerts ..> alert_status
+reminders ..> reminder_kind
+teleconsultations ..> teleconsultation_mode
+
+note bottom of users
+Soft delete: active = FALSE
+(migracion 0004), los registros
+clinicos se preservan (0003)
+end note
+@enduml

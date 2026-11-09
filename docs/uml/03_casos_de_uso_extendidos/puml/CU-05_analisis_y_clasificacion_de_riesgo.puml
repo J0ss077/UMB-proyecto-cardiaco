@@ -1,0 +1,21 @@
+@startuml
+title Diagrama de actividad CU-05. Análisis y clasificación de riesgo
+start
+:Sistema reúne los datos clínicos del paciente;
+if (¿Hay datos suficientes?) then (sí)
+  :Ingresar los datos al modelo;
+  :Clasificar el nivel de riesgo;
+  :Generar una explicación interpretable;
+  :Registrar la inferencia en audit_logs;
+  if (¿La confianza es baja?) then (sí)
+    :Marcar para revisión humana sin alerta automática;
+  else (no)
+    if (¿El riesgo es alto?) then (sí)
+      :Disparar una alerta;
+    endif
+  endif
+else (no)
+  :Solicitar más datos;
+endif
+stop
+@enduml

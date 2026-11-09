@@ -1,0 +1,20 @@
+@startuml
+title CU-09 Recordatorios y adherencia: colaboración
+
+object "Planificador" as scheduler
+object "Servicio de recordatorios" as reminders
+object "Repositorio de recordatorios" as repo
+object "Servicio de notificaciones" as notify
+object "Interfaz del paciente" as ui
+object "Servicio de adherencia" as adherence
+object "Repositorio de adherencia" as events
+
+scheduler --> reminders : 1: dueReminders(now)
+reminders --> repo : 2: enabledByKind()
+repo --> reminders : 3: recordatorios
+reminders --> notify : 4: send(reminder)
+notify --> ui : 5: aviso en la aplicación
+ui --> adherence : 6: confirm(medicationId)
+adherence --> events : 7: append(event, confirmed)
+adherence --> reminders : 8: reprogramar siguiente
+@enduml

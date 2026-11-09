@@ -1,0 +1,16 @@
+@startuml
+title CU-12 Auditoría y trazabilidad: colaboración
+
+object "Tablero de administración" as ui
+object "Controlador de auditoría" as ctrl
+object "Servicio de auditoría" as svc
+object "Repositorio de auditoría" as repo
+
+ui --> ctrl : 1: consultar(filtros)
+ctrl --> svc : 2: search(actor, action, desde, hasta)
+svc --> repo : 3: find(criteria)
+repo --> svc : 4: eventos
+svc --> svc : 5: orderByOccurredAt()
+svc --> ctrl : 6: página de eventos
+ctrl --> ui : 7: tabla filtrada
+@enduml

@@ -1,0 +1,30 @@
+@startuml CU-07_Generacion_reportes_seguimiento
+title CU-07 · Generación de reportes de seguimiento
+
+left to right direction
+
+actor "Médico tratante" as Medico
+actor Paciente
+
+rectangle Sistema {
+  usecase "Generar reporte de\nseguimiento" as UC07
+  usecase "Solicitar reporte" as UC07a
+  usecase "Consolidar datos" as UC07b
+  usecase "Visualizar reporte" as UC07c
+  usecase "Exportar reporte" as UC07ext
+}
+
+Medico --> UC07
+Paciente --> UC07
+
+UC07 ..> UC07a : <<include>>
+UC07 ..> UC07b : <<include>>
+UC07 ..> UC07c : <<include>>
+UC07ext ..> UC07 : <<extend>>
+
+note right of UC07ext
+  Se activa si el usuario
+  requiere exportar el reporte
+end note
+
+@enduml

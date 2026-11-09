@@ -1,0 +1,38 @@
+@startuml
+title CU-11 Gestión de usuarios, roles y desactivación
+autonumber
+
+actor "Administrador" as a
+participant "Interfaz web" as ui
+participant "API de cuentas" as api
+participant "Guarda de autorización" as guard
+database "PostgreSQL" as pg
+
+a -> ui : abre la lista de cuentas
+ui -> api : GET /api/accounts
+api -> guard : currentUser(token)
+guard -> pg : select role y active del actor
+alt el actor no es administrador
+  guard --> api : 403 Permiso denegado
+  api --> ui : 403
+else administrador activo
+  api -> pg : select users order by email
+  api --> ui : 200 lista de cuentas
+end
+
+a -> ui : cambia el rol de una cuenta
+ui -> api : PATCH /api/accounts/{id}/role
+api -> pg : update users set role, updatedAt
+api -> pg : insert audit_logs (accounts.role_changed)
+
+a -> ui : desactiva una cuenta
+ui -> api : POST /api/accounts/{id}/deactivate
+alt la cuenta es la del propio administrador
+  api --> ui : 409 no se puede desactivar a sí mismo
+else otra cuenta
+  api -> pg : pseudonimiza email, nombre y contraseña; active false
+  api -> pg : revoca los refresh_tokens vigentes
+  api -> pg : insert audit_logs (accounts.deactivated)
+  api --> ui : 204
+end
+@enduml

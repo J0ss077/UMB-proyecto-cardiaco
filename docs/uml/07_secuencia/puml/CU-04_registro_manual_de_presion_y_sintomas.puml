@@ -1,0 +1,33 @@
+@startuml
+title CU-04 Registro manual de presión y síntomas
+autonumber
+
+actor "Paciente" as p
+participant "Interfaz web" as ui
+participant "API de lecturas" as api
+participant "Compuerta de consentimiento" as gate
+participant "Validador fisiológico" as val
+database "PostgreSQL" as pg
+participant "Motor de alertas" as alertas
+
+p -> ui : sistólica, diastólica, pulso y síntomas
+ui -> api : POST /api/readings
+api -> gate : isActive(patient, version)
+alt sin consentimiento vigente
+  gate --> api : false
+  api --> ui : 403 Consentimiento requerido
+  ui --> p : no se registran datos clínicos
+else consentimiento vigente
+  api -> val : validate(reading)
+  val --> api : valid u out_of_range
+  api -> pg : insert readings
+  api -> pg : insert symptoms_mood
+  api -> alertas : evaluate(reading)
+  api -> pg : insert audit_logs (reading.created)
+  api --> ui : 201 lectura registrada
+  note right of api
+    un valor implausible se guarda con
+    validationStatus out_of_range
+  end note
+end
+@enduml

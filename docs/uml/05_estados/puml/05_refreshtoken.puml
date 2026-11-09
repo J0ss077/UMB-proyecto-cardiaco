@@ -1,0 +1,17 @@
+@startuml
+title Estados de RefreshToken
+
+[*] --> Vigente : inicio de sesión
+Vigente --> Rotado : el cliente refresca la sesión
+Vigente --> Revocado : cierre de sesión
+Vigente --> Expirado : vence el plazo
+Vigente --> Revocado : reutilización detectada en la cuenta
+Rotado --> Vigente : el token nuevo ocupa el lugar
+Rotado --> [*]
+Revocado --> [*]
+Expirado --> [*]
+note right of Rotado
+  la reutilización de un token rotado
+  revoca todos los refrescos de la cuenta
+end note
+@enduml

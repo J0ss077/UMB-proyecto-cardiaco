@@ -1,0 +1,19 @@
+@startuml
+title Estados de User
+
+[*] --> PendienteDeConsentimiento : alta del paciente
+PendienteDeConsentimiento --> Activo : consentimiento aceptado
+PendienteDeConsentimiento --> Activo : alta por administración
+Activo --> Activo : inicio y cierre de sesión
+Activo --> Inactivo : desactivación por administración
+Activo --> Inactivo : cuenta suspendida por seguridad
+Inactivo --> Seudonimizado : purga de identidad
+Seudonimizado --> [*]
+Inactivo --> Activo : reactivación por administración
+note right of Seudonimizado
+  email = deactivated+<id>
+  fullName = "Cuenta desactivada"
+  passwordHash = "!"
+  el historial clínico se conserva
+end note
+@enduml

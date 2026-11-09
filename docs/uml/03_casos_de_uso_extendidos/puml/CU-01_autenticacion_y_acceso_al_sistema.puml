@@ -1,0 +1,20 @@
+@startuml
+title Diagrama de actividad CU-01. Autenticación y acceso al sistema
+start
+:Usuario envía correo y contraseña;
+:Sistema busca la cuenta por correo;
+if (¿La cuenta existe y está activa?) then (sí)
+  if (¿La contraseña es válida?) then (sí)
+    :Emitir token de acceso y token de refresco;
+    :Persistir el hash del token de refresco;
+    :Cargar el rol y el perfil del paciente;
+    :Registrar el acceso en audit_logs;
+    :Devolver la sesión;
+  else (no)
+    :Responder error genérico de autenticación;
+  endif
+else (no)
+  :Responder error genérico de autenticación;
+endif
+stop
+@enduml

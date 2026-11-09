@@ -1,0 +1,33 @@
+@startuml CU-02_Gestion_consentimiento_informado
+title CU-02 · Gestión del consentimiento informado
+
+left to right direction
+
+actor Paciente
+
+rectangle Sistema {
+  usecase "Gestionar consentimiento\ninformado" as UC02
+  usecase "Presentar documento de\nconsentimiento" as UC02a
+  usecase "Revisar documento" as UC02b
+  usecase "Aceptar o rechazar\nconsentimiento" as UC02c
+  usecase "Registrar decisión con\nfecha y versión" as UC02d
+  usecase "Habilitar funciones\nde monitoreo" as UC02ext
+}
+
+Paciente --> UC02
+Paciente --> UC02b
+Paciente --> UC02c
+
+UC02 ..> UC02a : <<include>>
+UC02 ..> UC02b : <<include>>
+UC02 ..> UC02c : <<include>>
+UC02 ..> UC02d : <<include>>
+UC02ext ..> UC02 : <<extend>>
+
+note right of UC02ext
+  Se activa únicamente si
+  el paciente aceptó el
+  consentimiento
+end note
+
+@enduml

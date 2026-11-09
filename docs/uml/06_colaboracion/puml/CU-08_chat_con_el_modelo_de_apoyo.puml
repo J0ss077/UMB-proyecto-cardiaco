@@ -1,0 +1,20 @@
+@startuml
+title CU-08 Chat con el modelo de apoyo: colaboración
+
+object "Interfaz web" as ui
+object "Controlador de chat" as ctrl
+object "Servicio de chat" as svc
+object "Proveedor de contexto clínico" as context
+object "Pasarela del modelo" as gateway
+object "Auditoría" as audit
+
+ui --> ctrl : 1: preguntar(texto)
+ctrl --> svc : 2: answer(patientId, texto)
+svc --> context : 3: clinicalContext(patientId)
+context --> svc : 4: lecturas y alertas recientes
+svc --> gateway : 5: complete(prompt, contexto)
+gateway --> svc : 6: respuesta
+svc --> audit : 7: record("chat.answered")
+svc --> ctrl : 8: respuesta con fuentes
+ctrl --> ui : 9: mensaje
+@enduml

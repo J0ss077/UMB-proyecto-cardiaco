@@ -1,0 +1,20 @@
+@startuml
+title CU-11 Gestión de usuarios y roles: colaboración
+
+object "Tablero de administración" as ui
+object "Guarda de autorización" as guard
+object "Controlador de cuentas" as ctrl
+object "Servicio de cuentas" as svc
+object "Repositorio de usuarios" as users
+object "Repositorio de tokens" as tokens
+object "Auditoría" as audit
+
+ui --> guard : 1: requireRole(admin)
+guard --> ctrl : 2: autorizado
+ctrl --> svc : 3: deactivate(userId, actor)
+svc --> users : 4: pseudonymize(userId)
+svc --> tokens : 5: revokeAll(userId)
+svc --> audit : 6: record("accounts.deactivated")
+svc --> ctrl : 7: confirmación
+ctrl --> ui : 8: cuenta desactivada
+@enduml

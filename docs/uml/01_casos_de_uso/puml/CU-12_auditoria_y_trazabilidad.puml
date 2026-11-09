@@ -1,0 +1,30 @@
+@startuml CU-12_Auditoria_y_trazabilidad
+title CU-12 · Auditoría y trazabilidad
+
+left to right direction
+
+actor Administrador
+actor Sistema as SistemaActor <<system>>
+
+rectangle Sistema {
+  usecase "Consultar auditoría\ny trazabilidad" as UC12
+  usecase "Consultar logs" as UC12a
+  usecase "Filtrar por evento,\nusuario o fecha" as UC12b
+  usecase "Revisar registros" as UC12c
+  usecase "Exportar evidencia" as UC12ext
+}
+
+Administrador --> UC12
+SistemaActor --> UC12a : genera
+
+UC12 ..> UC12a : <<include>>
+UC12 ..> UC12b : <<include>>
+UC12 ..> UC12c : <<include>>
+UC12ext ..> UC12 : <<extend>>
+
+note right of UC12ext
+  Se activa si se requiere
+  exportar la evidencia
+end note
+
+@enduml

@@ -1,0 +1,21 @@
+@startuml
+title CU-10 Teleconsulta: colaboración
+
+object "Interfaz del paciente" as patient
+object "Tablero del médico" as physician
+object "Controlador de teleconsulta" as ctrl
+object "Servicio de teleconsulta" as svc
+object "Servicio de señalización" as signaling
+object "Repositorio de teleconsultas" as repo
+
+physician --> ctrl : 1: agendar(patientId, scheduledAt, mode)
+ctrl --> svc : 2: schedule(...)
+svc --> repo : 3: save(teleconsultation)
+patient --> ctrl : 4: unirse(id)
+ctrl --> svc : 5: start(id)
+svc --> signaling : 6: openRoom(id)
+signaling --> patient : 7: sesión de audio y vídeo
+physician --> ctrl : 8: cerrar(id, notes)
+ctrl --> svc : 9: close(id, notes)
+svc --> repo : 10: save(notes)
+@enduml

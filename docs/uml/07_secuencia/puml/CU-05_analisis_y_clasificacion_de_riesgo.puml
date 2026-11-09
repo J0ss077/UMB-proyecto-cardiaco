@@ -1,0 +1,29 @@
+@startuml
+title CU-05 Análisis y clasificación de riesgo
+autonumber
+
+participant "Disparador" as trig
+participant "Servicio de riesgo" as risk
+database "PostgreSQL" as pg
+participant "Clasificador por reglas" as rules
+participant "Modelo de apoyo" as model
+participant "Explicador" as expl
+
+trig -> risk : assess(patient)
+risk -> pg : lecturas de los últimos siete días
+pg --> risk : lecturas
+risk -> risk : construir ventana y descartar el primer día
+alt menos de ocho lecturas válidas en dos días
+  risk -> rules : insufficientData()
+  rules --> risk : medium por datos insuficientes
+else ventana suficiente
+  risk -> rules : classify(window)
+  rules --> risk : severidad por umbrales
+  risk -> model : score(window)
+  model --> risk : probabilidad de descontrol
+  risk -> expl : factors(assessment)
+  expl --> risk : factores y su peso
+end
+risk -> pg : insert audit_logs (risk.assessed)
+risk --> trig : evaluación con explicación
+@enduml

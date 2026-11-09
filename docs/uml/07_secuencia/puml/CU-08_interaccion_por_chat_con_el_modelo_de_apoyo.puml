@@ -1,0 +1,30 @@
+@startuml
+title CU-08 Interacción por chat con el modelo de apoyo
+autonumber
+
+actor "Paciente" as p
+participant "Interfaz web" as ui
+participant "API de chat" as api
+participant "Proveedor de contexto" as ctx
+database "PostgreSQL" as pg
+participant "Pasarela del modelo" as gw
+
+p -> ui : escribe una pregunta
+ui -> api : POST /api/chat
+api -> ctx : contexto clínico del paciente
+ctx -> pg : lecturas y alertas recientes
+ctx --> api : resumen con cifras
+api -> gw : complete(prompt, contexto)
+alt el modelo no responde
+  api --> ui : 503 Servicio no disponible
+  ui --> p : intenta de nuevo más tarde
+else respuesta disponible
+  api -> pg : insert audit_logs (chat.answered)
+  api --> ui : 200 respuesta con fuentes
+  ui --> p : mensaje
+end
+note right of api
+  el chat no diagnostica ni prescribe:
+  responde sobre los datos registrados
+end note
+@enduml

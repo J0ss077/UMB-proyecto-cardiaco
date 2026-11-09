@@ -1,0 +1,28 @@
+@startuml
+title CU-03 Captura automática de signos vitales
+autonumber
+
+participant "Tensiómetro" as dev
+participant "Broker MQTT" as mq
+participant "Servicio de ingesta" as ing
+collections "MongoDB" as mongo
+participant "Validador fisiológico" as val
+database "PostgreSQL" as pg
+participant "Motor de alertas" as alertas
+
+dev -> mq : publica medición firmada
+mq -> ing : entrega lote
+ing -> ing : verifica firma y dispositivo
+alt firma inválida o dispositivo desconocido
+  ing -> pg : insert audit_logs (ingest_rejected)
+  ing --> mq : rechazo
+else mensaje válido
+  ing -> mongo : append raw_readings
+  ing -> pg : resuelve paciente del dispositivo
+  ing -> val : validate(reading)
+  val --> ing : validationStatus
+  ing -> pg : insert readings
+  ing -> alertas : evaluate(reading)
+  alertas -> pg : insert alerts when the rule fires
+end
+@enduml

@@ -1,0 +1,9 @@
+@startuml
+title Estados de AdherenceEvent
+
+[*] --> Pendiente : llega la hora de la dosis
+Pendiente --> Confirmado : el paciente confirma
+Pendiente --> Omitido : vence la ventana sin confirmación
+Confirmado --> [*]
+Omitido --> [*]
+@enduml

@@ -1,0 +1,13 @@
+@startuml
+title Estados del modelo de apoyo a la decisión
+
+[*] --> Entrenado : se entrena con el conjunto publicado
+Entrenado --> Evaluado : se miden discriminación y calibración
+Evaluado --> Desplegado : supera el umbral de AUROC acordado
+Evaluado --> Entrenado : no lo supera
+Desplegado --> EnServicio : recibe ventanas de medición
+EnServicio --> EnServicio : estima probabilidad de descontrol
+EnServicio --> Retirado : se retira por deriva o por decisión clínica
+Retirado --> Entrenado : se reentrena
+Retirado --> [*]
+@enduml

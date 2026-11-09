@@ -1,0 +1,30 @@
+@startuml
+title CU-06 Generación y gestión de alertas
+autonumber
+
+participant "Motor de alertas" as eng
+database "PostgreSQL" as pg
+participant "Notificador" as noti
+actor "Médico" as m
+participant "Interfaz web" as ui
+
+eng -> pg : select alert_config for the patient or global
+pg --> eng : umbrales
+eng -> eng : severityOf(window)
+alt severidad distinta de low
+  eng -> pg : insert alerts (open)
+  eng -> noti : deliver to recipients
+  noti -> m : alerta en la aplicación
+else lectura dentro de rango
+  eng -> pg : sin alerta; solo auditoría
+end
+
+m -> ui : abre la alerta
+ui -> pg : select alerts where status = open
+m -> ui : valida con nota
+ui -> pg : update alerts set status validated, validatedBy, validatedAt
+ui -> pg : insert audit_logs (alert.validated)
+note right of pg
+  ninguna alerta se cierra sin una persona
+end note
+@enduml

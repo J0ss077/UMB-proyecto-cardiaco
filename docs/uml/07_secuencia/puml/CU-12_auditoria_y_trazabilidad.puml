@@ -1,0 +1,22 @@
+@startuml
+title CU-12 Auditoría y trazabilidad
+autonumber
+
+actor "Administrador" as a
+participant "Interfaz web" as ui
+participant "API de auditoría" as api
+participant "Guarda de autorización" as guard
+database "PostgreSQL" as pg
+
+a -> ui : filtra por actor, acción y fechas
+ui -> api : GET /api/audit?action=...&from=...&to=...
+api -> guard : currentUser(token)
+guard --> api : administrador
+api -> pg : select audit_logs with filters, order by occurredAt desc
+api --> ui : 200 página de eventos
+ui --> a : tabla con actor, acción, entidad, IP y detalle
+note right of pg
+  el detalle de una cuenta desactivada no guarda
+  la identidad anterior: la seudonimización la borra
+end note
+@enduml

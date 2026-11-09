@@ -1,0 +1,31 @@
+@startuml
+title CU-02 Gestión del consentimiento informado
+autonumber
+
+actor "Paciente" as p
+participant "Interfaz web" as ui
+participant "API de consentimiento" as api
+database "PostgreSQL" as pg
+
+p -> ui : lee el documento de la versión publicada
+p -> ui : acepta
+ui -> api : POST /api/consent
+api -> pg : select patient_profiles by user
+api -> pg : insert consents (version, acceptedAt)
+api -> pg : insert audit_logs (consent.accepted)
+api --> ui : 201 consentimiento vigente
+
+p -> ui : revoca
+ui -> api : POST /api/consent/revoke
+api -> pg : update consents set revokedAt where revokedAt is null
+api -> pg : insert audit_logs (consent.revoked)
+api --> ui : 204
+
+ui -> api : GET /api/consent?required_version=2
+api -> pg : select consents where version = 2 and revokedAt is null
+api --> ui : 200 active false, requires_acceptance_of_version 2
+note right of api
+  la aceptación es aditiva y nunca se reescribe;
+  la revocación solo agrega la marca de tiempo
+end note
+@enduml

@@ -1,0 +1,33 @@
+@startuml
+title CU-10 Teleconsulta
+autonumber
+
+actor "Médico" as m
+actor "Paciente" as p
+participant "Interfaz web" as ui
+participant "API de teleconsulta" as api
+participant "Señalización" as sig
+database "PostgreSQL" as pg
+
+m -> ui : agenda la teleconsulta
+ui -> api : POST /api/teleconsultations
+api -> pg : insert teleconsultations (scheduled)
+api --> ui : 201 con identificador
+
+m -> ui : inicia la sesión
+p -> ui : se une
+ui -> api : POST /api/teleconsultations/{id}/join
+api -> sig : openRoom(id)
+sig --> m : audio y vídeo
+sig --> p : audio y vídeo
+alt la conexión se pierde
+  sig --> api : sesión interrumpida
+  api -> pg : update status interrupted
+  p -> ui : reintenta
+  ui -> api : join de nuevo
+else sesión estable
+  m -> ui : cierra con notas
+  ui -> api : POST /api/teleconsultations/{id}/close
+  api -> pg : update status finished, notes
+end
+@enduml

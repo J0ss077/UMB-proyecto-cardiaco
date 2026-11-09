@@ -1,0 +1,27 @@
+@startuml
+title Diagrama de actividad CU-11. Gestión de usuarios, roles y desactivación
+start
+:Administrador selecciona un usuario;
+if (¿Asigna o cambia el rol?) then (sí)
+  if (¿El rol es válido?) then (sí)
+    :Aplicar el cambio;
+    :Registrar la acción en audit_logs;
+  else (no)
+    :Rechazar la asignación;
+  endif
+else (no)
+endif
+if (¿Solicita desactivar la cuenta?) then (sí)
+  if (¿Es su propia cuenta?) then (sí)
+    :Rechazar la autodesactivación;
+  else (no)
+    :Marcar active en false;
+    :Seudonimizar el correo y el nombre
+    e inutilizar la contraseña;
+    :Revocar los tokens de refresco;
+    :Conservar el perfil y los registros clínicos;
+  endif
+else (no)
+endif
+stop
+@enduml
