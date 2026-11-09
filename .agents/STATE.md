@@ -35,6 +35,10 @@ Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El coman
 
 - Modo claro y oscuro: interruptor en la cabecera de todos los roles y en la pantalla de inicio de sesión. Sin elección sigue al sistema; con elección manda la del usuario, se guarda en el navegador y se aplica antes de pintar. El cambio se anima como una burbuja que crece desde el interruptor (API de transición de vistas; sin ella, o con movimiento reducido, es instantáneo). La paleta oscura vive en `web/src/index.css` en dos bloques iguales (sistema y manual) y una prueba los mantiene iguales. El contraste de la paleta oscura no se midió.
 
+- Capturas del prototipo en ejecución en `docs/capturas/`: web, móvil, API y documentos generados, con la lista en su `README.md`.
+
+- Diagramas UML del manual en `docs/uml/`: código PlantUML e imagen de los 59 diagramas, por tipo, con la lista en su `README.md`.
+
 ## En curso
 
 - Ninguno. La rama `incremento-2-backend` está completa y verificada contra la pila; falta la revisión final de la rama y la fusión a `main`.
