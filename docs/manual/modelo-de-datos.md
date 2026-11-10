@@ -2,8 +2,28 @@
 
 El registro relacional se implementa sobre PostgreSQL. Está compuesto por dieciséis tablas
 y siete tipos enumerados. Este documento es el diccionario de datos que absorbe el manual
-técnico: transcribe la sección 1.4 y las relaciones de la sección 1.5, e incorpora la
-extensión aprobada de `alert_config` que se justifica en el ADR 0002.
+técnico y sirve de texto para la sección 2.2 del documento académico: transcribe la
+sección 1.4 y las relaciones de la sección 1.5, e incorpora las extensiones que el sistema
+aprobó después, cada una con su ADR.
+
+Las extensiones son columnas nuevas en tablas que ya existían. No hay una décima séptima
+tabla ni un octavo tipo enumerado: lo que el proyecto necesitó se resolvió dentro del modelo
+que el manual fija.
+
+| Migración                            | ADR   | Qué añade                                                                                                                                     |
+| ------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0002_patient_contact.sql`           | 0004  | `patient_profiles`: documento, teléfono y contacto de confianza con su teléfono y correo                                                       |
+| `0003_patient_avatar.sql`            | 0005  | `patient_profiles.avatar`, la foto reducida y guardada como URL de datos                                                                       |
+| `0004_consultation_messages.sql`     | 0006  | `teleconsultations`: mensaje, respuesta, marcas de creación y respuesta, y la lectura que viaja con la consulta                               |
+| `0005_consultation_details.sql`      | 0007  | `teleconsultations`: motivo, inicio, medicamentos, urgencia y teléfono de contacto                                                             |
+| `0006_staff_profile.sql`             | 0008  | `users`: teléfono, foto, registro profesional y especialidad del personal                                                                      |
+| `0007_consultation_checkup.sql`      | 0009  | `teleconsultations`: enlace de la reunión y los cuatro textos del formato de chequeo                                                          |
+| `0008_consultation_flow.sql`         | 0010  | `teleconsultations.wants_meet`, que distingue la atención por reunión de la atención por comentarios                                          |
+| `0009_password_change_request.sql`   | 0011  | `users`: la contraseña pedida y la marca de la solicitud, que un administrador aprueba                                                        |
+
+El modelo se ha actualizado con cada incremento y siempre en el mismo sentido: lo que el
+manual no previó se añade como columna nullable en la tabla que ya existía, de modo que una
+fila anterior al cambio siga siendo válida y ninguna migración borre datos.
 
 La identidad y los datos clínicos se separan: `users` es la única entidad con datos
 personales y las entidades clínicas referencian al paciente por su identificador interno.
