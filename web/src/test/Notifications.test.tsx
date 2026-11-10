@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
     listSymptoms: vi.fn(),
     listAlerts: vi.fn(),
     getProfile: vi.fn(),
+    listPatientCaregivers: vi.fn(),
     listConsultations: vi.fn(),
     listRecipients: vi.fn(),
 }));
@@ -71,6 +72,7 @@ describe("notifications in the app", () => {
         mocks.listAlerts.mockResolvedValue({ items: [], total: 0 });
         mocks.getReadingsSummary.mockRejectedValue(new Error("none"));
         mocks.getProfile.mockResolvedValue(profile);
+        mocks.listPatientCaregivers.mockResolvedValue({ items: [], total: 0 });
         mocks.listConsultations.mockResolvedValue({ items: [], total: 0 });
         // The help screen asks for these; an unmocked call would hit the real API and expire the next test's session.
         mocks.listRecipients.mockResolvedValue({ items: [], total: 0 });

@@ -156,7 +156,14 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
     function renderTab() {
         if (profileOpen) return <StaffProfile role={role} onProfileChange={setStaff} onPasswordChangedNow={onLogout} />;
         if (role === "physician") {
-            if (tab === "patients") return <PhysicianView onOpenAlerts={() => open("alerts")} onOpenConsultations={() => open("consultations")} />;
+            if (tab === "patients")
+                return (
+                    <PhysicianView
+                        manageCaregivers
+                        onOpenAlerts={() => open("alerts")}
+                        onOpenConsultations={() => open("consultations")}
+                    />
+                );
             if (tab === "alerts") return <AlertInbox canAct onChanged={refreshCounts} />;
             if (tab === "consultations") return <ConsultationInbox onChanged={refreshCounts} />;
             return (

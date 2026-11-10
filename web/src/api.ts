@@ -23,13 +23,13 @@ import type {
     CheckupReply,
     MeetLink,
     ConsultationListParams,
-    CaregiverLink,
     CreatedId,
     LinkDirectory,
     ListParams,
     LoginBody,
     Page,
     Patient,
+    PatientCaregiver,
     Profile,
     ProfileUpdate,
     PasswordChangeInput,
@@ -240,14 +240,19 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
             }),
         removePhysician: (patientUserId: string, physicianUserId: string) =>
             request<void>(`/api/admin/physicians/${patientUserId}/${physicianUserId}`, { method: "DELETE" }),
-        authorizeCaregiver: (patientUserId: string, caregiverUserId: string, scope: CaregiverLink["authorized_scope"]) =>
-            request<CreatedId>("/api/admin/caregivers", {
+        listPatientCaregivers: (patientId: string) => request<Page<PatientCaregiver>>(`/api/patients/${patientId}/caregivers`),
+        authorizePatientCaregiver: (patientId: string, caregiverEmail: string, scope: PatientCaregiver["authorized_scope"]) =>
+            request<PatientCaregiver>(`/api/patients/${patientId}/caregivers`, {
                 method: "POST",
-                body: { patient_user_id: patientUserId, caregiver_user_id: caregiverUserId, authorized_scope: scope },
+                body: { caregiver_email: caregiverEmail, authorized_scope: scope },
             }),
-        updateCaregiverScope: (id: string, scope: CaregiverLink["authorized_scope"]) =>
-            request<void>(`/api/admin/caregivers/${id}`, { method: "PATCH", body: { authorized_scope: scope } }),
-        revokeCaregiver: (id: string) => request<void>(`/api/admin/caregivers/${id}`, { method: "DELETE" }),
+        changePatientCaregiverScope: (patientId: string, linkId: string, scope: PatientCaregiver["authorized_scope"]) =>
+            request<void>(`/api/patients/${patientId}/caregivers/${linkId}`, {
+                method: "PATCH",
+                body: { authorized_scope: scope },
+            }),
+        revokePatientCaregiver: (patientId: string, linkId: string) =>
+            request<void>(`/api/patients/${patientId}/caregivers/${linkId}`, { method: "DELETE" }),
         listAlertConfig: () => request<Page<AlertConfigRow>>("/api/admin/alert-config"),
         updateAlertRecipients: (id: string, recipients: string[]) =>
             request<void>(`/api/admin/alert-config/${id}/recipients`, { method: "PATCH", body: { recipients } }),
@@ -312,9 +317,10 @@ export const {
     listLinks,
     assignPhysician,
     removePhysician,
-    authorizeCaregiver,
-    updateCaregiverScope,
-    revokeCaregiver,
+    listPatientCaregivers,
+    authorizePatientCaregiver,
+    changePatientCaregiverScope,
+    revokePatientCaregiver,
     listAlertConfig,
     updateAlertRecipients,
     updateAlertThresholds,

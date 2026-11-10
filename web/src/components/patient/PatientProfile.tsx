@@ -1,13 +1,15 @@
 // @requirement RF-01
+// @requirement RF-02
 // @requirement RF-03
 // @requirement RF-19
 import { Activity, HeartPulse, Pencil, Phone, Save, ShieldOff, User } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { ApiError, getProfile, revokeConsent, updateProfile } from "../../api";
+import { ApiError, getProfile, listPatientCaregivers, revokeConsent, updateProfile } from "../../api";
+import { CAREGIVER_SCOPE_LABEL } from "../../lib/caregivers";
 import { cn } from "../../lib/cn";
 import { ageFromBirthDate, formatLongDate } from "../../lib/format";
 import type { PhotoRenderer } from "../../lib/photoRenderer";
-import type { Profile, ProfileUpdate, ReadingsSummary } from "../../types";
+import type { PatientCaregiver, Profile, ProfileUpdate, ReadingsSummary } from "../../types";
 import { AvatarPicker } from "../AvatarPicker";
 import { Button } from "../ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
@@ -102,6 +104,9 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
     const [saving, setSaving] = useState(false);
     const [revoking, setRevoking] = useState(false);
     const [photoBusy, setPhotoBusy] = useState(false);
+    // Who can read this history. The patient sees the list; only the physician changes it (ADR 0012).
+    const [caregivers, setCaregivers] = useState<PatientCaregiver[] | null>(null);
+    const [caregiversFailed, setCaregiversFailed] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -118,6 +123,22 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
             cancelled = true;
         };
     }, []);
+
+    const patientId = profile?.user_id;
+    useEffect(() => {
+        if (!patientId) return;
+        let cancelled = false;
+        listPatientCaregivers(patientId)
+            .then((page) => {
+                if (!cancelled) setCaregivers(page.items);
+            })
+            .catch(() => {
+                if (!cancelled) setCaregiversFailed(true);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [patientId]);
 
     const dirty = profile !== null && draft !== null && Object.keys(changesBetween(profile, draft)).length > 0;
 
@@ -361,6 +382,40 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
                         </>
                     ) : null}
                 </CardContent>
+            </Card>
+
+            <Card>
+                <section aria-labelledby="caregiver-access-heading">
+                    <CardHeader>
+                        <CardTitle id="caregiver-access-heading">Quién tiene acceso a mi historia</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-3">
+                        <p className="text-sm text-subtle">
+                            Tu médico tratante autoriza y revoca este acceso; si quieres que retire a un cuidador, pídeselo.
+                        </p>
+                        {caregiversFailed ? (
+                            <p role="alert" className="text-sm text-critical">
+                                No se pudo cargar quién tiene acceso a tu historia.
+                            </p>
+                        ) : caregivers === null ? (
+                            <p className="text-sm text-subtle">Cargando accesos...</p>
+                        ) : caregivers.length === 0 ? (
+                            <p className="text-sm text-subtle">Todavía no hay cuidadores autorizados para tu historia.</p>
+                        ) : (
+                            <ul aria-label="Cuidadores con acceso" className="flex flex-col gap-2">
+                                {caregivers.map((link) => (
+                                    <li key={link.id} className="rounded-card border border-border/70 p-3 text-sm">
+                                        <span className="font-medium">{link.caregiver_name}</span>
+                                        <span className="block text-subtle">{link.caregiver_email}</span>
+                                        <span className="block text-subtle">
+                                            {`Alcance: ${CAREGIVER_SCOPE_LABEL[link.authorized_scope]}`}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </CardContent>
+                </section>
             </Card>
 
             <Card>

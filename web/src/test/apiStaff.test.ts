@@ -107,19 +107,33 @@ describe("staff and admin endpoints", () => {
             expect(last()[1].method).toBe("DELETE");
         });
 
-        it("authorizes, rescopes and revokes a caregiver", async () => {
-            const { client, last } = setup(() => new Response(JSON.stringify({ id: "link1" }), { status: 201, headers: { "Content-Type": "application/json" } }));
+        it("lists, authorizes, changes the scope and revokes a patient's caregivers", async () => {
+            const link = {
+                id: "link1",
+                caregiver_user_id: "cui",
+                caregiver_name: "Marta Cuidadora",
+                caregiver_email: "cuidador@hta.demo",
+                authorized_scope: "readings",
+                created_at: "2026-10-31T10:00:00Z",
+            };
+            const { client, last } = setup(() => new Response(JSON.stringify({ items: [link], total: 1 }), { status: 201, headers: { "Content-Type": "application/json" } }));
 
-            await client.authorizeCaregiver("pat", "cui", "readings");
-            expect(last()[0]).toBe("http://api/api/admin/caregivers");
-            expect(bodyOf(last())).toEqual({ patient_user_id: "pat", caregiver_user_id: "cui", authorized_scope: "readings" });
+            expect(await client.listPatientCaregivers("pat")).toEqual({ items: [link], total: 1 });
+            expect(last()[0]).toBe("http://api/api/patients/pat/caregivers");
+            expect(last()[1].method).toBe("GET");
 
-            await client.updateCaregiverScope("link1", "minimal");
-            expect(last()[0]).toBe("http://api/api/admin/caregivers/link1");
+            await client.authorizePatientCaregiver("pat", "cuidador@hta.demo", "readings");
+            expect(last()[0]).toBe("http://api/api/patients/pat/caregivers");
+            expect(last()[1].method).toBe("POST");
+            expect(bodyOf(last())).toEqual({ caregiver_email: "cuidador@hta.demo", authorized_scope: "readings" });
+
+            await client.changePatientCaregiverScope("pat", "link1", "minimal");
+            expect(last()[0]).toBe("http://api/api/patients/pat/caregivers/link1");
             expect(last()[1].method).toBe("PATCH");
             expect(bodyOf(last())).toEqual({ authorized_scope: "minimal" });
 
-            await client.revokeCaregiver("link1");
+            await client.revokePatientCaregiver("pat", "link1");
+            expect(last()[0]).toBe("http://api/api/patients/pat/caregivers/link1");
             expect(last()[1].method).toBe("DELETE");
         });
     });

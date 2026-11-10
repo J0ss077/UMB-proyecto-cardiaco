@@ -1,15 +1,20 @@
 // @requirement RF-01
 // @requirement RF-03
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api";
 import { PatientProfile } from "../components/patient/PatientProfile";
 import type { PhotoRenderer } from "../lib/photoRenderer";
-import type { Profile, ReadingsSummary } from "../types";
+import type { PatientCaregiver, Profile, ReadingsSummary } from "../types";
 import { renderWithToasts } from "./helpers";
 
-const mocks = vi.hoisted(() => ({ getProfile: vi.fn(), updateProfile: vi.fn(), revokeConsent: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    getProfile: vi.fn(),
+    updateProfile: vi.fn(),
+    revokeConsent: vi.fn(),
+    listPatientCaregivers: vi.fn(),
+}));
 
 vi.mock("../api", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../api")>()),
@@ -72,6 +77,7 @@ describe("PatientProfile", () => {
             mock.mockReset();
         });
         mocks.getProfile.mockResolvedValue(profile);
+        mocks.listPatientCaregivers.mockResolvedValue({ items: [], total: 0 });
     });
 
     it("shows the identity, contact, medical and trusted contact data read-only", async () => {
@@ -335,6 +341,65 @@ describe("PatientProfile", () => {
 
             expect(await screen.findByRole("alert")).toHaveTextContent(/demasiado grande/i);
             expect(screen.getByRole("img", { name: "Foto de perfil" })).toHaveAttribute("src", photo);
+        });
+    });
+
+    describe("caregiver access", () => {
+        const caregiver: PatientCaregiver = {
+            id: "link1",
+            caregiver_user_id: "cui1",
+            caregiver_name: "Marta Lucía Gómez",
+            caregiver_email: "cuidador@hta.demo",
+            authorized_scope: "readings",
+            created_at: "2026-10-31T10:00:00Z",
+        };
+
+        it("lists who has access with name, email and scope", async () => {
+            mocks.listPatientCaregivers.mockResolvedValue({ items: [caregiver], total: 1 });
+            mount();
+            await screen.findByRole("heading", { name: "Manuel Alejandro González" });
+
+            expect(await screen.findByRole("heading", { name: "Quién tiene acceso a mi historia" })).toBeInTheDocument();
+            expect(mocks.listPatientCaregivers).toHaveBeenCalledWith("u1");
+            expect(screen.getByText("Marta Lucía Gómez")).toBeInTheDocument();
+            expect(screen.getByText("cuidador@hta.demo")).toBeInTheDocument();
+            expect(screen.getByText(/alcance: lecturas/i)).toBeInTheDocument();
+        });
+
+        it("says that the treating physician grants and revokes the access and that the patient can ask for a revocation", async () => {
+            mount();
+            await screen.findByRole("heading", { name: "Manuel Alejandro González" });
+
+            expect(
+                await screen.findByText(/tu médico tratante autoriza y revoca este acceso; si quieres que retire a un cuidador, pídeselo/i),
+            ).toBeInTheDocument();
+        });
+
+        it("offers no control to revoke, change or authorize access", async () => {
+            mocks.listPatientCaregivers.mockResolvedValue({ items: [caregiver], total: 1 });
+            mount();
+            await screen.findByRole("heading", { name: "Quién tiene acceso a mi historia" });
+            const access = within(screen.getByRole("region", { name: "Quién tiene acceso a mi historia" }));
+
+            expect(access.queryByRole("button", { name: /revocar/i })).not.toBeInTheDocument();
+            expect(access.queryByRole("button", { name: /autorizar/i })).not.toBeInTheDocument();
+            expect(access.queryByRole("combobox")).not.toBeInTheDocument();
+            expect(access.queryByLabelText(/correo del cuidador/i)).not.toBeInTheDocument();
+        });
+
+        it("says when nobody has access yet", async () => {
+            mount();
+            await screen.findByRole("heading", { name: "Quién tiene acceso a mi historia" });
+
+            expect(await screen.findByText(/todavía no hay cuidadores autorizados para tu historia/i)).toBeInTheDocument();
+        });
+
+        it("reports a failure loading the access list", async () => {
+            mocks.listPatientCaregivers.mockRejectedValue(new Error("boom"));
+            mount();
+            await screen.findByRole("heading", { name: "Manuel Alejandro González" });
+
+            expect(await screen.findByRole("alert")).toHaveTextContent(/no se pudo cargar quién tiene acceso a tu historia/i);
         });
     });
 });

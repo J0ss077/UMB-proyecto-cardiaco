@@ -86,6 +86,7 @@ const normalize = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}
 export function PhysicianView({
     heading = "Pacientes asignados",
     includeConsultations = true,
+    manageCaregivers = false,
     notice,
     emptyMessage = "No tienes pacientes vinculados.",
     patientsLabel = "Pacientes asignados",
@@ -94,6 +95,8 @@ export function PhysicianView({
 }: {
     heading?: string;
     includeConsultations?: boolean;
+    // The linked physician authorizes caregivers; the caregiver's own view never does.
+    manageCaregivers?: boolean;
     notice?: string;
     emptyMessage?: string;
     patientsLabel?: string;
@@ -393,6 +396,7 @@ export function PhysicianView({
                                 onClose={() => setSelectedId(null)}
                                 showConsultations={includeConsultations}
                                 allowExport={includeConsultations}
+                                manageCaregivers={manageCaregivers}
                             />
                         </aside>
                     ) : null}

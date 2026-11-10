@@ -273,13 +273,27 @@ export interface PhysicianLink {
     assigned_at: string;
 }
 
+export type CaregiverScope = "minimal" | "readings";
+
+// Directory row the administrator reads for oversight: who cares for whom.
 export interface CaregiverLink {
     id: string;
     patient_user_id: string;
     patient_name: string;
     caregiver_user_id: string;
     caregiver_name: string;
-    authorized_scope: "minimal" | "readings";
+    authorized_scope: CaregiverScope;
+    created_at: string;
+}
+
+// What the linked physician and the patient see under
+// /api/patients/{patient_id}/caregivers: no clinical figures.
+export interface PatientCaregiver {
+    id: string;
+    caregiver_user_id: string;
+    caregiver_name: string;
+    caregiver_email: string;
+    authorized_scope: CaregiverScope;
     created_at: string;
 }
 

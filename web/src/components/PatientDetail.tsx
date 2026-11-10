@@ -1,3 +1,4 @@
+// @requirement RF-02
 // @requirement RF-19
 // @requirement RF-21
 import { ArrowLeft, Download } from "lucide-react";
@@ -6,6 +7,7 @@ import { ApiError, getReadingsSummary, listConsultations, listReadings, listSymp
 import { classifyReading } from "../lib/clinical";
 import { ageFromBirthDate, formatShortDateTime } from "../lib/format";
 import type { Consultation, Patient, Reading, ReadingsSummary, Symptom } from "../types";
+import { CaregiverAccessPanel } from "./CaregiverAccessPanel";
 import { ConsultationsPanel } from "./ConsultationsPanel";
 import { ExportDialog } from "./ExportDialog";
 import { ReadingsTrend } from "./ReadingsTrend";
@@ -27,11 +29,14 @@ export function PatientDetail({
     onClose,
     showConsultations = true,
     allowExport = false,
+    manageCaregivers = false,
 }: {
     patient: Patient;
     onClose: () => void;
     showConsultations?: boolean;
     allowExport?: boolean;
+    // Only the linked physician authorizes and revokes caregivers (ADR 0012).
+    manageCaregivers?: boolean;
 }) {
     const [detail, setDetail] = useState<Detail | null>(null);
     const [exportOpen, setExportOpen] = useState(false);
@@ -143,6 +148,10 @@ export function PatientDetail({
                     ) : null}
 
                     {showConsultations ? <ConsultationsPanel initial={detail.consultations} /> : null}
+
+                    {manageCaregivers ? (
+                        <CaregiverAccessPanel patientId={patient.user_id} patientName={patient.full_name} />
+                    ) : null}
 
                     <div className="flex flex-col gap-2">
                         <h4 className="px-1 text-base font-medium">Síntomas recientes</h4>

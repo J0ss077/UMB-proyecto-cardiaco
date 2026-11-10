@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
     acknowledgeAlert: vi.fn(),
     listAccounts: vi.fn(),
     listLinks: vi.fn(),
+    listPatientCaregivers: vi.fn(),
     listAlertConfig: vi.fn(),
     listAudit: vi.fn(),
     getStaffProfile: vi.fn(),
@@ -94,6 +95,7 @@ describe("StaffApp", () => {
         );
         mocks.listAccounts.mockResolvedValue({ items: [{ id: "u1", email: "a@hta.demo", full_name: "Ana", role: "patient", active: true, consent: null, active_sessions: 0 }], total: 1 });
         mocks.listLinks.mockResolvedValue({ physicians: [], caregivers: [] });
+        mocks.listPatientCaregivers.mockResolvedValue(empty);
         mocks.listAlertConfig.mockResolvedValue(empty);
         mocks.listAudit.mockResolvedValue(empty);
         mocks.listPasswordRequests.mockResolvedValue({ items: [] });
@@ -188,6 +190,27 @@ describe("StaffApp", () => {
             await screen.findByRole("heading", { name: "Alertas" });
 
             expect(mocks.listConsultations).not.toHaveBeenCalled();
+        });
+
+        it("lets the physician manage the caregivers from the patient detail", async () => {
+            mount("physician");
+            await go("Pacientes");
+            await userEvent.click(await screen.findByRole("button", { name: /Ana Torres/ }));
+
+            expect(await screen.findByRole("heading", { name: "Cuidadores autorizados" })).toBeInTheDocument();
+            expect(await screen.findByText(/aquí autorizas a los cuidadores/i)).toBeInTheDocument();
+            expect(mocks.listPatientCaregivers).toHaveBeenCalledWith("p1");
+        });
+
+        it("never shows caregiver management to a caregiver", async () => {
+            mount("caregiver");
+            await go("Pacientes");
+            await userEvent.click(await screen.findByRole("button", { name: /Ana Torres/ }));
+
+            const detail = await screen.findByTestId("patient-detail");
+            await within(detail).findByRole("heading", { name: "Ana Torres" });
+            expect(within(detail).queryByRole("heading", { name: "Cuidadores autorizados" })).not.toBeInTheDocument();
+            expect(mocks.listPatientCaregivers).not.toHaveBeenCalled();
         });
     });
 
