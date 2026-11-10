@@ -354,3 +354,70 @@ def test_demo_staff_have_fictitious_contact_data_and_only_the_physician_a_licens
     assert all(phone for phone, _, _ in rows.values())
     assert rows["physician"][1] and rows["physician"][2]
     assert rows["admin"][1:] == (None, None) and rows["caregiver"][1:] == (None, None)
+
+
+# Columnas de marca de tiempo que la siembra escribe. Una fila futura
+# incumpliría la promesa de que la demostración siempre mira hacia atrás.
+SEEDED_TIMESTAMPS = (
+    ("readings", "measured_at"),
+    ("symptoms_mood", "recorded_at"),
+    ("adherence_events", "taken_at"),
+    ("alerts", "created_at"),
+    ("alerts", "validated_at"),
+    ("teleconsultations", "created_at"),
+    ("teleconsultations", "responded_at"),
+    ("reports", "generated_at"),
+    ("consents", "accepted_at"),
+    ("consents", "revoked_at"),
+    ("patient_physician", "assigned_at"),
+    ("caregiver_links", "created_at"),
+    ("audit_logs", "occurred_at"),
+)
+
+
+def test_seed_never_writes_a_future_timestamp(db):
+    """Toda marca sembrada queda en el pasado, también antes de las 11:00 UTC.
+
+    Las consultas se fechaban con horas fijas (09:00 y 11:00 UTC); una siembra
+    de madrugada dejaba dos filas con ``created_at > now()``. Ahora se miden en
+    horas hacia atrás desde el instante de la siembra.
+    """
+    seed(db)
+    for table, column in SEEDED_TIMESTAMPS:
+        future = db.execute(
+            f"select count(*) from {table} where {column} > now()"
+        ).fetchone()[0]
+        assert future == 0, f"{table}.{column} tiene {future} filas en el futuro"
+
+
+def test_seed_backfills_contact_data_without_overwriting_edited_values(db):
+    """Un perfil anterior a la migración de contacto se rellena sin pisar ediciones.
+
+    La siembra solo escribe las columnas de contacto cuando están nulas. Un
+    valor que la persona cambió en su perfil se conserva en la segunda pasada.
+    """
+    ids = seed(db)
+    profile_id = db.execute(
+        "select id from patient_profiles where user_id = %s",
+        (ids["patient_out_of_range"],),
+    ).fetchone()[0]
+    db.execute(
+        "update patient_profiles set document_number = null, "
+        "phone = '+57 300 999 9999', trusted_contact_phone = null, "
+        "trusted_contact_email = null where id = %s",
+        (profile_id,),
+    )
+
+    seed(db)
+
+    row = db.execute(
+        "select document_number, phone, trusted_contact_phone, trusted_contact_email "
+        "from patient_profiles where id = %s",
+        (profile_id,),
+    ).fetchone()
+    assert row == (
+        "10.000.001",
+        "+57 300 999 9999",
+        "+57 310 000 0001",
+        "contacto1@example.com",
+    )

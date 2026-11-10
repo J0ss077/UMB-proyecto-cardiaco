@@ -12,10 +12,16 @@ Los datos son deterministas por día: la rejilla de lecturas se ancla en la
 medianoche UTC del día actual, con dos mediciones diarias a las 07:00 y a las
 20:00 durante los últimos diez días. La más reciente queda en el día anterior,
 de modo que ninguna lectura cae en el futuro. El síntoma del escenario crítico
-se ancla a las 21:30 del día anterior, después de la última lectura. Los
-valores y las horas se repiten en cualquier máquina que ejecute la siembra el
-mismo día; los identificadores y las sales de las contraseñas son aleatorios
-por diseño.
+se ancla a las 21:30 del día anterior, después de la última lectura. Las
+consultas se miden en horas hacia atrás desde el instante de la siembra, no con
+horas fijas del día, para que ninguna quede fechada en el futuro cuando la
+siembra corre de madrugada. Los valores y las distancias se repiten en cualquier
+máquina que ejecute la siembra; los identificadores y las sales de las
+contraseñas son aleatorios por diseño.
+
+Un perfil de demostración que ya existía antes de la migración de contacto
+recibe sus cuatro columnas de contacto solo si están nulas: la siembra nunca
+pisa un valor que una persona haya editado.
 
 La siembra es idempotente por correo y también para las filas que cuelgan de
 cada cuenta: si un paciente ya tiene alguna lectura, no se le añade ninguna
@@ -368,6 +374,15 @@ def _day_anchor(conn: Connection) -> datetime:
     ).fetchone()[0]
 
 
+def _now(conn: Connection) -> datetime:
+    """Instante de la siembra según PostgreSQL, referencia de lo que se fecha.
+
+    Se toma de la base y no del reloj del proceso para que la comparación con
+    ``now()`` de las pruebas y de las columnas sea la misma.
+    """
+    return conn.execute("select now()").fetchone()[0]
+
+
 # Datos de contacto y profesionales del personal de demostración. Se escriben solo al
 # crear la cuenta: lo que la persona edite después en su perfil no se pisa al resembrar.
 _STAFF_CONTACT: dict[str, tuple[str, str | None, str | None]] = {
@@ -403,12 +418,33 @@ def _ensure_account(conn: Connection, account: _Account) -> UUID:
 
 
 def _ensure_profile(conn: Connection, user_id: UUID, profile: _Profile) -> UUID:
-    """Devuelve el perfil de la cuenta o lo crea si todavía no existe."""
+    """Devuelve el perfil de la cuenta o lo crea si todavía no existe.
+
+    Un perfil que ya existía antes de la migración ``0002`` puede tener las
+    cuatro columnas de contacto nulas. Se rellenan solo cuando están nulas:
+    ``coalesce`` conserva lo que la persona haya editado y no pisa nunca un
+    valor. Las demás columnas del perfil no se tocan.
+    """
     row = conn.execute(
         "select id from patient_profiles where user_id = %s",
         (user_id,),
     ).fetchone()
     if row is not None:
+        conn.execute(
+            "update patient_profiles set "
+            "document_number = coalesce(document_number, %s), "
+            "phone = coalesce(phone, %s), "
+            "trusted_contact_phone = coalesce(trusted_contact_phone, %s), "
+            "trusted_contact_email = coalesce(trusted_contact_email, %s) "
+            "where id = %s",
+            (
+                profile.document_number,
+                profile.phone,
+                profile.trusted_contact_phone,
+                profile.trusted_contact_email,
+                row[0],
+            ),
+        )
         return row[0]
 
     return conn.execute(
@@ -611,10 +647,14 @@ def _seed_symptom(
 
 @dataclass(frozen=True)
 class _Consultation:
-    """Una consulta de demostración. Los textos no son consejo clínico."""
+    """Una consulta de demostración. Los textos no son consejo clínico.
 
-    days_ago: int
-    hour: int
+    ``hours_ago`` se mide desde el instante de la siembra y no desde una hora
+    fija del día: así ninguna consulta queda fechada en el futuro cuando la
+    siembra corre antes de esa hora.
+    """
+
+    hours_ago: int
     message: str
     reason: str
     onset: str
@@ -633,8 +673,7 @@ class _Consultation:
 _CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
     "patient_alert": (
         _Consultation(
-            days_ago=3,
-            hour=9,
+            hours_ago=72,
             message="Tengo dolor de cabeza desde ayer",
             reason="dizziness_headache",
             onset="since_yesterday",
@@ -650,8 +689,7 @@ _CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
             share_phone=True,
         ),
         _Consultation(
-            days_ago=0,
-            hour=9,
+            hours_ago=6,
             message="Tengo mareos desde ayer con presión 150/95",
             reason="high_pressure",
             onset="since_yesterday",
@@ -660,8 +698,7 @@ _CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
             meet_url="https://meet.google.com/hta-demo-mareos",
         ),
         _Consultation(
-            days_ago=0,
-            hour=11,
+            hours_ago=2,
             message="Desde esta mañana siento la cabeza pesada",
             reason="dizziness_headache",
             onset="today",
@@ -671,8 +708,7 @@ _CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
     ),
     "patient_out_of_range": (
         _Consultation(
-            days_ago=2,
-            hour=10,
+            hours_ago=48,
             message="Varias tomas me salieron altas y una no la entendí",
             reason="high_pressure",
             onset="few_days",
@@ -687,8 +723,7 @@ _CONSULTATIONS: dict[str, tuple[_Consultation, ...]] = {
     ),
     "patient_caregiver": (
         _Consultation(
-            days_ago=1,
-            hour=8,
+            hours_ago=24,
             message="Quisiera saber cómo va la presión de esta semana",
             reason="other",
             onset="few_days",
@@ -704,13 +739,15 @@ def _seed_consultations(
     patient_id: UUID,
     physician_id: UUID,
     plans: tuple[_Consultation, ...],
-    anchor: datetime,
+    now: datetime,
     phone: str | None,
 ) -> None:
     """Deja las consultas del paciente si todavía no tiene ninguna.
 
     Cubre revisión, reunión pendiente y cierre con el formato escrito a mano.
-    La guarda es por paciente. Los textos son de demostración.
+    La guarda es por paciente. Los textos son de demostración. Cada consulta se
+    fecha ``hours_ago`` horas antes de ``now``, de modo que la siembra nunca
+    escribe ``created_at`` en el futuro, a cualquier hora del día.
     """
     row = conn.execute(
         "select 1 from teleconsultations where patient_id = %s limit 1",
@@ -719,7 +756,7 @@ def _seed_consultations(
     if row is not None:
         return
     for plan in plans:
-        created = anchor - timedelta(days=plan.days_ago) + timedelta(hours=plan.hour)
+        created = now - timedelta(hours=plan.hours_ago)
         reading = conn.execute(
             "select id from readings where patient_id = %s and validation_status = 'valid' "
             "and measured_at <= %s order by measured_at desc limit 1",
@@ -971,6 +1008,7 @@ def seed(conn: Connection) -> dict[str, UUID]:
     par de umbrales globales. No confirma la transacción.
     """
     anchor = _day_anchor(conn)
+    now = _now(conn)
     ids: dict[str, UUID] = {}
 
     for account in _ACCOUNTS:
@@ -995,7 +1033,7 @@ def seed(conn: Connection) -> dict[str, UUID]:
                 profile_id,
                 ids["physician"],
                 plans,
-                anchor,
+                now,
                 profile.phone,
             )
         medications = _MEDICATIONS.get(account.key)
