@@ -60,7 +60,27 @@ async def read_status(
     return StatusOut(**(await service.status_of(conn, user.user_id)).__dict__)
 
 
-@router.post("", response_model=StatusOut, status_code=202)
+@router.post(
+    "",
+    response_model=StatusOut,
+    status_code=202,
+    responses={
+        200: {
+            "model": StatusOut,
+            "description": (
+                "El administrador cambia su contraseña al momento y recibe "
+                "``changed``."
+            ),
+        },
+        202: {
+            "model": StatusOut,
+            "description": (
+                "El médico y el cuidador quedan en ``pending`` hasta que un "
+                "administrador apruebe el cambio."
+            ),
+        },
+    },
+)
 async def request_change(
     body: PasswordChangeRequest,
     response: Response,

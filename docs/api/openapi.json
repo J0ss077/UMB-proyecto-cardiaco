@@ -2462,6 +2462,16 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "El administrador cambia su contraseña al momento y recibe ``changed``."
+          },
           "202": {
             "content": {
               "application/json": {
@@ -2470,7 +2480,7 @@
                 }
               }
             },
-            "description": "Successful Response"
+            "description": "El médico y el cuidador quedan en ``pending`` hasta que un administrador apruebe el cambio."
           },
           "401": {
             "description": "Sesión inválida o expirada"
