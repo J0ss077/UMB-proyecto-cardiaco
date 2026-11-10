@@ -1,5 +1,9 @@
 # ADR 0006: consulta rápida al médico sobre `teleconsultations`
 
+> Nota de vigencia: los estados `pending` y `answered` quedaron superados por
+> el ADR 0010 y el formato de `POST /api/consultations/{id}/respond` por el ADR
+> 0009, ambos desde el 2026-11-09. El resto de esta decisión sigue vigente.
+
 - Estado: aceptado
 - Fecha: 2026-11-09
 - Ámbito: modelo relacional, tabla `teleconsultations`, rutas `/api/consultations`

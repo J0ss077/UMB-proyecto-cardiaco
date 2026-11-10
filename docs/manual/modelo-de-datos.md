@@ -111,15 +111,18 @@ Tabla de unión que asigna médicos tratantes a pacientes.
 
 ### `caregiver_links`
 
-Autoriza a un cuidador a acompañar a un paciente con un alcance limitado.
+El médico tratante del paciente autoriza a un cuidador a acompañarlo con un
+alcance limitado. El paciente ve la autorización pero no la revoca; el
+administrador solo la consulta. La decisión completa está en el
+`docs/adr/0012-autorizacion-de-cuidadores-por-el-medico.md`.
 
-| Columna            | Tipo          | Restricción                                           | Descripción                      |
-| ------------------ | ------------- | ----------------------------------------------------- | -------------------------------- |
-| `id`               | `UUID`        | PK, `DEFAULT gen_random_uuid()`                       | Identificador del vínculo        |
-| `patient_id`       | `UUID`        | NOT NULL, FK `patient_profiles(id)` ON DELETE CASCADE | Paciente que autoriza            |
-| `caregiver_id`     | `UUID`        | NOT NULL, FK `users(id)` ON DELETE CASCADE            | Cuidador autorizado              |
-| `authorized_scope` | `TEXT`        | NOT NULL, `DEFAULT 'minimal'`                         | Alcance de los datos autorizados |
-| `created_at`       | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`                             | Fecha de la autorización         |
+| Columna            | Tipo          | Restricción                                           | Descripción                                       |
+| ------------------ | ------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| `id`               | `UUID`        | PK, `DEFAULT gen_random_uuid()`                       | Identificador del vínculo                         |
+| `patient_id`       | `UUID`        | NOT NULL, FK `patient_profiles(id)` ON DELETE CASCADE | Paciente cuyo médico tratante autoriza (ADR 0012) |
+| `caregiver_id`     | `UUID`        | NOT NULL, FK `users(id)` ON DELETE CASCADE            | Cuidador autorizado por el médico                 |
+| `authorized_scope` | `TEXT`        | NOT NULL, `DEFAULT 'minimal'`                         | Alcance de los datos autorizados                  |
+| `created_at`       | `TIMESTAMPTZ` | NOT NULL, `DEFAULT now()`                             | Fecha en que el médico autorizó                   |
 
 ### `consents`
 
@@ -318,7 +321,7 @@ token.
 | `users` - `patient_physician`            | 1:N          | Un médico puede atender varios pacientes                 |
 | `patient_profiles` - `patient_physician` | 1:N          | Un paciente puede tener varios médicos asignados         |
 | `users` - `caregiver_links`              | 1:N          | Un cuidador puede acompañar a varios pacientes           |
-| `patient_profiles` - `caregiver_links`   | 1:N          | Un paciente puede autorizar a varios cuidadores          |
+| `patient_profiles` - `caregiver_links`   | 1:N          | Un paciente puede tener varios cuidadores autorizados    |
 | `patient_profiles` - `consents`          | 1:N          | Un paciente acumula una versión por cada consentimiento  |
 | `patient_profiles` - `readings`          | 1:N          | Un paciente registra múltiples lecturas                  |
 | `patient_profiles` - `symptoms_mood`     | 1:N          | Un paciente registra múltiples reportes de síntomas      |

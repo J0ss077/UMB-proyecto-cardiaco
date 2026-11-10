@@ -1,5 +1,9 @@
 # ADR 0004: datos de contacto en el perfil del paciente
 
+> Nota de vigencia: la parte que declara que no hay foto de perfil quedó
+> superada por el ADR 0005 desde el 2026-11-09. El resto de esta decisión sigue
+> vigente.
+
 - Estado: aceptado
 - Fecha: 2026-11-09
 - Ámbito: modelo relacional, tabla `patient_profiles`, rutas `GET` y `PATCH /api/profile`
