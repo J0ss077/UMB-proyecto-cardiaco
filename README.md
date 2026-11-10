@@ -49,7 +49,7 @@ Para abrir PostgreSQL desde DBeaver o pgAdmin: host `localhost`, puerto `POSTGRE
 
 ## Cómo correr las pruebas
 
-Antes de la primera corrida: `python3 -m pip install -e './backend[dev]'`.
+Antes de la primera ejecución: `python3 -m pip install -e './backend[dev]'`.
 
 ```bash
 make test
