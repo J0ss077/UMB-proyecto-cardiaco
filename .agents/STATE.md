@@ -14,11 +14,12 @@ Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El coman
 - **Autorización de cuidadores**: el médico vinculado crea, cambia el alcance y revoca el vínculo; el paciente ve la lista de acceso pero no puede revocarlo; el administrador solo lee el directorio. Las tres mutaciones se auditan. Lo decide el ADR 0012.
 - **Correcciones de la revisión del backend**: la página pública de estado solo dice si cada componente responde, la siembra no fecha nada en el futuro y rellena los contactos de un perfil antiguo sin pisar lo editado, y el contrato publica las dos respuestas del cambio de contraseña.
 - **Documentación**: doce ADR, índice de diagramas UML en `docs/uml/` con código e imagen de los cincuenta y nueve, capturas del prototipo en `docs/capturas/`, contrato de la API actualizado y la matriz de los cuarenta y siete requerimientos generada.
-- **Verificación**: 515 pruebas de backend (326 de integración y 189 unitarias), 30 de los scripts y 675 de la interfaz en 51 archivos, todas en verde; compilación de la interfaz con TypeScript estricto; `make docs` y los verificadores de autoría y estilo limpios. La pila levanta con las nueve migraciones y la base queda sembrada con las siete cuentas.
+- **Correcciones de la revisión de la interfaz**: el chatbot declara que no está disponible y sus ejemplos son texto, no controles; el consentimiento se lee completo antes de aceptarlo y lo sirve la API desde un documento versionado; el paciente sin consentimiento conserva su historia y solo pierde la escritura y el resumen; la sesión no se cierra por un error del servidor y sí se limpia cuando el refresco muere; la edad se calcula por calendario; la consola de auditoría conoce las acciones de cuidadores.
+- **Verificación**: 518 pruebas de backend (328 de integración y 190 unitarias), 30 de los scripts y 704 de la interfaz en 56 archivos, todas en verde; compilación de la interfaz con TypeScript estricto; `make docs`, `make contract` y los verificadores de autoría y estilo limpios. La pila levanta con las nueve migraciones y la base queda sembrada con las siete cuentas.
 
 ## En curso
 
-- Ninguno. La rama `integracion-ui` quedó fusionada a `main`; falta publicarla.
+- Ninguno. Todo está fusionado y verificado en `main`; falta publicarlo.
 
 ## Siguiente paso
 
@@ -33,7 +34,7 @@ Este archivo se lee al empezar cada sesión y se actualiza al cerrarla. El coman
 
 ## Lo que está declarado pendiente en la interfaz
 
-Conviene que quien lea esto no confunda lo que hay con lo que parece. La tarjeta de recomendación muestra un texto fijo hasta que exista el servicio del modelo. El chatbot responde con una bienvenida local y preguntas frecuentes, sin modelo detrás, aunque su panel ya admite adjuntos. Las notificaciones se calculan y se guardan en el navegador: sin servicio de envío, con la aplicación cerrada no llega nada. La pantalla de dispositivo recuerda tensiómetros con Web Bluetooth pero no registra lecturas. El nivel de riesgo que se muestra es la categoría de guía del promedio de siete días, no la clasificación del modelo. El contraste de la paleta oscura no se midió. Medicación, adherencia y recordatorios no tienen pantalla todavía. La pantalla de acceso del paciente y las acciones del médico sobre cuidadores todavía no existen: las rutas están publicadas, la interfaz es la ola siguiente. La pantalla de vínculos del administrador conserva la consulta y pierde las acciones, que aún no se retiraron de `web/`.
+Conviene que quien lea esto no confunda lo que hay con lo que parece. La tarjeta de recomendación muestra un texto fijo y un jurado debe saberlo: el modelo no existe, RF-09 está pendiente y el socio decidió dejar la tarjeta como está; el repositorio lo declara aquí y en la matriz, pero la frase visible sigue invitando a ajustar la medicación sin que ningún modelo la respalde. El chatbot ya dice que no está disponible. Las notificaciones se calculan y se guardan en el navegador: sin servicio de envío, con la aplicación cerrada no llega nada. La pantalla de dispositivo recuerda tensiómetros con Web Bluetooth pero no registra lecturas. El nivel de riesgo que se muestra es la categoría de guía del promedio de siete días, no la clasificación del modelo. El contraste de la paleta oscura no se midió. Medicación, adherencia y recordatorios no tienen pantalla todavía. El paciente ve quién tiene acceso a su historia y no puede revocarlo: pedirle la revocación al médico no tiene todavía un canal formal en la interfaz. Las capturas de `docs/capturas/` son anteriores a estas correcciones y el índice del manual lo advierte.
 
 ## Notas operativas
 
@@ -44,4 +45,4 @@ Conviene que quien lea esto no confunda lo que hay con lo que parece. La tarjeta
 - Toda tarea que añada o cambie una ruta actualiza `docs/api/api-para-el-frontend.md` en la misma tarea.
 - Los diagramas viven solo en `docs/uml/`; `docs/manual/diagramas-uml.md` es un puntero para los enlaces del manual.
 - Las capturas de `docs/capturas/` pesan catorce megabytes; son evidencia para el manual y no se regeneran solas.
-- La sección 2.2 del manual académico sigue pendiente de actualizar con las columnas nuevas del modelo (contacto del paciente, foto, perfil del personal y cambio de contraseña) y con las tres acciones de borrado explícitas que el diccionario ya documenta.
+- El diccionario de `docs/manual/modelo-de-datos.md` ya sirve como sección 2.2: incluye la tabla que cruza cada migración con su ADR y declara que las extensiones son columnas nuevas, sin tabla ni enumerado adicionales. Falta pegarlo en el Word y ajustar la numeración del documento académico.
