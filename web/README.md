@@ -23,7 +23,7 @@ Las siete cuentas y la contraseña están en [`docs/manual/cuentas-demo.md`](../
 
 ## Cómo desarrollarla
 
-Hace falta Node 20, el mismo de la imagen, y la API en `http://localhost:8000`.
+Hace falta Node 22, el mismo de la imagen, y la API en `http://localhost:8000`.
 
 ```bash
 cd web
