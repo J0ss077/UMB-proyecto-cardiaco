@@ -156,7 +156,9 @@ export function ConnectDeviceScreen({ onBack }: { onBack: () => void }) {
                                     </span>
                                     <span className="flex min-w-0 flex-1 flex-col">
                                         <span className="truncate text-lg leading-tight">{device.name}</span>
-                                        <span className="text-sm text-subtle">{device.linked ? "Vinculado" : "Disponible"}</span>
+                                        <span className="text-sm text-subtle">
+                                            {device.linked ? "Permitido en este navegador" : "Disponible"}
+                                        </span>
                                     </span>
                                     <span
                                         aria-hidden="true"
@@ -171,7 +173,7 @@ export function ConnectDeviceScreen({ onBack }: { onBack: () => void }) {
                                     <div className="flex flex-wrap gap-2 border-t border-border/70 p-3">
                                         {device.linked ? null : (
                                             <Button size="sm" onClick={() => update(setLinked(devices, device.id, true))}>
-                                                Vincular
+                                                Permitir en este navegador
                                             </Button>
                                         )}
                                         <Button
@@ -191,7 +193,7 @@ export function ConnectDeviceScreen({ onBack }: { onBack: () => void }) {
                     </ul>
                 )}
                 <p className="text-xs text-subtle">
-                    Las lecturas de un dispositivo vinculado todavía no se guardan automáticamente: registra tus
+                    Las lecturas de un dispositivo permitido todavía no se guardan automáticamente: registra tus
                     mediciones desde la pestaña Registrar.
                 </p>
             </div>

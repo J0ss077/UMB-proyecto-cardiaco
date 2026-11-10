@@ -39,11 +39,13 @@ const alert: Alert = {
     validated_at: null,
 };
 
-const mount = (withAlert = false) =>
+const mount = (withAlert = false, summaryBlocked = false) =>
     renderWithToasts(
         <PatientHome
             recent={[reading]}
-            summary={summary}
+            summary={summaryBlocked ? null : summary}
+            summaryBlocked={summaryBlocked}
+            summaryNote={summaryBlocked ? "El resumen de siete días necesita consentimiento informado vigente." : null}
             openAlert={withAlert ? alert : null}
             onRegister={() => undefined}
             onSymptoms={() => undefined}
@@ -151,5 +153,17 @@ describe("customizable dashboard", () => {
         mount();
         expect(within(widget("latest")).getByTestId("latest-reading")).toBeInTheDocument();
         expect(within(widget("risk")).getByTestId("risk-level")).toBeInTheDocument();
+        const badge = within(widget("latest")).getByTestId("category-badge");
+        expect(badge).toHaveTextContent(/guía/i);
+        expect(badge).toHaveAttribute("title", expect.stringContaining("No usa los umbrales configurados"));
+    });
+
+    it("names consent as the blocker and does not derive a risk level from the reading", () => {
+        mount(false, true);
+
+        expect(screen.getByRole("alert")).toHaveTextContent(/consentimiento informado vigente/i);
+        expect(within(widget("summary")).getByText(/necesita consentimiento informado vigente/i)).toBeInTheDocument();
+        expect(within(widget("risk")).getByText(/no se calcula mientras el consentimiento/i)).toBeInTheDocument();
+        expect(within(widget("risk")).queryByText(/riesgo alto/i)).not.toBeInTheDocument();
     });
 });

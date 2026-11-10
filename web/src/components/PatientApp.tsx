@@ -39,6 +39,8 @@ interface Snapshot {
     openAlerts: Alert[];
     symptoms: Symptom[];
     summary: ReadingsSummary | null;
+    summaryNote: string | null;
+    summaryBlocked: boolean;
 }
 
 const EMPTY_READINGS: Reading[] = [];
@@ -77,6 +79,7 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
                 getReadingsSummary(),
             ]);
             if (cancelled) return;
+            const summaryBlocked = summary.status === "rejected" && summary.reason instanceof ApiError && summary.reason.consentRequired;
             setSnapshot({
                 recent: readings.status === "fulfilled" ? readings.value.items.slice(0, 14) : [],
                 history: readings.status === "fulfilled" ? readings.value.items : [],
@@ -84,14 +87,24 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
                 openAlerts: alerts.status === "fulfilled" ? alerts.value.items : [],
                 symptoms: symptoms.status === "fulfilled" ? symptoms.value.items : [],
                 summary: summary.status === "fulfilled" ? summary.value : null,
+                summaryBlocked,
+                summaryNote:
+                    summary.status === "rejected"
+                        ? summaryBlocked
+                            ? "El resumen de siete días necesita consentimiento informado vigente. Tu historia sigue disponible, pero no se analiza."
+                            : "No se pudo cargar el resumen de siete días."
+                        : null,
             });
             if (readings.status === "rejected") toast.error("No se pudo cargar tu última lectura");
+            // The consent status was fetched before the summary; if the summary rejects
+            // with the consent detail, the status is stale. Reload it so the gate opens.
+            if (summaryBlocked) void loadConsent();
         }
         void load();
         return () => {
             cancelled = true;
         };
-    }, [consentActive, refreshKey, toast]);
+    }, [consentActive, refreshKey, toast, loadConsent]);
 
     const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
@@ -163,6 +176,8 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
                     history={snapshot.history}
                     symptoms={snapshot.symptoms}
                     summary={snapshot.summary}
+                    summaryNote={snapshot.summaryNote}
+                    summaryBlocked={snapshot.summaryBlocked}
                     openAlert={snapshot.openAlert}
                     onRegister={() => setView("log")}
                     onSymptoms={() => setView("log")}

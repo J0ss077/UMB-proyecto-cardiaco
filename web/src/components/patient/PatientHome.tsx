@@ -2,6 +2,7 @@
 // @requirement RF-16
 import { AlertTriangle, BookOpen, Brain, Plus, RefreshCw } from "lucide-react";
 import { classifyReading, riskLevel, type RiskKey } from "../../lib/clinical";
+import { loadDevices } from "../../lib/devices";
 import { formatRelative } from "../../lib/format";
 import { DEFAULT_RECOMMENDATION } from "../../lib/recommendation";
 import type { Alert, Reading, ReadingsSummary, Symptom } from "../../types";
@@ -20,6 +21,8 @@ interface PatientHomeProps {
     history?: Reading[];
     symptoms?: Symptom[];
     summary: ReadingsSummary | null;
+    summaryNote?: string | null;
+    summaryBlocked?: boolean;
     openAlert: Alert | null;
     onRegister: () => void;
     onSymptoms: () => void;
@@ -41,6 +44,8 @@ export function PatientHome({
     history = recent,
     symptoms = [],
     summary,
+    summaryNote = null,
+    summaryBlocked = false,
     openAlert,
     onRegister,
     onSymptoms,
@@ -49,7 +54,10 @@ export function PatientHome({
     recommendation = DEFAULT_RECOMMENDATION,
 }: PatientHomeProps) {
     const latest = recent[0] ?? null;
-    const risk = riskLevel(summary, latest);
+    // Without a current consent the summary is not analysis, so the fallback to the
+    // latest reading must not become a risk level either.
+    const risk = summaryBlocked ? { key: "unknown" as RiskKey, label: "No calculado" } : riskLevel(summary, latest);
+    const hasLinkedDevice = loadDevices().some((device) => device.linked);
 
     const insights = buildInsightWidgets({ history, symptoms, onRegister, onSymptoms, onChatbot, onConnectDevice });
 
@@ -80,9 +88,9 @@ export function PatientHome({
                                 Aún no tienes lecturas. Registra la primera para ver tu tendencia.
                             </p>
                         )}
-                        <Button variant="accent" className="w-full" onClick={onConnectDevice}>
+                        <Button variant="outline" className="w-full" onClick={onConnectDevice}>
                             <RefreshCw className="h-5 w-5" aria-hidden="true" />
-                            Conectar dispositivo de nuevo
+                            {hasLinkedDevice ? "Administrar dispositivos" : "Conectar dispositivo"}
                         </Button>
                         <div className="flex w-full flex-col gap-3 sm:flex-row">
                             <Button variant="primary" className="flex-1" onClick={onRegister}>
@@ -135,7 +143,11 @@ export function PatientHome({
                         <CardTitle>Promedio de 7 días</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {summary?.sufficient ? (
+                        {summaryNote ? (
+                            <p role="status" className="text-sm text-subtle">
+                                {summaryNote}
+                            </p>
+                        ) : summary?.sufficient ? (
                             <p className="text-3xl font-semibold tabular-nums">
                                 <span>{summary.mean_systolic}/{summary.mean_diastolic}</span>{" "}
                                 <span className="text-sm font-normal text-subtle">mmHg</span>
@@ -170,16 +182,37 @@ export function PatientHome({
                 <Card data-testid="risk-level">
                     <CardContent className="flex flex-col gap-3">
                         <h3 className="text-base font-medium">Nivel de riesgo</h3>
-                        <p className="flex items-center gap-3 text-base">
-                            <span aria-hidden="true" className={`h-4 w-4 rounded-full ${RISK_DOT[risk.key]}`} />
-                            {risk.label}
-                        </p>
-                        <p className="text-xs text-subtle">Según tus lecturas recientes y las guías de referencia.</p>
+                        {summaryBlocked ? (
+                            <p className="text-sm text-subtle">
+                                No se calcula mientras el consentimiento informado esté revocado.
+                            </p>
+                        ) : (
+                            <>
+                                <p className="flex items-center gap-3 text-base">
+                                    <span aria-hidden="true" className={`h-4 w-4 rounded-full ${RISK_DOT[risk.key]}`} />
+                                    {risk.label}
+                                </p>
+                                <p className="text-xs text-subtle">Según tus lecturas recientes y las guías de referencia.</p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             ),
         },
     };
 
-    return <DashboardGrid widgets={widgets} />;
+    return (
+        <>
+            {summaryBlocked ? (
+                <div
+                    role="alert"
+                    className="mb-4 rounded-card border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-foreground"
+                >
+                    El resumen de siete días y el nivel de riesgo necesitan consentimiento informado vigente. Tu
+                    historia sigue disponible; acepta el consentimiento para que se vuelvan a calcular.
+                </div>
+            ) : null}
+            <DashboardGrid widgets={widgets} />
+        </>
+    );
 }

@@ -53,10 +53,15 @@ export function HistoryDialog({ readings, onClose }: { readings: Reading[]; onCl
                 tabIndex={-1}
                 className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-4 rounded-t-[1.25rem] bg-background p-6 shadow-xl sm:rounded-[1.25rem]"
             >
-                <header className="flex items-center justify-between gap-3">
-                    <h2 id="history-title" className="text-xl font-medium">
-                        Historial de lecturas
-                    </h2>
+                <header className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                        <h2 id="history-title" className="text-xl font-medium">
+                            Lecturas desde el inicio del mes anterior
+                        </h2>
+                        <p className="text-sm text-subtle">
+                            Hasta hoy. No es tu historial completo: esta ventana cubre el mes anterior y el actual.
+                        </p>
+                    </div>
                     <button
                         type="button"
                         onClick={onClose}

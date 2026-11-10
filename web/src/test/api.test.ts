@@ -57,6 +57,40 @@ describe("api client", () => {
         expect(onExpired).toHaveBeenCalledTimes(1);
     });
 
+    it("clears the session and signals expiry when the replay after a rotation is rejected again", async () => {
+        saveSession({ access_token: "old", refresh_token: "r1", role: "patient" });
+        const onExpired = vi.fn();
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(json(401, { detail: "Sesión inválida o expirada" }))
+            .mockResolvedValueOnce(json(200, { access_token: "new", refresh_token: "r2", role: "patient" }))
+            .mockResolvedValueOnce(json(401, { detail: "Sesión inválida o expirada" }));
+        const client = createClient({ baseUrl: "http://api", fetcher, onSessionExpired: onExpired });
+
+        await expect(client.listReadings()).rejects.toMatchObject({ status: 401 });
+
+        expect(loadSession()).toBeNull();
+        expect(onExpired).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        [500, "Error interno del servidor"],
+        [403, "Permiso denegado"],
+    ])("surfaces a %i rotation failure without discarding the session", async (status, detail) => {
+        saveSession({ access_token: "old", refresh_token: "r1", role: "patient" });
+        const onExpired = vi.fn();
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(json(401, { detail: "Sesión inválida o expirada" }))
+            .mockResolvedValueOnce(json(status, { detail }));
+        const client = createClient({ baseUrl: "http://api", fetcher, onSessionExpired: onExpired });
+
+        await expect(client.listReadings()).rejects.toMatchObject({ status, message: detail });
+
+        expect(loadSession()?.refresh_token).toBe("r1");
+        expect(onExpired).not.toHaveBeenCalled();
+    });
+
     it("does not retry a request more than once", async () => {
         saveSession({ access_token: "old", refresh_token: "r1", role: "patient" });
         const fetcher = vi

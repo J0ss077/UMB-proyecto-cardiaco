@@ -5,6 +5,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveSession, loadSession } from "../auth";
+import { ApiError, CONSENT_REQUIRED_DETAIL } from "../api";
 import App from "../App";
 
 const mocks = vi.hoisted(() => ({
@@ -152,7 +153,21 @@ describe("App", () => {
         expect(await screen.findByText("Recomendación IA")).toBeInTheDocument();
         expect(screen.getByText(/tus niveles suben por las mañanas/i)).toBeInTheDocument();
         expect(screen.getByTestId("risk-level")).toHaveTextContent("Bajo riesgo");
-        expect(screen.getByRole("button", { name: /conectar dispositivo de nuevo/i })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /conectar dispositivo/i })).toBeInTheDocument();
+    });
+
+    it("shows the consent gate when the summary is blocked by consent", async () => {
+        saveSession({ access_token: "a", refresh_token: "r", role: "patient" });
+        mocks.getConsent
+            .mockResolvedValueOnce({ active: true, requires_acceptance_of_version: null })
+            .mockResolvedValue({ active: false, requires_acceptance_of_version: 1 });
+        mocks.getReadingsSummary.mockRejectedValue(new ApiError(403, CONSENT_REQUIRED_DETAIL));
+
+        render(<App />);
+
+        expect(await screen.findByRole("heading", { name: "Consentimiento informado" })).toBeInTheDocument();
+        expect(screen.queryByTestId("risk-level")).not.toBeInTheDocument();
+        expect(mocks.getConsent).toHaveBeenCalledTimes(2);
     });
 
     it("opens the blank chatbot tab", async () => {
@@ -168,7 +183,7 @@ describe("App", () => {
         saveSession({ access_token: "a", refresh_token: "r", role: "patient" });
         render(<App />);
 
-        await userEvent.click(await screen.findByRole("button", { name: /conectar dispositivo de nuevo/i }));
+        await userEvent.click(await screen.findByRole("button", { name: /conectar dispositivo/i }));
         expect(screen.getByRole("heading", { name: "Conectar dispositivo" })).toBeInTheDocument();
 
         await userEvent.click(screen.getByRole("button", { name: /volver/i }));

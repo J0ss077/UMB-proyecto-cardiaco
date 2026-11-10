@@ -165,28 +165,33 @@ export function buildInsightWidgets(context: InsightContext): Record<InsightWidg
                 </Card>
             ),
         },
+        // Deliberate choice: this widget keeps the local rolling window of
+        // lib/insights.ts (whole millimetres of mercury, local days) instead of
+        // /api/readings/summary (UTC grouping, one decimal). Its labels therefore say
+        // "7 días móviles" and never "Promedio de 7 días", so the two numbers cannot
+        // be read as the same figure.
         comparison: {
-            title: "Comparativa semanal",
+            title: "Comparativa de 7 días móviles",
             render: () => (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Comparativa semanal</CardTitle>
+                        <CardTitle>Comparativa de 7 días móviles</CardTitle>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3">
                         <div className="flex items-baseline justify-between">
-                            <span className="text-subtle">Esta semana</span>
+                            <span className="text-subtle">Últimos 7 días</span>
                             {weeks.current ? (
                                 <span className="text-xl font-semibold tabular-nums">{pressure(weeks.current)}</span>
                             ) : (
-                                <span className="text-sm text-subtle">Sin lecturas esta semana</span>
+                                <span className="text-sm text-subtle">Sin lecturas en los últimos 7 días</span>
                             )}
                         </div>
                         <div className="flex items-baseline justify-between">
-                            <span className="text-subtle">Semana anterior</span>
+                            <span className="text-subtle">Los 7 días anteriores</span>
                             {weeks.previous ? (
                                 <span className="text-xl font-semibold tabular-nums">{pressure(weeks.previous)}</span>
                             ) : (
-                                <span className="text-sm text-subtle">Sin lecturas la semana anterior</span>
+                                <span className="text-sm text-subtle">Sin lecturas en los 7 días anteriores</span>
                             )}
                         </div>
                         {weeks.current && weeks.previous ? (
@@ -194,7 +199,10 @@ export function buildInsightWidgets(context: InsightContext): Record<InsightWidg
                                 <Delta now={weeks.current.systolic} before={weeks.previous.systolic} />
                             </div>
                         ) : null}
-                        <p className="text-xs text-subtle">Solo cuentan las lecturas válidas.</p>
+                        <p className="text-xs text-subtle">
+                            Ventana móvil de siete días por días locales, con lecturas válidas. No es el
+                            "Promedio de 7 días" del resumen, que usa otro corte.
+                        </p>
                     </CardContent>
                 </Card>
             ),
@@ -341,13 +349,14 @@ export function buildInsightWidgets(context: InsightContext): Record<InsightWidg
                         </CardHeader>
                         <CardContent className="flex flex-col gap-3">
                             {linked.length === 0 ? (
-                                <p className="text-sm text-subtle">Sin dispositivos vinculados.</p>
+                                <p className="text-sm text-subtle">Sin dispositivos permitidos en este navegador.</p>
                             ) : (
                                 <ul className="flex flex-col gap-1">
                                     {linked.map((device) => (
-                                        <li key={device.id} className="flex items-center gap-2">
+                                        <li key={device.id} className="flex flex-wrap items-center gap-2">
                                             <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent" />
-                                            {device.name}
+                                            <span>{device.name}</span>
+                                            <span className="text-xs text-subtle">Permitido en este navegador</span>
                                         </li>
                                     ))}
                                 </ul>

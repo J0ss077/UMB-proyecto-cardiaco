@@ -5,14 +5,29 @@ import { describe, expect, it, vi } from "vitest";
 import { ChatbotPanel, MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } from "../components/ChatbotPanel";
 
 describe("ChatbotPanel", () => {
-    it("is blank and disabled until a backend is connected", () => {
+    it("says the assistant is not available before offering any example", () => {
         render(<ChatbotPanel />);
 
         expect(screen.getByRole("heading", { name: "Asistente HipertAI" })).toBeInTheDocument();
+        const notice = screen.getByTestId("chat-unavailable");
+        expect(notice).toHaveTextContent(/el asistente todavía no está disponible/i);
+        expect(notice).toHaveTextContent(/cuando exista el modelo/i);
+        expect(notice).toHaveTextContent(/tu propia historia clínica/i);
+        expect(notice).toHaveTextContent(/hoy no responde nada/i);
+
+        const examples = screen.getByRole("list", { name: /ejemplos de preguntas/i });
+        expect(within(examples).getByText("¿El café afecta mi presión?")).toBeInTheDocument();
+        expect(within(examples).queryByRole("button")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Preguntas frecuentes" })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Emergencia" })).toBeInTheDocument();
+
         expect(screen.queryAllByTestId("chat-message")).toHaveLength(0);
-        expect(screen.getByRole("textbox", { name: /escribe tu pregunta/i })).toBeDisabled();
+        const input = screen.getByRole("textbox", { name: /escribe tu pregunta/i });
+        expect(input).toBeDisabled();
+        expect(input).toHaveAttribute("placeholder", "El asistente no está disponible");
         expect(screen.getByRole("button", { name: /enviar/i })).toBeDisabled();
         expect(screen.getByRole("button", { name: /adjuntar archivos/i })).toBeDisabled();
+        expect(screen.queryByRole("group", { name: /¿quieres preguntar sobre/i })).not.toBeInTheDocument();
     });
 
     it("sends the question through the provided handler and shows both messages", async () => {
@@ -147,8 +162,8 @@ describe("ChatbotPanel", () => {
     });
 
     describe("welcome and quick actions", () => {
-        it("greets with the suggested questions and the two quick actions, without counting as a message", () => {
-            render(<ChatbotPanel />);
+        it("greets with the suggested questions and the two quick actions once a backend is connected", () => {
+            render(<ChatbotPanel onSend={vi.fn()} />);
 
             const welcome = screen.getByTestId("chat-welcome");
             expect(within(welcome).getByText(/soy tu asistente de hipertensión/i)).toBeInTheDocument();
@@ -193,13 +208,10 @@ describe("ChatbotPanel", () => {
     });
 
     describe("quick topics", () => {
-        it("offers the topics above the input and disables them until an assistant is connected", () => {
+        it("keeps the topic shortcuts out while the assistant does not exist", () => {
             render(<ChatbotPanel />);
 
-            const group = screen.getByRole("group", { name: /¿quieres preguntar sobre/i });
-            for (const topic of ["ejercicio", "medicamentos", "dieta"]) {
-                expect(within(group).getByRole("button", { name: topic })).toBeDisabled();
-            }
+            expect(screen.queryByRole("group", { name: /¿quieres preguntar sobre/i })).not.toBeInTheDocument();
         });
 
         it("sends a question about the tapped topic", async () => {

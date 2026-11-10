@@ -41,22 +41,24 @@ interface ChatMessage {
 }
 
 interface ChatbotPanelProps {
-    // Connect the assistant here: receives the question and the attached files and
-    // resolves with the reply. Without it the input is disabled; the welcome, the
-    // frequent questions and the emergency guidance are local and still work.
+    // Reserved for the model integration (RF-20, still pending). The real app mounts
+    // the panel without it, so the panel says plainly that the assistant does not
+    // exist yet instead of showing a disabled chat that looks available.
     onSend?: (question: string, attachments: File[]) => Promise<ChatReply>;
 }
 
-function QuickActions({ onFaq, onEmergency }: { onFaq: () => void; onEmergency: () => void }) {
+function QuickActions({ showFaq, onFaq, onEmergency }: { showFaq: boolean; onFaq: () => void; onEmergency: () => void }) {
     return (
         <div className="flex flex-wrap gap-2">
-            <button
-                type="button"
-                onClick={onFaq}
-                className="rounded-field border border-border bg-background px-4 py-2 text-sm hover:bg-surface"
-            >
-                Preguntas frecuentes
-            </button>
+            {showFaq ? (
+                <button
+                    type="button"
+                    onClick={onFaq}
+                    className="rounded-field border border-border bg-background px-4 py-2 text-sm hover:bg-surface"
+                >
+                    Preguntas frecuentes
+                </button>
+            ) : null}
             <button
                 type="button"
                 onClick={onEmergency}
@@ -190,21 +192,50 @@ export function ChatbotPanel({ onSend }: ChatbotPanelProps) {
                 </div>
                 <div>
                     <h2 className="text-lg font-medium leading-tight">Asistente HipertAI</h2>
-                    <p className="text-sm text-subtle">Pregúntame sobre hipertensión</p>
+                    <p className="text-sm text-subtle">
+                        {enabled ? "Pregúntame sobre hipertensión" : "No disponible todavía"}
+                    </p>
                 </div>
             </header>
 
             <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4 lg:gap-4 lg:px-8 lg:py-6" aria-live="polite">
+                {enabled ? null : (
+                    <div
+                        data-testid="chat-unavailable"
+                        role="status"
+                        className="flex flex-col gap-2 rounded-card border border-warning/40 bg-warning-soft px-4 py-3 text-base"
+                    >
+                        <p className="flex items-center gap-2 font-medium text-warning">
+                            <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
+                            El asistente todavía no está disponible.
+                        </p>
+                        <p>
+                            Cuando exista el modelo, responderá preguntas sobre tu propia historia clínica: tus
+                            lecturas, tus síntomas y el tratamiento que tengas registrado.
+                        </p>
+                        <p>
+                            Hoy no responde nada: este espacio no envía preguntas ni devuelve respuestas. Las
+                            preguntas de abajo son solo ejemplos de lo que responderá; no puedes enviarlas.
+                        </p>
+                    </div>
+                )}
                 <div data-testid="chat-welcome" className="flex flex-col gap-3">
                     <div className="flex max-w-[85%] flex-col gap-2 self-start rounded-card bg-muted px-4 py-3 text-base lg:max-w-[70%] lg:px-5 lg:py-4 lg:text-lg">
-                        <p>Hola, soy tu asistente de hipertensión. Puedes preguntarme:</p>
-                        <ul className="list-inside list-disc text-foreground">
+                        <p>
+                            {enabled
+                                ? "Hola, soy tu asistente de hipertensión. Puedes preguntarme:"
+                                : "Ejemplos de preguntas que responderá cuando exista el modelo:"}
+                        </p>
+                        <ul
+                            aria-label={enabled ? undefined : "Ejemplos de preguntas"}
+                            className="list-inside list-disc text-foreground"
+                        >
                             {SUGGESTED_QUESTIONS.map((question) => (
                                 <li key={question}>{question}</li>
                             ))}
                         </ul>
                     </div>
-                    <QuickActions onFaq={showFaq} onEmergency={showEmergency} />
+                    <QuickActions showFaq={enabled} onFaq={showFaq} onEmergency={showEmergency} />
                 </div>
                 {dragging ? <p className="m-auto text-sm text-accent">Suelta los archivos para adjuntarlos</p> : null}
                 {messages.map((message) => (
@@ -228,20 +259,33 @@ export function ChatbotPanel({ onSend }: ChatbotPanelProps) {
                         ) : null}
                         {message.text ? <p>{message.text}</p> : null}
                         {message.kind === "faq" ? (
-                            <ul className="flex flex-col gap-2">
-                                {SUGGESTED_QUESTIONS.map((question) => (
-                                    <li key={question}>
-                                        <button
-                                            type="button"
-                                            disabled={!enabled || busy}
-                                            onClick={() => void ask(question, [])}
-                                            className="w-full rounded-field border border-border bg-background px-3 py-2 text-left text-sm hover:bg-surface disabled:opacity-60"
-                                        >
-                                            {question}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
+                            <>
+                                {enabled ? null : (
+                                    <p className="text-sm text-subtle">
+                                        Ejemplos de preguntas que responderá cuando exista el modelo:
+                                    </p>
+                                )}
+                                <ul className="flex flex-col gap-2">
+                                    {SUGGESTED_QUESTIONS.map((question) => (
+                                        <li key={question}>
+                                            {enabled ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={busy}
+                                                    onClick={() => void ask(question, [])}
+                                                    className="w-full rounded-field border border-border bg-background px-3 py-2 text-left text-sm hover:bg-surface disabled:opacity-60"
+                                                >
+                                                    {question}
+                                                </button>
+                                            ) : (
+                                                <span className="block rounded-field border border-border/70 bg-background px-3 py-2 text-left text-sm">
+                                                    {question}
+                                                </span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
                         ) : null}
                         {message.kind === "emergency" ? (
                             <div className="flex flex-wrap gap-2">
@@ -261,7 +305,9 @@ export function ChatbotPanel({ onSend }: ChatbotPanelProps) {
                                 </a>
                             </div>
                         ) : null}
-                        {message.quickActions ? <QuickActions onFaq={showFaq} onEmergency={showEmergency} /> : null}
+                        {message.quickActions ? (
+                            <QuickActions showFaq={enabled} onFaq={showFaq} onEmergency={showEmergency} />
+                        ) : null}
                     </div>
                 ))}
             </div>
@@ -294,22 +340,24 @@ export function ChatbotPanel({ onSend }: ChatbotPanelProps) {
                         {attachError}
                     </p>
                 ) : null}
-                <div role="group" aria-labelledby="chat-topics-label" className="flex flex-wrap items-center gap-2">
-                    <span id="chat-topics-label" className="text-sm text-subtle">
-                        ¿Quieres preguntar sobre...?
-                    </span>
-                    {TOPICS.map((topic) => (
-                        <button
-                            key={topic}
-                            type="button"
-                            disabled={!enabled || busy}
-                            onClick={() => void ask(`Quiero preguntar sobre ${topic}`, [])}
-                            className="rounded-full bg-muted px-3 py-1.5 text-sm transition-colors hover:bg-border/60 disabled:opacity-60"
-                        >
-                            {topic}
-                        </button>
-                    ))}
-                </div>
+                {enabled ? (
+                    <div role="group" aria-labelledby="chat-topics-label" className="flex flex-wrap items-center gap-2">
+                        <span id="chat-topics-label" className="text-sm text-subtle">
+                            ¿Quieres preguntar sobre...?
+                        </span>
+                        {TOPICS.map((topic) => (
+                            <button
+                                key={topic}
+                                type="button"
+                                disabled={busy}
+                                onClick={() => void ask(`Quiero preguntar sobre ${topic}`, [])}
+                                className="rounded-full bg-muted px-3 py-1.5 text-sm transition-colors hover:bg-border/60 disabled:opacity-60"
+                            >
+                                {topic}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
                 <div className="flex items-center gap-3">
                     <input
                         ref={fileInput}
@@ -334,7 +382,7 @@ export function ChatbotPanel({ onSend }: ChatbotPanelProps) {
                     </Button>
                     <input
                         aria-label="Escribe tu pregunta"
-                        placeholder="Escribe tu pregunta"
+                        placeholder={enabled ? "Escribe tu pregunta" : "El asistente no está disponible"}
                         value={draft}
                         disabled={!enabled || busy}
                         onChange={(event) => setDraft(event.target.value)}

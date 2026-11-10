@@ -40,7 +40,7 @@ describe("ConnectDeviceScreen", () => {
 
         expect(requestDevice).toHaveBeenCalledWith({ filters: [{ services: ["blood_pressure"] }] });
         const row = await screen.findByRole("button", { name: /omron x-450/i });
-        expect(within(row).getByText("Vinculado")).toBeInTheDocument();
+        expect(within(row).getByText("Permitido en este navegador")).toBeInTheDocument();
     });
 
     it("remembers linked devices after leaving the screen", async () => {
@@ -102,9 +102,9 @@ describe("ConnectDeviceScreen", () => {
         expect(within(row).getByText("Disponible")).toBeInTheDocument();
 
         await userEvent.click(row);
-        await userEvent.click(screen.getByRole("button", { name: /^vincular$/i }));
+        await userEvent.click(screen.getByRole("button", { name: /^permitir en este navegador$/i }));
 
-        expect(within(screen.getByRole("button", { name: /beurer bm-28/i })).getByText("Vinculado")).toBeInTheDocument();
+        expect(within(screen.getByRole("button", { name: /beurer bm-28/i })).getByText("Permitido en este navegador")).toBeInTheDocument();
     });
 
     it("forgets every device from the options menu", async () => {

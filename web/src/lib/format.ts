@@ -26,17 +26,28 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
     return `Hace ${days} ${days === 1 ? "día" : "días"}`;
 }
 
-export function ageFromBirthDate(birthDate: string, now: Date = new Date()): number {
-    const birth = new Date(birthDate);
-    let age = now.getFullYear() - birth.getFullYear();
-    const hadBirthday =
-        now.getMonth() > birth.getMonth() ||
-        (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
-    if (!hadBirthday) age -= 1;
-    return age;
+interface CalendarDate {
+    year: number;
+    month: number;
+    day: number;
 }
 
-// Local offset-aware ISO string, as the API requires an explicit offset.
-export function toOffsetIso(date: Date): string {
-    return date.toISOString();
+// "1955-01-30" is a calendar date, not an instant. Parsing it with new Date()
+// reads it as UTC midnight, which in Bogotá is still 29 January; the age then
+// turns one day early. Keep the three numbers and compare them as they are.
+function calendarDate(value: string): CalendarDate | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (!match) return null;
+    return { year: Number(match[1]), month: Number(match[2]) - 1, day: Number(match[3]) };
+}
+
+export function ageFromBirthDate(birthDate: string, now: Date = new Date()): number {
+    const birth = calendarDate(birthDate);
+    if (!birth) return Number.NaN;
+    let age = now.getFullYear() - birth.year;
+    const hadBirthday =
+        now.getMonth() > birth.month ||
+        (now.getMonth() === birth.month && now.getDate() >= birth.day);
+    if (!hadBirthday) age -= 1;
+    return age;
 }

@@ -14,7 +14,12 @@ export const ACC_AHA_THRESHOLD: PressureThreshold = { label: "ACC/AHA 130/80", s
 
 export type ReadingCategory = "normal" | "elevated" | "high" | "crisis";
 
+// Published guideline cut-off for the descriptive category (crisis at 180/120).
+// It is not read from alert_config and never raises or closes an alert.
 const CRISIS = { systolic: 180, diastolic: 120 };
+
+export const GUIDELINE_NOTE =
+    "Categoría según las guías publicadas: OMS 140/90, ACC/AHA 130/80 y crisis desde 180/120 mmHg. No usa los umbrales configurados en la plataforma.";
 
 export function classifyReading(systolic: number, diastolic: number): ReadingCategory {
     if (systolic >= CRISIS.systolic || diastolic >= CRISIS.diastolic) return "crisis";

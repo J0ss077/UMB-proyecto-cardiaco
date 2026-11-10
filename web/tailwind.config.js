@@ -4,7 +4,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+                sans: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
             },
             colors: {
                 background: "rgb(var(--background) / <alpha-value>)",

@@ -15,6 +15,14 @@ No diagnostica ni trata. Una alerta solo la cierra una persona, y el formato de 
 
 La consulta queda en revisión al enviarla, pendiente cuando el médico manda el enlace de Meet y completada cuando escribe el formato y el comentario.
 
+## Lo que todavía no está
+
+Estas pantallas existen como marcador y lo dicen en la propia interfaz; no simulan la función que falta.
+
+| Pantalla | Estado |
+| --- | --- |
+| Chatbot (RF-20) | El asistente no está disponible. No envía preguntas ni devuelve respuestas; las preguntas que se ven son ejemplos de lo que responderá cuando exista el modelo. |
+
 ## Cómo verla con la pila
 
 Desde la raíz del repositorio, con la pila levantada (`make up` y `make seed`), la interfaz compilada queda en `http://localhost:3000`. El puerto se cambia con `WEB_PORT`.

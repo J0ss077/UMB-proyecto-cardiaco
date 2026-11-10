@@ -116,6 +116,9 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
         });
     }
 
+    // Returns false only when the refresh token is no longer accepted. Any other
+    // failure is a server or permission problem, not the end of the session: it is
+    // surfaced as an ApiError so the caller keeps the tokens and shows the error.
     async function rotate(): Promise<boolean> {
         const session = loadSession();
         if (!session) return false;
@@ -123,7 +126,11 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
             method: "POST",
             body: { refresh_token: session.refresh_token },
         });
-        if (!response.ok) return false;
+        if (response.status === 401) return false;
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => ({}))) as { detail?: unknown };
+            throw new ApiError(response.status, describeDetail(payload.detail));
+        }
         saveSession((await response.json()) as TokenPair);
         return true;
     }
@@ -141,9 +148,14 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
         let response = await send(path, { ...options, authenticated });
 
         if (response.status === 401 && authenticated) {
-            if (await rotateOnce()) {
+            let expired = !(await rotateOnce());
+            if (!expired) {
                 response = await send(path, { ...options, authenticated });
-            } else {
+                // A rotation that succeeds but whose replay is rejected again leaves
+                // unusable tokens in storage; sign out instead of showing an empty screen.
+                expired = response.status === 401;
+            }
+            if (expired) {
                 clearSession();
                 onSessionExpired?.();
             }

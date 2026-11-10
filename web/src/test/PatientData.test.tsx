@@ -282,7 +282,7 @@ describe("Datos tab", () => {
 
         await userEvent.click(screen.getByRole("button", { name: /^historial$/i }));
 
-        const dialog = screen.getByRole("dialog", { name: /historial de lecturas/i });
+        const dialog = screen.getByRole("dialog", { name: /lecturas desde el inicio del mes anterior/i });
         const history = within(dialog);
         expect(history.getAllByRole("row")).toHaveLength(11);
         await userEvent.click(history.getByRole("button", { name: /ver más/i }));
@@ -297,7 +297,7 @@ describe("Datos tab", () => {
         mount();
         await screen.findByTestId("data-latest");
         await userEvent.click(screen.getByRole("button", { name: /^historial$/i }));
-        const history = within(screen.getByRole("dialog", { name: /historial de lecturas/i }));
+        const history = within(screen.getByRole("dialog", { name: /lecturas desde el inicio del mes anterior/i }));
 
         await userEvent.click(history.getByRole("button", { name: "Alta" }));
 
@@ -312,7 +312,7 @@ describe("Datos tab", () => {
         mount();
         await screen.findByTestId("data-latest");
         await userEvent.click(screen.getByRole("button", { name: /^historial$/i }));
-        const history = within(screen.getByRole("dialog", { name: /historial de lecturas/i }));
+        const history = within(screen.getByRole("dialog", { name: /lecturas desde el inicio del mes anterior/i }));
 
         await userEvent.click(history.getByRole("button", { name: "Crisis" }));
 

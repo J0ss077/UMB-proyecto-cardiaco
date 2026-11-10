@@ -78,7 +78,7 @@ describe("extra home widgets", () => {
             "Frecuencia cardíaca",
             "Hoy",
             "Tu actividad",
-            "Comparativa semanal",
+            "Comparativa de 7 días móviles",
             "Distribución de lecturas",
             "Por momento del día",
             "Síntomas recientes",
@@ -127,11 +127,14 @@ describe("extra home widgets", () => {
             expect(within(card.getByTestId("stat-range")).getByText("67%")).toBeInTheDocument();
         });
 
-        it("compares this week with the previous one, saying when there is no earlier data", () => {
+        it("compares the rolling seven days with the previous seven and labels the window", () => {
             mount();
             const card = within(widget("comparison"));
             expect(card.getByText("129/84")).toBeInTheDocument();
-            expect(card.getByText(/sin lecturas la semana anterior/i)).toBeInTheDocument();
+            expect(card.getByText(/sin lecturas en los 7 días anteriores/i)).toBeInTheDocument();
+            expect(card.getByText("Últimos 7 días")).toBeInTheDocument();
+            expect(card.getByText("Los 7 días anteriores")).toBeInTheDocument();
+            expect(card.getByText(/ventana móvil de siete días/i)).toBeInTheDocument();
         });
 
         it("shows the share of readings per category", () => {
@@ -175,7 +178,7 @@ describe("extra home widgets", () => {
 
         it("lists the linked devices or invites to connect one", async () => {
             mount();
-            expect(within(widget("devices")).getByText(/sin dispositivos vinculados/i)).toBeInTheDocument();
+            expect(within(widget("devices")).getByText(/sin dispositivos permitidos en este navegador/i)).toBeInTheDocument();
             await userEvent.click(within(widget("devices")).getByRole("button", { name: /conectar dispositivo/i }));
             expect(handlers.onConnectDevice).toHaveBeenCalled();
         });
@@ -188,6 +191,7 @@ describe("extra home widgets", () => {
             mount();
             const card = within(widget("devices"));
             expect(card.getByText("Omron X-450")).toBeInTheDocument();
+            expect(card.getByText("Permitido en este navegador")).toBeInTheDocument();
             expect(card.queryByText("Beurer BM-28")).not.toBeInTheDocument();
         });
 
