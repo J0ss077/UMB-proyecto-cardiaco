@@ -2,7 +2,7 @@
 
 Generado por `scripts/build_map.py` desde las anotaciones `@requirement` del código. No se edita a mano: se regenera con `make docs`. El estado y el texto de cada requerimiento están en `docs/manual/requerimientos.md`.
 
-Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 167 (144 módulos y 23 pruebas). Archivos de infraestructura (`@requirement none`): 44. Archivos sin anotación: 38.
+Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 167 (144 módulos y 23 pruebas). Archivos de infraestructura (`@requirement none`): 46. Archivos sin anotación: 38.
 
 ## RF-01 Registro, autenticación y recuperación de credenciales
 

@@ -1,4 +1,6 @@
-"""Página de estado del servicio y de lo que hay detrás.
+"""@requirement none
+
+Página de estado del servicio y de lo que hay detrás.
 
 El navegador que abre ``/api/health`` recibe esta página; cualquier otro
 cliente recibe el JSON del contrato. Cada comprobación mide su latencia y

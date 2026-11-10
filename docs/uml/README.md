@@ -14,7 +14,7 @@ Los 58 diagramas del manual técnico y el de tipos enumerados, cada uno con su c
 | `08_componentes/` | Componentes | 1 |
 | `09_distribucion/` | Distribución | 1 |
 
-Las imágenes son las del manual, salvo la de tipos enumerados, que se generó con PlantUML a partir de su código en `docs/manual/diagramas-uml.md`. Para regenerar una se abre el `.puml` en PlantUML.
+Cada carpeta guarda el `.puml` y su `.png` con el mismo nombre. Para regenerar una imagen se abre su `.puml` en PlantUML.
 
 ## Casos de uso
 

@@ -426,43 +426,93 @@ Exige sesión con rol `admin`. Revoca los tokens de refresco vigentes de otra
 cuenta sin desactivarla y sin borrar historial. La auditoría registra
 `accounts.sessions_revoked` sin guardar los tokens.
 
-Respuesta 204, sin cuerpo.
+Respuesta 204, sin cuerpo. La llamada real cerró las sesiones de
+`paciente2@hta.demo`, que volvió a iniciar sesión con la misma contraseña.
 
 Errores: 404 con `La cuenta no existe`; 409 con
 `No puedes cerrar tus propias sesiones`.
+
+### Rutas de administración
+
+Las rutas de `/api/admin` son la consola de administración: asignan médicos y
+autorizan cuidadores, fijan los umbrales de alerta y sus destinatarios, y
+consultan el rastro de auditoría. Ninguna devuelve lecturas ni síntomas. Todas
+exigen sesión con rol `admin`.
+
+| Método | Ruta                                                          | Qué hace                                                             |
+| ------ | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| GET    | `/api/admin/links`                                            | Lista las asignaciones de médicos y las autorizaciones de cuidadores |
+| POST   | `/api/admin/physicians`                                       | Asigna un médico a un paciente                                       |
+| DELETE | `/api/admin/physicians/{patient_user_id}/{physician_user_id}` | Quita la asignación de un médico                                     |
+| POST   | `/api/admin/caregivers`                                       | Autoriza a un cuidador con un alcance                                |
+| PATCH  | `/api/admin/caregivers/{link_id}`                             | Cambia el alcance de una autorización                                |
+| DELETE | `/api/admin/caregivers/{link_id}`                             | Revoca una autorización                                              |
+| GET    | `/api/admin/alert-config`                                     | Lista los umbrales y sus destinatarios                               |
+| PATCH  | `/api/admin/alert-config/{config_id}`                         | Cambia la banda de una métrica                                       |
+| PATCH  | `/api/admin/alert-config/{config_id}/recipients`              | Cambia los destinatarios de una métrica                              |
+| GET    | `/api/admin/audit`                                            | Consulta el rastro de auditoría                                      |
+| GET    | `/api/admin/password-requests`                                | Lista las solicitudes de cambio de contraseña                        |
+| POST   | `/api/admin/password-requests/{user_id}/approve`              | Aprueba una solicitud                                                |
+| POST   | `/api/admin/password-requests/{user_id}/reject`               | Rechaza una solicitud                                                |
+
+Cada ruta tiene su sección con la petición, la respuesta y los errores propios.
 
 ### `GET /api/admin/links`
 
 Exige sesión con rol `admin`. Devuelve las asignaciones de médicos y las
 autorizaciones de cuidadores, con nombres y sin cifras clínicas.
 
+Respuesta 200 real de la pila de demostración:
+
 ```json
 {
     "physicians": [
         {
-            "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
-            "patient_name": "Ana María Rojas",
-            "physician_user_id": "1106cf54-2606-47f6-a368-cb15e834ca56",
+            "patient_user_id": "b468e035-ca18-4fed-a05a-75a3b05f2655",
+            "patient_name": "Ana María Torres Gil",
+            "physician_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
             "physician_name": "Julián Andrés Morales Vega",
-            "assigned_at": "2026-11-01T12:00:00Z"
+            "assigned_at": "2026-08-12T08:00:00Z"
+        },
+        {
+            "patient_user_id": "38116b94-05c0-481d-a7c1-c915073e213f",
+            "patient_name": "Carlos Alberto Pérez Ruiz",
+            "physician_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
+            "physician_name": "Julián Andrés Morales Vega",
+            "assigned_at": "2026-08-12T08:00:00Z"
+        },
+        {
+            "patient_user_id": "d1f2bcb8-5c3a-4b55-870e-1f38facc1e52",
+            "patient_name": "Jorge Enrique Ramírez Salas",
+            "physician_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
+            "physician_name": "Julián Andrés Morales Vega",
+            "assigned_at": "2026-08-12T08:00:00Z"
+        },
+        {
+            "patient_user_id": "b4718b9d-3e8d-4bf5-91c4-f2ddae43f689",
+            "patient_name": "María Fernanda López Díaz",
+            "physician_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
+            "physician_name": "Julián Andrés Morales Vega",
+            "assigned_at": "2026-08-12T08:00:00Z"
         }
     ],
     "caregivers": [
         {
-            "id": "c8646730-68d7-4ff7-9f02-8c2f4846ccb1",
-            "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
-            "patient_name": "Ana María Rojas",
-            "caregiver_user_id": "058f72ca-eaed-4ab8-8303-8b08a9292f86",
-            "caregiver_name": "Cuidador de demostración",
+            "id": "8db4fc20-4acb-41ac-a186-708f764a9334",
+            "patient_user_id": "b468e035-ca18-4fed-a05a-75a3b05f2655",
+            "patient_name": "Ana María Torres Gil",
+            "caregiver_user_id": "be71a4ee-e881-45ac-ac98-537c6631d3d1",
+            "caregiver_name": "Marta Lucía Gómez Torres",
             "authorized_scope": "readings",
-            "created_at": "2026-11-01T12:00:00Z"
+            "created_at": "2026-10-31T10:00:00Z"
         }
     ]
 }
 ```
 
-`authorized_scope` vale `minimal` o `readings`. Errores: 401 sin sesión válida;
-403 si el rol no es `admin`.
+Los identificadores y las marcas de tiempo salen de la siembra de demostración y
+cambian si la base se vuelve a sembrar. `authorized_scope` vale `minimal` o
+`readings`. Errores: 401 sin sesión válida; 403 si el rol no es `admin`.
 
 ### `POST /api/admin/physicians`
 
@@ -470,25 +520,46 @@ Asigna un médico activo a un paciente con perfil.
 
 ```json
 {
-    "patient_user_id": "bf652215-8ac5-4c95-b884-a293cc1477af",
-    "physician_user_id": "1106cf54-2606-47f6-a368-cb15e834ca56"
+    "patient_user_id": "b468e035-ca18-4fed-a05a-75a3b05f2655",
+    "physician_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3"
 }
 ```
 
-Respuesta 204. Errores: 404 con `La cuenta no existe`; 409 con
+Respuesta 204, sin cuerpo. Errores: 404 con `La cuenta no existe`; 409 con
 `La cuenta está desactivada` o `Ese médico ya está asignado a este paciente`;
 422 si el rol no corresponde o el paciente no tiene perfil.
 
 ### `DELETE /api/admin/physicians/{patient_user_id}/{physician_user_id}`
 
-Quita la asignación. Respuesta 204. 404 con `El vínculo no existe` si no estaba.
+Quita la asignación. Respuesta 204, sin cuerpo. 404 con `El vínculo no existe` si no estaba.
 
 ### `POST /api/admin/caregivers`
 
 Autoriza a un cuidador. El cuerpo lleva `patient_user_id`, `caregiver_user_id`
-y `authorized_scope` (`minimal` o `readings`). Respuesta 201 con `id`. 409 con
-`Ese cuidador ya está autorizado para este paciente`. 422 con
-`Alcance desconocido` si el alcance no es uno de los dos.
+y `authorized_scope` (`minimal` o `readings`).
+
+Petición real:
+
+```json
+{
+    "patient_user_id": "38116b94-05c0-481d-a7c1-c915073e213f",
+    "caregiver_user_id": "be71a4ee-e881-45ac-ac98-537c6631d3d1",
+    "authorized_scope": "readings"
+}
+```
+
+Respuesta 201 con el identificador del vínculo:
+
+```json
+{
+    "id": "1707976b-6f95-4f96-940c-67abe32609ea"
+}
+```
+
+409 con `Ese cuidador ya está autorizado para este paciente`. 422 con
+`Alcance desconocido` si el alcance no es uno de los dos. El vínculo de la
+petición se revocó después de la llamada con `DELETE` para dejar la
+demostración como estaba.
 
 ### `PATCH /api/admin/caregivers/{link_id}`
 
@@ -496,11 +567,12 @@ y `authorized_scope` (`minimal` o `readings`). Respuesta 201 con `id`. 409 con
 { "authorized_scope": "minimal" }
 ```
 
-Respuesta 204. 404 con `El vínculo no existe`.
+Respuesta 204, sin cuerpo. 404 con `El vínculo no existe`. En la llamada real el
+alcance se cambió a `minimal` y se devolvió a `readings`.
 
 ### `DELETE /api/admin/caregivers/{link_id}`
 
-Revoca la autorización. Respuesta 204. 404 con `El vínculo no existe`.
+Revoca la autorización. Respuesta 204, sin cuerpo. 404 con `El vínculo no existe`.
 
 ### `GET /api/admin/alert-config`
 
@@ -509,15 +581,53 @@ Lista los umbrales, con la envoltura de listado. `recipients` es una lista de
 configuración general. No incluye lecturas. Los cuatro números pueden ser nulos:
 esa orilla no dispara aviso.
 
+Respuesta 200 real de la pila de demostración:
+
+```json
+{
+    "items": [
+        {
+            "id": "a76c07c9-b6c3-461f-93d8-73bb17a79853",
+            "patient_user_id": null,
+            "patient_name": null,
+            "metric": "diastolic",
+            "low_threshold": null,
+            "high_threshold": 90.0,
+            "critical_low": null,
+            "critical_high": 120.0,
+            "recipients": [
+                "physician"
+            ]
+        },
+        {
+            "id": "dc9f35f1-ff91-49d0-80ea-60f2dd7cdb85",
+            "patient_user_id": null,
+            "patient_name": null,
+            "metric": "systolic",
+            "low_threshold": null,
+            "high_threshold": 140.0,
+            "critical_low": null,
+            "critical_high": 180.0,
+            "recipients": [
+                "physician"
+            ]
+        }
+    ],
+    "total": 2
+}
+```
+
 ### `PATCH /api/admin/alert-config/{config_id}/recipients`
 
 ```json
 { "recipients": ["patient", "physician"] }
 ```
 
-Cambia solo los destinatarios. Un cuerpo con `high_threshold` u otro campo
-responde 422. Un destinatario fuera del conjunto responde 422 con
-`Destinatario desconocido`. 404 con `La configuración no existe`.
+Respuesta 204, sin cuerpo. Cambia solo los destinatarios. Un cuerpo con
+`high_threshold` u otro campo responde 422. Un destinatario fuera del conjunto
+responde 422 con `Destinatario desconocido`. 404 con
+`La configuración no existe`. La llamada de verificación reenvió los
+destinatarios que la configuración ya tenía y respondió 204.
 
 ### `PATCH /api/admin/alert-config/{config_id}`
 
@@ -530,13 +640,17 @@ responde 422. Un destinatario fuera del conjunto responde 422 con
 }
 ```
 
+Respuesta 204, sin cuerpo.
+
 Sustituye la banda completa. Los cuatro campos van siempre; un `null` borra esa
 orilla. El aviso desde tiene que ser menor que el aviso hasta, y el crítico
 tiene que quedar por fuera de ese aviso. Para la sistólica cada número va de
 40 a 260, y para la diastólica de 20 a 180. Una banda invertida o fuera de ese
 intervalo responde 422 con el motivo. 404 con `La configuración no existe`.
 La auditoría registra `alert_config.thresholds_updated` con la banda anterior y
-la nueva. Estos números siguen sin ser evidencia clínica hasta la firma.
+la nueva. Estos números siguen sin ser evidencia clínica hasta la firma. La
+llamada de verificación reescribió la banda vigente con sus mismos valores y la
+dejó igual.
 
 ### `GET /api/admin/audit`
 
@@ -549,6 +663,37 @@ exacto. `topic` es el tipo, el tramo anterior al punto: `auth`, `accounts`,
 horario. Cada evento trae `actor_name`, `action`, `entity`, `ip`,
 `occurred_at` y `details`. Si la acción es de lectura, síntoma, alerta, consulta
 o ingesta, `details` vale `null` y `details_withheld` vale `true`.
+
+Respuesta 200 real de `GET /api/admin/audit?action=alert.dismissed&limit=1`:
+
+```json
+{
+    "items": [
+        {
+            "id": "b8d92beb-a8d7-4f9b-8a79-0a2f2e6cb8f8",
+            "actor_user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
+            "actor_name": "Julián Andrés Morales Vega",
+            "action": "alert.dismissed",
+            "entity": "alerts",
+            "entity_id": "4c75f909-29c6-4a1d-b568-3c7b2183442d",
+            "ip": null,
+            "occurred_at": "2026-11-05T10:00:00Z",
+            "details": null,
+            "details_withheld": true
+        }
+    ],
+    "total": 1
+}
+```
+
+Los eventos con `details` visible traen un objeto; por ejemplo, una asignación de
+médico lleva el `patient_user_id` en `details` y `details_withheld` en `false`.
+
+Las respuestas de esta sección se capturaron con llamadas reales contra la pila de
+demostración. Las rutas que cambian estado se ejecutaron sobre esos datos y se
+revirtieron: el vínculo del cuidador se creó y se revocó, la asignación del médico
+se quitó y se volvió a crear, y la banda y los destinatarios se reescribieron con
+los mismos valores. La auditoría conserva esos eventos.
 
 Errores de todas las rutas de `/api/admin`: 401 sin sesión válida y 403 con
 `Permiso denegado` si el rol no es `admin`.
@@ -709,11 +854,11 @@ lista de validación si el cuerpo no cumple las reglas.
 Exige sesión con rol `physician`, `caregiver` o `admin`. Devuelve el perfil de la cuenta que firma la
 petición; no recibe identificador.
 
-Respuesta 200:
+Respuesta 200 real de la sesión del médico de demostración:
 
 ```json
 {
-    "user_id": "bc30c07c-44d3-4525-bfa3-33a26a2d06e2",
+    "user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
     "email": "medico@hta.demo",
     "full_name": "Julián Andrés Morales Vega",
     "role": "physician",
@@ -743,6 +888,10 @@ Reglas:
 - La auditoría registra `staff.profile_updated` con los nombres de los campos, no con sus valores.
 - La desactivación de la cuenta vacía las cuatro columnas.
 
+Una llamada real desde la cuenta del cuidador con su mismo teléfono respondió 200
+con el perfil completo y `license_number` y `specialty` en `null`; el dato no
+cambió.
+
 ### Cambio de contraseña del personal
 
 Rutas con sesión `physician`, `caregiver` o `admin`; el paciente recibe 403. El cambio del médico y
@@ -751,16 +900,73 @@ del cuidador lo aprueba un administrador; el administrador cambia la suya al mom
 - `GET /api/account/password-change` devuelve `{"status": "none" | "pending", "requested_at": ... }`.
 - `POST /api/account/password-change` con `{"current_password": "...", "new_password": "..."}`. La nueva
   admite de 8 a 128 caracteres y debe ser distinta de la actual (422 si no). Con la actual incorrecta
-  responde 400. Médico y cuidador reciben 202 con `{"status": "pending", "requested_at": ...}`; la
+  responde 400 con `La contraseña actual no es correcta`. Médico y cuidador reciben 202 con
+  `{"status": "pending", "requested_at": ...}`; la
   contraseña vigente no cambia hasta la aprobación y una solicitud nueva reemplaza a la anterior. El
   administrador recibe 200 con `{"status": "changed", "requested_at": null}` y sus sesiones se cierran.
 - `DELETE /api/account/password-change` retira la solicitud propia; responde 204.
 - `GET /api/admin/password-requests` (solo `admin`) devuelve `{"items": [{"user_id", "email",
   "full_name", "role", "requested_at"}]}`, de la más antigua a la más reciente, sin contraseñas.
-- `POST /api/admin/password-requests/{user_id}/approve` y `/reject` (solo `admin`) responden 204. Al
+- `POST /api/admin/password-requests/{user_id}/approve` y
+  `POST /api/admin/password-requests/{user_id}/reject` (solo `admin`) responden 204. Al
   aprobar se cierran las sesiones de esa cuenta; sin solicitud pendiente responden 404.
 - La auditoría registra `password.change_requested`, `password.change_approved`,
   `password.change_rejected`, `password.change_cancelled` y `password.changed`, sin contraseñas.
+
+Respuestas reales de la pila de demostración. Sin solicitud, `GET` devuelve:
+
+```json
+{
+    "status": "none",
+    "requested_at": null
+}
+```
+
+La llamada real de `DELETE` retiró una solicitud pendiente y respondió 204;
+`GET` volvió a devolver `none` y la contraseña vigente siguió siendo la misma.
+
+Una solicitud del médico deja el estado en `pending`; `POST` responde 202 con ese
+cuerpo y `GET` devuelve lo mismo:
+
+```json
+{
+    "status": "pending",
+    "requested_at": "2026-11-10T05:31:12.016108Z"
+}
+```
+
+Mientras espera, `GET /api/admin/password-requests` la lista con los datos de la
+cuenta, sin contraseñas:
+
+```json
+{
+    "items": [
+        {
+            "user_id": "263d0c80-a724-44f8-9fd0-faff95facae3",
+            "email": "medico@hta.demo",
+            "full_name": "Julián Andrés Morales Vega",
+            "role": "physician",
+            "requested_at": "2026-11-10T05:31:12.016108Z"
+        }
+    ]
+}
+```
+
+Aprobar respondió 204 y aplicó la contraseña pedida; la cuenta dueña debe iniciar
+sesión de nuevo con esa contraseña porque sus refrescos quedaron revocados. Para
+no dejar la cuenta de demostración con otra contraseña, se pidió el cambio de
+vuelta y se aprobó; las dos aprobaciones son llamadas reales. Rechazar respondió
+204 y no tocó la contraseña vigente. Sin solicitud pendiente, aprobar o rechazar
+responde 404:
+
+```json
+{
+    "detail": "No hay una solicitud de cambio de contraseña para esa cuenta"
+}
+```
+
+La auditoría de esas llamadas conserva `password.change_requested`,
+`password.change_approved` y `password.change_rejected` sin contraseñas.
 
 ### `POST /api/consultations`
 
