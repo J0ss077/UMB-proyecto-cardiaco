@@ -1,200 +1,111 @@
 """@requirement none
 
-Página de estado del servicio y de lo que hay detrás.
+Página pública de estado del servicio y de lo que hay detrás.
 
 El navegador que abre ``/api/health`` recibe esta página; cualquier otro
-cliente recibe el JSON del contrato. Cada comprobación mide su latencia y
-devuelve el detalle que una persona necesita para ubicar una falla. Nunca se
-muestran URL de conexión ni mensajes de error de los controladores, solo el
-nombre del tipo de error, porque esos mensajes pueden traer credenciales.
+cliente recibe el JSON del contrato. La página publica solo si cada componente
+responde: no muestra cifras clínicas, ni el entorno, ni versiones, ni rutas de
+conexión. Un dato así ayudaría a tantear el sistema y no aporta a quien solo
+quiere saber si el servicio está arriba. Los mensajes de error de los
+controladores tampoco salen: pueden traer credenciales.
 """
 
 from __future__ import annotations
 
 import html
+import http.client
 import logging
-import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
+from urllib.parse import urlparse
 
 import psycopg
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
-from hta.config import Settings
-
 logger = logging.getLogger(__name__)
 
-# Tablas del registro clínico (no cuenta la bitácora de migraciones).
-EXPECTED_TABLES = 16
 
-STARTED_AT = time.monotonic()
-
-
-@dataclass
+@dataclass(frozen=True)
 class ComponentStatus:
-    """Resultado de comprobar un componente: estado, latencia y datos sueltos."""
+    """Resultado de comprobar un componente: si responde o no."""
 
     name: str
     role: str
     state: str  # "ok" o "fail"
-    latency_ms: float | None = None
-    details: list[tuple[str, str]] = field(default_factory=list)
-    error: str | None = None
 
 
 def check_postgres(database_url: str) -> ComponentStatus:
-    """Consulta versión, migraciones aplicadas y tablas del registro clínico."""
-    status = ComponentStatus("PostgreSQL", "Registro clínico", "fail")
-    started = time.perf_counter()
+    """Comprueba que PostgreSQL responde a una consulta trivial."""
     try:
         with psycopg.connect(database_url, connect_timeout=2) as connection:
-            version = connection.execute("SELECT version()").fetchone()[0]
-            status.latency_ms = (time.perf_counter() - started) * 1000
-            migrations = connection.execute(
-                "SELECT count(*), max(applied_at) FROM schema_migrations"
-            ).fetchone()
-            tables = connection.execute(
-                "SELECT count(*) FROM information_schema.tables "
-                "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
-                "AND table_name <> 'schema_migrations'"
-            ).fetchone()[0]
-        status.state = "ok"
-        status.details = [
-            ("Versión", " ".join(version.split()[:2])),
-            ("Migraciones aplicadas", str(migrations[0])),
-            ("Última migración", _format_time(migrations[1])),
-            ("Tablas del registro", f"{tables} de {EXPECTED_TABLES}"),
-        ]
-        if tables != EXPECTED_TABLES:
-            status.state = "degraded"
-            status.error = "El número de tablas no coincide con el esperado"
+            connection.execute("SELECT 1")
     except psycopg.Error as error:
         logger.warning("La comprobación de PostgreSQL falló: %s", error)
-        status.error = type(error).__name__
-    return status
+        return ComponentStatus("PostgreSQL", "Registro clínico", "fail")
+    return ComponentStatus("PostgreSQL", "Registro clínico", "ok")
 
 
 def check_mongo(mongo_url: str) -> ComponentStatus:
-    """Consulta versión y colecciones de la base del flujo crudo."""
+    """Comprueba que MongoDB responde a un ping.
+
+    El cliente se construye dentro del ``try``: una URL vacía lanza
+    ``ConfigurationError``, una malformada ``InvalidURI`` y un puerto inválido
+    ``ValueError``. Las dos primeras heredan de ``PyMongoError``; la tercera se
+    captura aparte para que el handler nunca propague la excepción.
+    """
     status = ComponentStatus("MongoDB", "Flujo crudo de dispositivos", "fail")
     client: MongoClient | None = None
-    started = time.perf_counter()
     try:
         client = MongoClient(mongo_url, serverSelectionTimeoutMS=1500)
-        info = client.server_info()
-        status.latency_ms = (time.perf_counter() - started) * 1000
-        database = client.get_default_database(default="hta")
-        collections = sorted(database.list_collection_names())
-        status.state = "ok"
-        status.details = [
-            ("Versión", str(info.get("version", "desconocida"))),
-            ("Base de datos", database.name),
-            ("Colecciones", ", ".join(collections) if collections else "ninguna"),
-        ]
+        client.admin.command("ping")
     except (PyMongoError, ValueError) as error:
         logger.warning("La comprobación de MongoDB falló: %s", error)
-        status.error = type(error).__name__
+        return status
     finally:
         if client is not None:
             client.close()
-    return status
-
-
-def check_demo_data(database_url: str) -> ComponentStatus:
-    """Informa si los datos de demostración (`make seed`) están cargados."""
-    status = ComponentStatus("Datos de prueba", "Cuentas y registros de demostración", "fail")
-    try:
-        with psycopg.connect(database_url, connect_timeout=2) as connection:
-            accounts = connection.execute(
-                "SELECT count(*) FROM users WHERE email LIKE '%@hta.demo'"
-            ).fetchone()[0]
-            counts = {
-                table: connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
-                for table in (
-                    "patient_profiles",
-                    "consents",
-                    "readings",
-                    "alerts",
-                    "medications",
-                    "teleconsultations",
-                    "alert_config",
-                )
-            }
-    except psycopg.Error as error:
-        logger.warning("La comprobación de datos de prueba falló: %s", error)
-        status.error = type(error).__name__
-        return status
-    status.details = [
-        ("Cuentas de demostración", str(accounts)),
-        ("Pacientes", str(counts["patient_profiles"])),
-        ("Consentimientos", str(counts["consents"])),
-        ("Lecturas de presión", str(counts["readings"])),
-        ("Alertas", str(counts["alerts"])),
-        ("Medicamentos", str(counts["medications"])),
-        ("Teleconsultas", str(counts["teleconsultations"])),
-        ("Umbrales configurados", str(counts["alert_config"])),
-    ]
-    if accounts == 0 or counts["readings"] == 0:
-        status.state = "degraded"
-        status.error = "Sin datos de demostración; ejecuta make seed"
-    else:
-        status.state = "ok"
-    return status
+    return ComponentStatus("MongoDB", "Flujo crudo de dispositivos", "ok")
 
 
 def check_web(web_url: str) -> ComponentStatus:
-    """Comprueba que la interfaz web responde. Sin URL configurada no se mide."""
+    """Comprueba que la interfaz web responde a una petición HTTP.
+
+    Una URL ausente, una que no sea ``http`` o ``https`` y una que no se pueda
+    interpretar dejan el componente como no disponible. No se lanza la
+    excepción: la página de estado tiene que seguir respondiendo aunque la
+    configuración esté mal.
+    """
     status = ComponentStatus("Interfaz web", "Aplicación de paciente, médico y administrador", "fail")
     if not web_url:
-        status.state = "degraded"
-        status.error = "HTA_WEB_URL no está configurada"
         return status
-    started = time.perf_counter()
+    parsed = urlparse(web_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        logger.warning("HTA_WEB_URL no es una URL HTTP utilizable: %s", web_url)
+        return status
     try:
-        with urllib.request.urlopen(web_url, timeout=2) as response:
-            status.latency_ms = (time.perf_counter() - started) * 1000
-            status.state = "ok"
-            status.details = [("Respuesta HTTP", str(response.status))]
-    except (urllib.error.URLError, OSError, ValueError) as error:
+        with urllib.request.urlopen(web_url, timeout=2):
+            pass
+    except (
+        urllib.error.URLError,
+        http.client.HTTPException,
+        OSError,
+        UnicodeError,
+        ValueError,
+    ) as error:
+        # ``InvalidURL`` y ``RemoteDisconnected`` heredan de ``HTTPException``;
+        # no de ``ValueError``. Un puerto no numérico cae aquí y no debe tumbar
+        # la página.
         logger.warning("La comprobación de la web falló: %s", error)
-        status.error = type(error).__name__
-    return status
+        return status
+    return ComponentStatus("Interfaz web", "Aplicación de paciente, médico y administrador", "ok")
 
 
-def check_api(settings: Settings, version: str) -> ComponentStatus:
+def check_api() -> ComponentStatus:
     """Describe la propia API: si responde esta página, está arriba."""
-    seconds = int(time.monotonic() - STARTED_AT)
-    return ComponentStatus(
-        "API",
-        "Servicio FastAPI",
-        "ok",
-        latency_ms=0.0,
-        details=[
-            ("Versión", version),
-            ("Entorno", settings.environment),
-            ("En línea desde hace", _format_duration(seconds)),
-            ("Dispositivos", "ingesta abierta" if settings.device_key else "ingesta cerrada"),
-        ],
-    )
-
-
-def _format_time(value: datetime | None) -> str:
-    if value is None:
-        return "ninguna"
-    return value.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-
-def _format_duration(seconds: int) -> str:
-    hours, rest = divmod(seconds, 3600)
-    minutes, secs = divmod(rest, 60)
-    if hours:
-        return f"{hours} h {minutes} min"
-    if minutes:
-        return f"{minutes} min {secs} s"
-    return f"{secs} s"
+    return ComponentStatus("API", "Servicio FastAPI", "ok")
 
 
 _LABELS = {"ok": "Operativo", "degraded": "Degradado", "fail": "Caído"}
@@ -220,8 +131,6 @@ padding:16px;margin-bottom:12px}
 .ok{background:var(--ok-bg);color:var(--ok)}
 .degraded{background:var(--warn-bg);color:var(--warn)}
 .fail{background:var(--fail-bg);color:var(--fail)}
-dl{margin:12px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;font-size:.9rem}
-dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}
 .err{margin-top:10px;font-size:.9rem;color:var(--fail)}
 footer{color:var(--muted);font-size:.8rem;margin-top:20px}
 a{color:inherit}
@@ -233,22 +142,16 @@ def render(components: list[ComponentStatus], overall: str, now: datetime) -> st
     e = html.escape
     cards = []
     for item in components:
-        rows = "".join(f"<dt>{e(k)}</dt><dd>{e(v)}</dd>" for k, v in item.details)
-        if item.latency_ms is not None and item.name != "API":
-            rows = f"<dt>Latencia</dt><dd>{item.latency_ms:.0f} ms</dd>" + rows
-        error = (
-            f'<div class="err">Error: {e(item.error)}</div>' if item.error else ""
-        )
-        details = f"<dl>{rows}</dl>" if rows else ""
+        error = '<div class="err">No responde</div>' if item.state != "ok" else ""
         cards.append(
             f'<section class="card"><div class="head"><div>'
             f'<div class="name">{e(item.name)}</div><div class="role">{e(item.role)}</div>'
             f'</div><span class="badge {item.state}">{_LABELS[item.state]}</span></div>'
-            f"{details}{error}</section>"
+            f"{error}</section>"
         )
     banner = {
-        "ok": "Todos los servicios operan con normalidad.",
-        "degraded": "Hay servicios con problemas. Revisa el detalle de cada uno.",
+        "ok": "Todos los servicios responden.",
+        "degraded": "Hay servicios que no responden.",
     }[overall]
     stamp = now.strftime("%Y-%m-%d %H:%M:%S UTC")
     return (

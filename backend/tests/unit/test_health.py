@@ -9,11 +9,12 @@ CLOSED_DATABASE_URL = "postgresql://usuario:clave@127.0.0.1:1/hta"
 CLOSED_MONGO_URL = "mongodb://127.0.0.1:1"
 
 
-def _client(monkeypatch, mongo_url: str) -> TestClient:
-    """Construye un cliente con ambas dependencias apuntando a un puerto cerrado."""
+def _client(monkeypatch, mongo_url: str, web_url: str = "") -> TestClient:
+    """Construye un cliente con las dependencias apuntando a un puerto cerrado."""
     monkeypatch.setenv("HTA_DATABASE_URL", CLOSED_DATABASE_URL)
     monkeypatch.setenv("HTA_MONGO_URL", mongo_url)
     monkeypatch.setenv("HTA_JWT_SECRET", "secreto-de-prueba-para-las-pruebas-unitarias")
+    monkeypatch.setenv("HTA_WEB_URL", web_url)
     return TestClient(create_app())
 
 
@@ -60,9 +61,49 @@ def test_health_returns_html_page_for_browsers(monkeypatch):
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "Hay servicios con problemas" in response.text
+    assert "Hay servicios que no responden" in response.text
     assert "Caído" in response.text
     assert "usuario:clave" not in response.text
+
+
+@pytest.mark.parametrize(
+    "web_url",
+    ["no-es-una-url", "ftp://example.invalid", "http://127.0.0.1:notaport"],
+    ids=["sin-esquema", "esquema-ajeno", "puerto-invalido"],
+)
+def test_health_page_marks_the_web_unavailable_when_the_url_is_not_http(
+    monkeypatch, web_url
+):
+    """Una URL web que no es HTTP deja el componente caído y no lanza 500.
+
+    ``urllib`` no acepta un esquema ajeno y ``http.client.InvalidURL`` no hereda
+    de ``ValueError``: sin la validación previa y sin capturarla, la página de
+    estado respondería 500. Debe responder 200 y marcar la interfaz como no
+    disponible.
+    """
+    with _client(monkeypatch, CLOSED_MONGO_URL, web_url) as client:
+        response = client.get("/api/health", headers={"Accept": "text/html"})
+
+    assert response.status_code == 200
+    assert "Interfaz web" in response.text
+    assert "No responde" in response.text
+
+
+def test_health_page_publishes_no_environment_or_clinical_counts(monkeypatch):
+    """La página pública no nombra el entorno ni las cifras de la demostración."""
+    with _client(monkeypatch, CLOSED_MONGO_URL) as client:
+        response = client.get("/api/health", headers={"Accept": "text/html"})
+
+    for forbidden in (
+        "Entorno",
+        "Migraciones",
+        "Tablas del registro",
+        "Lecturas",
+        "Teleconsultas",
+        "ingesta abierta",
+        "ingesta cerrada",
+    ):
+        assert forbidden not in response.text
 
 
 def test_health_keeps_json_when_format_is_json(monkeypatch):

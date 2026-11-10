@@ -72,8 +72,8 @@ def health(request: Request) -> HealthResponse | Response:
     Responde 200 aunque una dependencia falle: el cuerpo distingue la
     dependencia degradada y el campo ``status`` queda en ``degraded``. Si el
     cliente es un navegador (``Accept: text/html``) o pide ``?format=html``,
-    recibe una página con el detalle de cada componente; el contrato JSON no
-    cambia para los demás clientes.
+    recibe una página que solo dice si cada componente responde; el contrato
+    JSON no cambia para los demás clientes.
     """
     settings = request.app.state.settings
     if _wants_html(request):
@@ -87,10 +87,9 @@ def health(request: Request) -> HealthResponse | Response:
 def _html_page(request: Request) -> HTMLResponse:
     settings = request.app.state.settings
     components = [
-        status_page.check_api(settings, request.app.version),
+        status_page.check_api(),
         status_page.check_postgres(settings.database_url),
         status_page.check_mongo(settings.mongo_url),
-        status_page.check_demo_data(settings.database_url),
         status_page.check_web(settings.web_url),
     ]
     overall = "ok" if all(item.state == "ok" for item in components) else "degraded"
