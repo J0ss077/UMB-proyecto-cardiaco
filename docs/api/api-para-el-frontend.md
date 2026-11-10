@@ -619,8 +619,8 @@ dejó igual.
 Lista el rastro, del más reciente al más antiguo, con `limit` y `offset`.
 Acepta `action`, `topic`, `since` y `until`. `action` es el identificador
 exacto. `topic` es el tipo, el tramo anterior al punto: `auth`, `accounts`,
-`profile`, `staff`, `links`, `consent`, `reading`, `symptom`, `alert`,
-`consultation` o `alert_config`. Un tipo desconocido responde 422 con
+`profile`, `staff`, `links`, `caregiver`, `consent`, `reading`, `symptom`,
+`alert`, `consultation` o `alert_config`. Un tipo desconocido responde 422 con
 `Tipo de actividad desconocido`. Las fechas son ISO 8601 con desplazamiento
 horario. Cada evento trae `actor_name`, `action`, `entity`, `ip`,
 `occurred_at` y `details`. Si la acción es de lectura, síntoma, alerta, consulta
@@ -696,6 +696,37 @@ si no falta ninguna. Así el cliente no compara versiones por su cuenta.
 
 Errores: 401 sin sesión válida, 403 si el rol no es `patient` o la cuenta de paciente no
 tiene perfil.
+
+### `GET /api/consent/document`
+
+Exige sesión con rol `patient`. Devuelve el documento vigente que el paciente
+lee y acepta: la versión, la referencia y el texto completo. El texto vive en
+`backend/src/hta/consent/documentos/consentimiento-v1.md`; el servidor lo fija y
+el cliente no lo envía, así que lo que el paciente lee es el mismo documento
+cuya versión se registra al aceptar y no una copia que la interfaz pueda cambiar
+por su cuenta.
+
+La ruta exige sesión y no es pública: la compuerta aparece después del inicio de
+sesión y el documento no se publica fuera del contexto de la cuenta.
+
+```http
+GET /api/consent/document
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...recortado
+```
+
+Respuesta 200:
+
+```json
+{
+    "version": 1,
+    "content_ref": "consentimiento-informado-v1",
+    "text": "# Consentimiento informado...\n\n## Qué datos se recogen\n..."
+}
+```
+
+El campo `text` es Markdown con títulos y listas. La interfaz lo muestra y
+mantiene visible la versión. Errores: 401 sin sesión válida, 403 si el rol no es
+`patient` o la cuenta de paciente no tiene perfil.
 
 ### `POST /api/consent`
 

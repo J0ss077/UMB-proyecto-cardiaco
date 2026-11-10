@@ -2,7 +2,7 @@
 
 Endpoints HTTP del consentimiento informado del paciente.
 
-Las tres rutas exigen una sesión con rol de paciente. El perfil se resuelve
+Las cuatro rutas exigen una sesión con rol de paciente. El perfil se resuelve
 desde la cuenta autenticada y no desde la ruta: nadie puede aceptar ni revocar
 en nombre de otro paciente, y una cuenta sin perfil se rechaza con 403 porque
 no habría a quién asociar la aceptación. La conexión la entrega ``auth.deps`` y
@@ -27,8 +27,8 @@ from hta.auth.deps import (
 )
 from hta.consent import service
 
-# Las tres rutas exigen una sesión de paciente: el contrato declara el 401 y el
-# 403 que produce la compuerta en todas ellas.
+# Las cuatro rutas exigen una sesión de paciente: el contrato declara el 401 y
+# el 403 que produce la compuerta en todas ellas.
 router = APIRouter(
     prefix="/api/consent",
     tags=["consent"],
@@ -88,6 +88,22 @@ class ConsentStatus(BaseModel):
     requires_acceptance_of_version: int | None
 
 
+class ConsentDocument(BaseModel):
+    """Documento vigente que el paciente debe leer antes de aceptar.
+
+    ``text`` es el contenido publicado por la plataforma para ``version``. El
+    cliente no lo redacta ni lo elige: lo pide a esta ruta y lo muestra tal
+    cual, de modo que lo que se registra al aceptar y lo que el paciente leyó
+    son el mismo documento.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    version: int
+    content_ref: str
+    text: str
+
+
 async def _profile_id(conn: AsyncConnection, user_id: UUID) -> UUID:
     """Devuelve el perfil de paciente de la cuenta o rechaza con 403.
 
@@ -104,6 +120,28 @@ async def _profile_id(conn: AsyncConnection, user_id: UUID) -> UUID:
     if row is None:
         raise HTTPException(status_code=403, detail=FORBIDDEN)
     return row[0]
+
+
+@router.get("/document", response_model=ConsentDocument)
+async def read_document(
+    user: Annotated[CurrentUser, Depends(require_role("patient"))],
+) -> ConsentDocument:
+    """Devuelve el documento vigente que el paciente debe leer antes de aceptar.
+
+    Exige sesión de paciente: la compuerta que lo muestra aparece después del
+    inicio de sesión y el documento no necesita ser público para leerse antes de
+    aceptar. Publicarlo sin sesión abriría el texto a cualquiera sin una razón
+    de producto; si algún día se necesita, se decidirá y se comentará aquí.
+
+    La versión y la referencia son las mismas constantes que registra la
+    aceptación, y el texto sale del archivo que vive dentro del paquete. Así el
+    paciente lee exactamente el documento al que su aceptación se refiere.
+    """
+    return ConsentDocument(
+        version=service.CURRENT_VERSION,
+        content_ref=service.CONSENT_CONTENT_REF,
+        text=service.document_text(),
+    )
 
 
 @router.get("", response_model=ConsentStatus)

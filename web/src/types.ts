@@ -39,6 +39,12 @@ export interface ConsentStatus {
     requires_acceptance_of_version: number | null;
 }
 
+export interface ConsentDocument {
+    version: number;
+    content_ref: string;
+    text: string;
+}
+
 export interface Patient {
     user_id: string;
     full_name: string;

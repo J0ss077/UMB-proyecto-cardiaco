@@ -196,11 +196,11 @@ describe("StaffProfile", () => {
         expect(await screen.findByText("Ana Torres")).toBeInTheDocument();
     });
 
-    it("says so when a caregiver has nobody in charge", async () => {
+    it("says so when no physician authorized the caregiver", async () => {
         mocks.getStaffProfile.mockResolvedValue({ ...base, role: "caregiver" });
         mocks.listPatients.mockResolvedValue({ items: [], total: 0 });
         mount("caregiver");
-        expect(await screen.findByText(/todavía nadie te autorizó/i)).toBeInTheDocument();
+        expect(await screen.findByText(/todavía ningún médico te autorizó/i)).toBeInTheDocument();
     });
 
     it("counts accounts, active accounts and open sessions for the administrator", async () => {

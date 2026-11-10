@@ -102,6 +102,40 @@ describe("AdminAudit", () => {
         expect(within(activity).queryByRole("option", { name: "Inicio de sesión" })).not.toBeInTheDocument();
     });
 
+    it("labels and filters the caregiver actions", async () => {
+        mocks.listAudit.mockResolvedValue({
+            items: [
+                event("e-caregiver", {
+                    action: "caregiver.linked",
+                    entity: "caregiver_links",
+                    details: {
+                        patient_user_id: "p1",
+                        caregiver_user_id: "c1",
+                        authorized_scope: "readings",
+                    },
+                }),
+            ],
+            total: 1,
+        });
+        mount();
+
+        const entry = await screen.findByRole("listitem");
+        expect(within(entry).getByText("Cuidador vinculado por el médico")).toBeInTheDocument();
+        expect(within(entry).queryByText("caregiver.linked")).not.toBeInTheDocument();
+        expect(within(entry).getByText(/cuidador: c1/i)).toBeInTheDocument();
+        expect(within(entry).getByText(/alcance: lecturas/i)).toBeInTheDocument();
+
+        await userEvent.selectOptions(screen.getByRole("combobox", { name: /filtrar por tipo/i }), "caregiver");
+
+        await waitFor(() =>
+            expect(mocks.listAudit).toHaveBeenLastCalledWith(expect.objectContaining({ topic: "caregiver", action: undefined })),
+        );
+        const activity = screen.getByRole("combobox", { name: /filtrar por actividad/i });
+        expect(within(activity).getByRole("option", { name: "Cuidador vinculado por el médico" })).toBeInTheDocument();
+        expect(within(activity).getByRole("option", { name: "Cambio de alcance del cuidador" })).toBeInTheDocument();
+        expect(within(activity).getByRole("option", { name: "Vínculo de cuidador revocado" })).toBeInTheDocument();
+    });
+
     it("filters by type, by activity and by day, covering the whole of each day", async () => {
         mount();
         await screen.findByText("Cambio de rol");

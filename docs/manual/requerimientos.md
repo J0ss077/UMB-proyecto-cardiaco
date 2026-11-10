@@ -142,7 +142,7 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 **Texto:** Permitir la visualización de los datos clínicos y sus tendencias en la interfaz web.
 
-**Motivo:** La interfaz muestra las tendencias del paciente con sus líneas de referencia, el promedio de siete días, la distribución por estado, el detalle del paciente en la pantalla del médico, la bandeja de alertas con sus tres transiciones, la vista de solo lectura del cuidador y la descarga del historial en Excel y PDF. El cuidador ve la información mínima que autorizó el paciente, que es lo que el diseño le asigna, y no series clínicas completas.
+**Motivo:** La interfaz muestra las tendencias del paciente con sus líneas de referencia, el promedio de siete días, la distribución por estado, el detalle del paciente en la pantalla del médico, la bandeja de alertas con sus tres transiciones, la vista de solo lectura del cuidador y la descarga del historial en Excel y PDF. El cuidador ve la información que le autorizó el médico tratante con el alcance del vínculo, que es lo que el diseño le asigna, y no series clínicas completas.
 
 ## RF-20 Chat con el modelo de IA
 

@@ -21,7 +21,12 @@ contraseñas son aleatorios por diseño.
 
 Un perfil de demostración que ya existía antes de la migración de contacto
 recibe sus cuatro columnas de contacto solo si están nulas: la siembra nunca
-pisa un valor que una persona haya editado.
+pisa un valor que una persona haya editado. Una columna nula de una de estas
+siete cuentas se repone aunque alguien la haya vaciado a propósito: la siembra
+solo corre sobre las cuentas de demostración y su trabajo es dejar el escenario
+completo. No hay una columna que distinga «nunca se fijó» de «se vació», y
+añadirla exigiría una migración que este alcance no justifica; por eso el
+relleno es deliberado y está documentado aquí.
 
 La siembra es idempotente por correo y también para las filas que cuelgan de
 cada cuenta: si un paciente ya tiene alguna lectura, no se le añade ninguna
@@ -424,6 +429,13 @@ def _ensure_profile(conn: Connection, user_id: UUID, profile: _Profile) -> UUID:
     cuatro columnas de contacto nulas. Se rellenan solo cuando están nulas:
     ``coalesce`` conserva lo que la persona haya editado y no pisa nunca un
     valor. Las demás columnas del perfil no se tocan.
+
+    Si una cuenta de demostración tiene una columna nula porque alguien la
+    vació, ``coalesce`` también la repone. Es correcto en este contexto y no en
+    uno real: la siembra solo toca las siete cuentas ficticias, cuyo propósito
+    es reponer el escenario de demostración, y no distingue «nunca se fijó» de
+    «se vació» porque el perfil no guarda esa historia. El porqué está en el
+    docstring del módulo.
     """
     row = conn.execute(
         "select id from patient_profiles where user_id = %s",
@@ -934,7 +946,12 @@ def _seed_caregiver_link(
     caregiver_id: UUID,
     anchor: datetime,
 ) -> None:
-    """Autoriza al cuidador a leer las lecturas del paciente que lo autorizó."""
+    """Vincula al cuidador con alcance de lecturas; el médico tratante autoriza.
+
+    La siembra no firma la autorización: solo materializa el vínculo que el
+    escenario de demostración necesita. Quien autoriza, cambia el alcance y
+    revoca es el médico vinculado al paciente, como decide el ADR 0012.
+    """
     row = conn.execute(
         "select 1 from caregiver_links where patient_id = %s and caregiver_id = %s",
         (patient_id, caregiver_id),

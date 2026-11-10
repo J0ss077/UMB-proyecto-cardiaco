@@ -256,10 +256,10 @@ describe("StaffHome", () => {
             expect(jorge.getByText(/sin alertas abiertas/i)).toBeInTheDocument();
         });
 
-        it("says nobody authorized the caregiver yet", async () => {
+        it("says no physician authorized the caregiver yet", async () => {
             mocks.listPatients.mockResolvedValue({ items: [], total: 0 });
             renderWithToasts(<StaffHome role="caregiver" />);
-            expect(await screen.findByText(/todavía nadie te autorizó/i)).toBeInTheDocument();
+            expect(await screen.findByText(/todavía ningún médico te autorizó/i)).toBeInTheDocument();
         });
     });
 

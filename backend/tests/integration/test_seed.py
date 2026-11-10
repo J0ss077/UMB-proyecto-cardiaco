@@ -9,8 +9,11 @@ cuentas, la ventana domiciliaria de cada paciente, las señales propias de cada
 escenario, los umbrales globales y la idempotencia de una segunda siembra.
 """
 
+from datetime import datetime, timezone
+
 import pytest
 
+import hta.db.seed as seed_module
 from hta.db.seed import seed
 
 pytestmark = pytest.mark.integration
@@ -375,17 +378,24 @@ SEEDED_TIMESTAMPS = (
 )
 
 
-def test_seed_never_writes_a_future_timestamp(db):
-    """Toda marca sembrada queda en el pasado, también antes de las 11:00 UTC.
+def test_seed_never_writes_a_future_timestamp(db, monkeypatch):
+    """Toda marca sembrada queda antes del instante de la siembra, a cualquier hora.
 
-    Las consultas se fechaban con horas fijas (09:00 y 11:00 UTC); una siembra
-    de madrugada dejaba dos filas con ``created_at > now()``. Ahora se miden en
-    horas hacia atrás desde el instante de la siembra.
+    La prueba fija el reloj de la siembra a las 08:00 UTC y compara contra ese
+    instante, no contra el reloj de pared. Antes se comparaba con ``now()`` y
+    las consultas con horas fijas (09:00 y 11:00 UTC) pasaban la prueba si se
+    corría después de las 11:00; con el reloj fijo, una fila de las 09:00 o de
+    las 11:00 vuelve a quedar en el futuro y la prueba falla.
     """
+    fixed_now = datetime(2026, 11, 10, 8, 0, tzinfo=timezone.utc)
+    fixed_anchor = fixed_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    monkeypatch.setattr(seed_module, "_now", lambda _conn: fixed_now)
+    monkeypatch.setattr(seed_module, "_day_anchor", lambda _conn: fixed_anchor)
+
     seed(db)
     for table, column in SEEDED_TIMESTAMPS:
         future = db.execute(
-            f"select count(*) from {table} where {column} > now()"
+            f"select count(*) from {table} where {column} > %s", (fixed_now,)
         ).fetchone()[0]
         assert future == 0, f"{table}.{column} tiene {future} filas en el futuro"
 

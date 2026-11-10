@@ -45,7 +45,7 @@ const pool = (): Reading[] => [
 ];
 
 const mount = (onSymptoms = vi.fn()) => {
-    renderWithToasts(<PatientData refreshKey={0} onSymptoms={onSymptoms} />);
+    renderWithToasts(<PatientData refreshKey={0} canWrite onSymptoms={onSymptoms} />);
     return onSymptoms;
 };
 

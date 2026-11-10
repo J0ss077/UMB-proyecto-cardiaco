@@ -10,6 +10,7 @@ import App from "../App";
 
 const mocks = vi.hoisted(() => ({
     getConsent: vi.fn(),
+    getConsentDocument: vi.fn(),
     acceptConsent: vi.fn(),
     revokeConsent: vi.fn(),
     listReadings: vi.fn(),
@@ -47,6 +48,11 @@ describe("App", () => {
             mock.mockReset();
         });
         mocks.getConsent.mockResolvedValue({ active: true, requires_acceptance_of_version: null });
+        mocks.getConsentDocument.mockResolvedValue({
+            version: 1,
+            content_ref: "consentimiento-informado-v1",
+            text: "# Consentimiento informado\n\n## Quién puede verlos\n\nEl médico tratante autoriza al cuidador.\n\n## Cómo revocas el consentimiento\n\nDesde tu perfil.",
+        });
         mocks.listReadings.mockResolvedValue({ items: [latest], total: 1 });
         mocks.listSymptoms.mockResolvedValue(empty);
         mocks.listAlerts.mockResolvedValue(empty);
@@ -115,10 +121,35 @@ describe("App", () => {
         mocks.acceptConsent.mockResolvedValue({ id: "c1" });
         render(<App />);
 
-        await userEvent.click(await screen.findByRole("button", { name: /acepto el consentimiento/i }));
+        await screen.findByText(/el médico tratante autoriza al cuidador/i);
+        await userEvent.click(screen.getByRole("button", { name: /acepto el consentimiento/i }));
 
         await waitFor(() => expect(mocks.acceptConsent).toHaveBeenCalled());
         expect(await screen.findByTestId("latest-reading")).toBeInTheDocument();
+    });
+
+    it("keeps the history readable while consent is revoked and blocks writes and the summary", async () => {
+        saveSession({ access_token: "a", refresh_token: "r", role: "patient" });
+        mocks.getConsent.mockResolvedValue({ active: false, requires_acceptance_of_version: 1 });
+        mocks.getReadingsSummary.mockRejectedValue(new ApiError(403, CONSENT_REQUIRED_DETAIL));
+
+        render(<App />);
+
+        expect(await screen.findByRole("heading", { name: "Consentimiento informado" })).toBeInTheDocument();
+        await screen.findByText(/el médico tratante autoriza al cuidador/i);
+        await userEvent.click(screen.getByRole("button", { name: /consultar mi historial sin aceptar/i }));
+
+        expect(await screen.findByTestId("latest-reading")).toHaveTextContent("120");
+        expect(screen.getByTestId("home-summary")).toHaveTextContent(/necesita consentimiento informado vigente/i);
+        expect(screen.queryByText("120/80")).not.toBeInTheDocument();
+        expect(screen.getByText(/tu consentimiento informado no está vigente/i)).toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole("button", { name: "Registrar" }));
+
+        expect(
+            await screen.findByText(/necesitas consentimiento informado vigente para registrar lecturas o síntomas/i),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole("form", { name: "Registrar lectura" })).not.toBeInTheDocument();
     });
 
     it("opens the physician home", async () => {

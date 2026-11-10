@@ -183,7 +183,7 @@ export function StaffApp({ role, onLogout }: { role: StaffRole; onLogout: () => 
                         patientsLabel="Pacientes autorizados"
                         includeConsultations={false}
                         notice="Estas cifras las revisa el médico. Tú no cierras alertas ni respondes consultas."
-                        emptyMessage="Todavía nadie te autorizó a acompañar a un paciente."
+                        emptyMessage="Todavía ningún médico te autorizó a acompañar a un paciente."
                         onOpenAlerts={() => open("alerts")}
                     />
                 );

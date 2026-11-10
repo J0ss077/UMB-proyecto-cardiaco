@@ -69,6 +69,35 @@ def test_an_old_body_is_rejected_without_recording_anything(
     ).fetchone()[0] == 0
 
 
+def test_document_returns_the_current_version_and_the_text_the_patient_reads(
+    client, patient_headers
+):
+    """El documento que se muestra es el mismo que la aceptación registra.
+
+    La ruta devuelve la versión y la referencia vigentes junto con el texto del
+    archivo del paquete. La revisión pidió que el texto diga que el médico
+    tratante autoriza al cuidador; la prueba lo exige sobre el texto servido, no
+    sobre una copia de la interfaz.
+    """
+    response = client.get("/api/consent/document", headers=patient_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["version"] == CURRENT_VERSION
+    assert body["content_ref"] == CONSENT_CONTENT_REF
+
+    compact = " ".join(body["text"].split()).lower()
+    assert "el cuidador que el médico tratante autorice" in compact
+    assert "autoriza, cambia y revoca" in compact
+    assert "no diagnostica ni trata" in compact
+    assert "el resumen de siete días y el nivel de riesgo dejan de calcularse" in compact
+
+
+def test_document_requires_a_patient_session(client, admin_headers):
+    """El documento no es público: lo lee una cuenta de paciente autenticada."""
+    assert client.get("/api/consent/document").status_code == 401
+    assert client.get("/api/consent/document", headers=admin_headers).status_code == 403
+
+
 def test_revocation_blocks_new_consent_but_keeps_history(client, patient_headers, patient_id, db):
     client.post("/api/consent", headers=patient_headers)
     client.post("/api/consent/revoke", headers=patient_headers)

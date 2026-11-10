@@ -79,5 +79,5 @@ decisión de producto, no una lectura de la ley, y queda declarada como tal.
   alcance sigue siendo `TEXT` con dos valores válidos en la aplicación.
 - La interfaz del administrador pierde las acciones de alta, cambio y
   revocación de cuidadores y conserva la consulta del directorio.
-- La interfaz del paciente gana una lista de acceso de solo lectura; la del
-  médico gana las tres acciones. Esa ola es posterior a este ADR.
+- La interfaz del paciente tiene una lista de acceso de solo lectura; la del
+  médico tiene las tres acciones.

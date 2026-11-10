@@ -20,6 +20,7 @@ la confirmación el cliente podría no ver su propio cambio todavía.
 
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -38,6 +39,24 @@ CURRENT_VERSION = 1
 # escribe el servidor y el cliente no la envía: una aceptación no puede
 # referirse a un documento que la plataforma nunca emitió.
 CONSENT_CONTENT_REF = "consentimiento-informado-v1"
+
+# El documento vive dentro del paquete para que la imagen del backend lo copie y
+# lo pueda leer con el mismo usuario sin privilegios que sirve la API. La versión
+# y la referencia de arriba son las que se registran al aceptar; el texto que se
+# publica es el de este archivo, de modo que un cambio de redacción exige una
+# versión nueva y no reescribe lo que una aceptación anterior significa.
+DOCUMENTOS = Path(__file__).resolve().parent / "documentos"
+
+
+def document_text() -> str:
+    """Devuelve el texto publicado para la versión vigente del documento.
+
+    Se lee en cada petición y no se cachea: el archivo es pequeño y así una
+    corrección del texto se sirve sin reiniciar el proceso. Si el archivo falta,
+    la excepción se propaga como un 500: no hay documento que el paciente pueda
+    leer y aceptar, y la plataforma no debe inventarlo.
+    """
+    return (DOCUMENTOS / f"consentimiento-v{CURRENT_VERSION}.md").read_text(encoding="utf-8")
 
 
 async def _account_id(conn: AsyncConnection, patient_id: UUID) -> UUID:

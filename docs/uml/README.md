@@ -122,4 +122,4 @@ Cada carpeta guarda el `.puml` y su `.png` con el mismo nombre. Para regenerar u
 
 ## Lo que estos diagramas describen
 
-Los diagramas describen el sistema completo que el manual define, incluidos los procesos que todavía no están construidos. Los casos de uso CU-07, CU-08 y CU-10 y la tarjeta de recomendación del modelo existen como diseño y no como función: la interfaz declara pendientes el chat y la recomendación, y la matriz de requerimientos dice cuáles están implementados hoy.
+Los diagramas describen el sistema completo que el manual define, incluidos los procesos que todavía no están construidos. Los casos de uso CU-07, CU-08 y CU-10 y la tarjeta de recomendación del modelo existen como diseño y no como función: la interfaz declara pendiente el chat y la tarjeta de recomendación muestra un texto fijo, y la matriz de requerimientos dice cuáles están implementados hoy.

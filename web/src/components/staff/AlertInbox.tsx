@@ -209,7 +209,7 @@ export function AlertInbox({ canAct, onChanged }: { canAct: boolean; onChanged?:
                 {canAct ? (
                     <p className="max-w-2xl text-sm text-subtle">Ninguna alerta se cierra sola. Acusar recibo, validar o descartar queda en el rastro.</p>
                 ) : (
-                    <p className="max-w-2xl text-sm text-subtle">Puedes leer las alertas de quienes te autorizaron. Quien las cierra es el médico.</p>
+                    <p className="max-w-2xl text-sm text-subtle">Puedes leer las alertas de los pacientes cuyo médico tratante te autorizó a acompañar. Quien las cierra es el médico.</p>
                 )}
             </div>
             <div className="flex flex-wrap gap-3">

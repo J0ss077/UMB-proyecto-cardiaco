@@ -617,6 +617,30 @@
         "title": "CheckupRequest",
         "type": "object"
       },
+      "ConsentDocument": {
+        "description": "Documento vigente que el paciente debe leer antes de aceptar.\n\n``text`` es el contenido publicado por la plataforma para ``version``. El\ncliente no lo redacta ni lo elige: lo pide a esta ruta y lo muestra tal\ncual, de modo que lo que se registra al aceptar y lo que el paciente leyó\nson el mismo documento.",
+        "properties": {
+          "content_ref": {
+            "title": "Content Ref",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "content_ref",
+          "text"
+        ],
+        "title": "ConsentDocument",
+        "type": "object"
+      },
       "ConsentStatus": {
         "description": "Estado del consentimiento para la versión que consulta el cliente.\n\n``requires_acceptance_of_version`` es ``None`` cuando el consentimiento\nestá vigente y, cuando no lo está, la versión cuya aceptación falta. Así el\ncliente no tiene que comparar versiones por su cuenta para saber qué\ndocumento debe presentar.",
         "properties": {
@@ -3910,6 +3934,39 @@
           }
         ],
         "summary": "Accept",
+        "tags": [
+          "consent"
+        ]
+      }
+    },
+    "/api/consent/document": {
+      "get": {
+        "description": "Devuelve el documento vigente que el paciente debe leer antes de aceptar.\n\nExige sesión de paciente: la compuerta que lo muestra aparece después del\ninicio de sesión y el documento no necesita ser público para leerse antes de\naceptar. Publicarlo sin sesión abriría el texto a cualquiera sin una razón\nde producto; si algún día se necesita, se decidirá y se comentará aquí.\n\nLa versión y la referencia son las mismas constantes que registra la\naceptación, y el texto sale del archivo que vive dentro del paquete. Así el\npaciente lee exactamente el documento al que su aceptación se refiere.",
+        "operationId": "read_document_api_consent_document_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Document",
         "tags": [
           "consent"
         ]

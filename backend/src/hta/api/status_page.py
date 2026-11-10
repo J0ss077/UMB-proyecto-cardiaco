@@ -81,11 +81,14 @@ def check_web(web_url: str) -> ComponentStatus:
     status = ComponentStatus("Interfaz web", "Aplicación de paciente, médico y administrador", "fail")
     if not web_url:
         return status
-    parsed = urlparse(web_url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        logger.warning("HTA_WEB_URL no es una URL HTTP utilizable: %s", web_url)
-        return status
     try:
+        # ``urlparse`` también entra en el ``try``: una URL como
+        # ``http://[::1`` no se puede interpretar y lanza ``ValueError`` antes
+        # de llegar a ``urlopen``. La página de estado debe seguir respondiendo.
+        parsed = urlparse(web_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            logger.warning("HTA_WEB_URL no es una URL HTTP utilizable: %s", web_url)
+            return status
         with urllib.request.urlopen(web_url, timeout=2):
             pass
     except (

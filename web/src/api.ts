@@ -18,6 +18,7 @@ import type {
     AuditListParams,
     ThresholdUpdate,
     ConsentStatus,
+    ConsentDocument,
     Consultation,
     ConsultationInput,
     CheckupReply,
@@ -187,6 +188,7 @@ export function createClient({ baseUrl, fetcher = (...args) => fetch(...args), o
         },
         getConsent: (requiredVersion?: number) =>
             request<ConsentStatus>("/api/consent", { query: { required_version: requiredVersion } }),
+        getConsentDocument: () => request<ConsentDocument>("/api/consent/document"),
         acceptConsent: () => request<CreatedId>("/api/consent", { method: "POST" }),
         revokeConsent: () => request<void>("/api/consent/revoke", { method: "POST" }),
         getProfile: () => request<Profile>("/api/profile"),
@@ -282,6 +284,7 @@ export const {
     register,
     logout,
     getConsent,
+    getConsentDocument,
     acceptConsent,
     revokeConsent,
     getProfile,

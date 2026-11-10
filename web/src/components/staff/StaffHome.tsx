@@ -204,7 +204,7 @@ export function StaffHome({
                     {data.rows.length === 0 ? (
                         <Card>
                             <CardContent className="text-center text-subtle">
-                                Todavía nadie te autorizó a acompañar a un paciente.
+                                Todavía ningún médico te autorizó a acompañar a un paciente.
                             </CardContent>
                         </Card>
                     ) : (

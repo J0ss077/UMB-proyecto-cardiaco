@@ -96,10 +96,13 @@ function Slot({ order, grow = false, children }: { order: number; grow?: boolean
 
 interface PatientDataProps {
     refreshKey: number;
+    // Registering a symptom needs current consent; without it the button would
+    // only lead to a refusal, so the page does not offer it.
+    canWrite: boolean;
     onSymptoms: () => void;
 }
 
-export function PatientData({ refreshKey, onSymptoms }: PatientDataProps) {
+export function PatientData({ refreshKey, canWrite, onSymptoms }: PatientDataProps) {
     const [pool, setPool] = useState<Reading[] | null>(null);
     const [failed, setFailed] = useState(false);
     const [range, setRange] = useState<RangeId>("day");
@@ -271,11 +274,13 @@ export function PatientData({ refreshKey, onSymptoms }: PatientDataProps) {
                                         {category === "crisis" ? "¡Valor peligroso detectado!" : "Valor elevado detectado"}
                                     </p>
                                     <p className="text-base">{`${latest.systolic}/${latest.diastolic} mmHg. ¿Síntomas?`}</p>
-                                    <div>
-                                        <Button size="sm" onClick={onSymptoms}>
-                                            Registrar síntoma
-                                        </Button>
-                                    </div>
+                                    {canWrite ? (
+                                        <div>
+                                            <Button size="sm" onClick={onSymptoms}>
+                                                Registrar síntoma
+                                            </Button>
+                                        </div>
+                                    ) : null}
                                 </CardContent>
                             </Card>
                         ) : null}

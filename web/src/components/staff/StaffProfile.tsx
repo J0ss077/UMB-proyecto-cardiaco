@@ -18,7 +18,7 @@ type StaffRole = StaffProfileData["role"];
 
 const COPY: Record<StaffRole, string> = {
     physician: "Ves a tus pacientes, sus lecturas y sus consultas. Las alertas solo se cierran cuando tú acusas recibo, las validas o las descartas.",
-    caregiver: "Acompañas a quienes te autorizaron. Con alcance de lecturas ves sus cifras y sus alertas. No las cierras y no respondes consultas.",
+    caregiver: "Acompañas a los pacientes cuyo médico tratante te autorizó. Con alcance de lecturas ves sus cifras y sus alertas. No las cierras y no respondes consultas.",
     admin: "Gestionas cuentas, vínculos, destinatarios de alerta y el rastro. Esta sesión no abre lecturas, síntomas ni alertas clínicas.",
 };
 
@@ -142,7 +142,7 @@ function CaregiverSummary() {
                 ) : patients === null ? (
                     <p className="text-sm text-subtle">Cargando...</p>
                 ) : patients.length === 0 ? (
-                    <p className="text-sm text-subtle">Todavía nadie te autorizó a acompañar a un paciente.</p>
+                    <p className="text-sm text-subtle">Todavía ningún médico te autorizó a acompañar a un paciente.</p>
                 ) : (
                     <ul className="flex flex-col gap-1 text-base">
                         {patients.map((patient) => (
@@ -150,7 +150,7 @@ function CaregiverSummary() {
                         ))}
                     </ul>
                 )}
-                <p className="text-sm text-subtle">El alcance de cada vínculo lo decide el paciente y puede cambiarlo cuando quiera.</p>
+                <p className="text-sm text-subtle">El alcance de cada vínculo lo decide el médico tratante y puede cambiarlo cuando quiera.</p>
             </CardContent>
         </Card>
     );

@@ -18,6 +18,7 @@ import { useToast } from "../ui/Toast";
 
 interface PatientProfileProps {
     summary: ReadingsSummary | null;
+    summaryBlocked?: boolean;
     onOpenData: () => void;
     onConsentRevoked: () => void;
     // Called with the profile after it loads and after every save, so the header can follow.
@@ -94,7 +95,7 @@ function SectionTitle({ icon, children }: { icon: ReactNode; children: ReactNode
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const NONE = <span className="text-subtle">No registrado</span>;
 
-export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfileChange, photoRenderer }: PatientProfileProps) {
+export function PatientProfile({ summary, summaryBlocked = false, onOpenData, onConsentRevoked, onProfileChange, photoRenderer }: PatientProfileProps) {
     const toast = useToast();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loadFailed, setLoadFailed] = useState(false);
@@ -302,7 +303,9 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
                                     <div className="flex items-end gap-2">
                                         <div className="flex-1">
                                             <Field label="Presión arterial promedio" locked>
-                                                {summary?.sufficient ? (
+                                                {summaryBlocked ? (
+                                                    <span className="text-subtle">No se calcula sin consentimiento</span>
+                                                ) : summary?.sufficient ? (
                                                     `${summary.mean_systolic}/${summary.mean_diastolic} mmHg`
                                                 ) : (
                                                     <span className="text-subtle">Datos insuficientes</span>
@@ -409,6 +412,9 @@ export function PatientProfile({ summary, onOpenData, onConsentRevoked, onProfil
                                         <span className="block text-subtle">{link.caregiver_email}</span>
                                         <span className="block text-subtle">
                                             {`Alcance: ${CAREGIVER_SCOPE_LABEL[link.authorized_scope]}`}
+                                        </span>
+                                        <span className="block text-subtle">
+                                            {`Autorizado el ${formatLongDate(link.created_at)}`}
                                         </span>
                                     </li>
                                 ))}

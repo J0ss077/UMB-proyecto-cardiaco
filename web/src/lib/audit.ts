@@ -50,9 +50,15 @@ export const AUDIT_TOPICS: AuditTopic[] = [
         actions: [
             { id: "links.physician_assigned", label: "Médico asignado" },
             { id: "links.physician_removed", label: "Médico retirado" },
-            { id: "links.caregiver_authorized", label: "Cuidador autorizado" },
-            { id: "links.caregiver_scope_changed", label: "Cambio de alcance del cuidador" },
-            { id: "links.caregiver_revoked", label: "Autorización de cuidador revocada" },
+        ],
+    },
+    {
+        id: "caregiver",
+        label: "Cuidadores",
+        actions: [
+            { id: "caregiver.linked", label: "Cuidador vinculado por el médico" },
+            { id: "caregiver.scope_changed", label: "Cambio de alcance del cuidador" },
+            { id: "caregiver.unlinked", label: "Vínculo de cuidador revocado" },
         ],
     },
     {
@@ -148,9 +154,11 @@ const DETAIL_LABEL: Record<string, string> = {
     fields: "Campos",
     recipients: "Destinatarios",
     authorized_scope: "Alcance",
+    previous_scope: "Alcance anterior",
     version: "Versión",
     email: "Correo",
     patient_user_id: "Paciente",
+    caregiver_user_id: "Cuidador",
     note: "Nota",
     low_threshold: "Aviso desde",
     high_threshold: "Aviso hasta",
@@ -180,7 +188,7 @@ function named(value: unknown, table: Record<string, string>): string {
 function detailValue(key: string, value: unknown): string {
     if (value === null || value === undefined || value === "") return "—";
     if (key === "previous" || key === "new") return named(value, ROLE_LABEL);
-    if (key === "authorized_scope") return named(value, SCOPE_LABEL);
+    if (key === "authorized_scope" || key === "previous_scope") return named(value, SCOPE_LABEL);
     if (key === "recipients" && Array.isArray(value)) {
         return value.length === 0 ? "nadie" : value.map((item) => named(item, ROLE_LABEL)).join(", ");
     }

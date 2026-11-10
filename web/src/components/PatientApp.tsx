@@ -18,6 +18,7 @@ import { PatientData } from "./patient/PatientData";
 import { PatientHome } from "./patient/PatientHome";
 import { PatientLog } from "./patient/PatientLog";
 import { PatientProfile } from "./patient/PatientProfile";
+import { Button } from "./ui/Button";
 import { useToast } from "./ui/Toast";
 
 type Tab = "home" | "data" | "log" | "chatbot" | "help" | "profile";
@@ -53,6 +54,9 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
     const [view, setView] = useState<View>("home");
     const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    // The consent gate is the initial screen; dismissing it lets the patient read
+    // the history that ADR 0003 keeps available. Writes and the summary stay closed.
+    const [gateDismissed, setGateDismissed] = useState(false);
 
     const loadConsent = useCallback(async () => {
         try {
@@ -67,9 +71,13 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
     }, [loadConsent]);
 
     const consentActive = consent?.active === true;
+    const consentLoaded = consent !== null;
 
     useEffect(() => {
-        if (!consentActive) return;
+        // The history is readable without consent (ADR 0003), so the snapshot loads
+        // as soon as the consent status is known. Only the summary is refused; the
+        // 403 is what marks it as blocked.
+        if (!consentLoaded) return;
         let cancelled = false;
         async function load() {
             const [readings, alerts, symptoms, summary] = await Promise.allSettled([
@@ -98,13 +106,14 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
             if (readings.status === "rejected") toast.error("No se pudo cargar tu última lectura");
             // The consent status was fetched before the summary; if the summary rejects
             // with the consent detail, the status is stale. Reload it so the gate opens.
-            if (summaryBlocked) void loadConsent();
+            // When the status already says there is no consent, there is nothing to reload.
+            if (summaryBlocked && consentActive) void loadConsent();
         }
         void load();
         return () => {
             cancelled = true;
         };
-    }, [consentActive, refreshKey, toast, loadConsent]);
+    }, [consentLoaded, consentActive, refreshKey, toast, loadConsent]);
 
     const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
 
@@ -142,8 +151,17 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
     });
 
     if (consent === null) return <p className="p-6 text-subtle">Cargando...</p>;
-    if (!consent.active) {
-        return <ConsentGate version={consent.requires_acceptance_of_version} onAccepted={loadConsent} />;
+    if (!consent.active && !gateDismissed) {
+        return (
+            <ConsentGate
+                version={consent.requires_acceptance_of_version}
+                onAccepted={() => {
+                    setGateDismissed(false);
+                    void loadConsent();
+                }}
+                onDismiss={() => setGateDismissed(true)}
+            />
+        );
     }
 
     return (
@@ -166,6 +184,20 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
                 />
             }
         >
+            {!consentActive ? (
+                <div
+                    role="status"
+                    className="mb-4 flex flex-col gap-3 rounded-card border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <p>
+                        Tu consentimiento informado no está vigente. Puedes leer tu historia, pero no registrar
+                        lecturas ni síntomas; el resumen de siete días no se calcula.
+                    </p>
+                    <Button variant="outline" onClick={() => setGateDismissed(false)}>
+                        Revisar consentimiento
+                    </Button>
+                </div>
+            ) : null}
             {snapshot === null ? (
                 <p className="p-6 text-center text-subtle">Cargando tus datos...</p>
             ) : view === "devices" ? (
@@ -185,13 +217,15 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
                     onChatbot={() => setView("chatbot")}
                 />
             ) : view === "data" ? (
-                <PatientData refreshKey={refreshKey} onSymptoms={() => setView("log")} />
+                <PatientData refreshKey={refreshKey} canWrite={consentActive} onSymptoms={() => setView("log")} />
             ) : view === "log" ? (
                 <PatientLog
                     symptoms={snapshot.symptoms}
+                    consentActive={consentActive}
                     onReadingSaved={refresh}
                     onSymptomSaved={refresh}
                     onConsentRequired={() => void loadConsent()}
+                    onReviewConsent={() => setGateDismissed(false)}
                 />
             ) : view === "chatbot" ? (
                 <ChatbotPanel />
@@ -200,6 +234,7 @@ export function PatientApp({ onLogout }: { onLogout: () => void }) {
             ) : (
                 <PatientProfile
                     summary={snapshot.summary}
+                    summaryBlocked={snapshot.summaryBlocked}
                     onOpenData={() => setView("data")}
                     onProfileChange={showInHeader}
                     onConsentRevoked={() => void loadConsent()}

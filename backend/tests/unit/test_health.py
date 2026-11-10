@@ -68,8 +68,13 @@ def test_health_returns_html_page_for_browsers(monkeypatch):
 
 @pytest.mark.parametrize(
     "web_url",
-    ["no-es-una-url", "ftp://example.invalid", "http://127.0.0.1:notaport"],
-    ids=["sin-esquema", "esquema-ajeno", "puerto-invalido"],
+    [
+        "no-es-una-url",
+        "ftp://example.invalid",
+        "http://127.0.0.1:notaport",
+        "http://[::1",
+    ],
+    ids=["sin-esquema", "esquema-ajeno", "puerto-invalido", "url-no-interpretable"],
 )
 def test_health_page_marks_the_web_unavailable_when_the_url_is_not_http(
     monkeypatch, web_url
@@ -78,8 +83,10 @@ def test_health_page_marks_the_web_unavailable_when_the_url_is_not_http(
 
     ``urllib`` no acepta un esquema ajeno y ``http.client.InvalidURL`` no hereda
     de ``ValueError``: sin la validación previa y sin capturarla, la página de
-    estado respondería 500. Debe responder 200 y marcar la interfaz como no
-    disponible.
+    estado respondería 500. ``urlparse`` también puede lanzar ``ValueError``
+    con una URL que no se puede interpretar, como ``http://[::1``; por eso
+    corre dentro del mismo ``try``. Debe responder 200 y marcar la interfaz
+    como no disponible.
     """
     with _client(monkeypatch, CLOSED_MONGO_URL, web_url) as client:
         response = client.get("/api/health", headers={"Accept": "text/html"})

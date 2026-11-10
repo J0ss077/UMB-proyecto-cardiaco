@@ -2,7 +2,7 @@
 
 Generado por `scripts/build_map.py` desde las anotaciones `@requirement` del código. No se edita a mano: se regenera con `make docs`. El estado y el texto de cada requerimiento están en `docs/manual/requerimientos.md`.
 
-Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 171 (147 módulos y 24 pruebas). Archivos de infraestructura (`@requirement none`): 48. Archivos sin anotación: 38.
+Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 173 (149 módulos y 24 pruebas). Archivos de infraestructura (`@requirement none`): 49. Archivos sin anotación: 38.
 
 ## RF-01 Registro, autenticación y recuperación de credenciales
 
@@ -61,6 +61,9 @@ Módulos:
 - `backend/src/hta/passwordchange/service.py`
 - `web/src/App.tsx`
 - `web/src/api.ts`
+- `web/src/components/CaregiverAccessPanel.tsx`
+- `web/src/components/PatientDetail.tsx`
+- `web/src/components/patient/PatientProfile.tsx`
 - `web/src/components/staff/AdminAccounts.tsx`
 - `web/src/components/staff/AdminLinks.tsx`
 - `web/src/components/staff/AdminPasswordRequests.tsx`
@@ -70,6 +73,7 @@ Módulos:
 - `web/src/test/AdminAccounts.test.tsx`
 - `web/src/test/AdminLinks.test.tsx`
 - `web/src/test/App.test.tsx`
+- `web/src/test/CaregiverAccess.test.tsx`
 - `web/src/test/PasswordChange.test.tsx`
 - `web/src/test/StaffApp.test.tsx`
 - `web/src/test/accounts.test.ts`
@@ -210,6 +214,7 @@ Módulos:
 - `web/src/components/staff/StaffHome.tsx`
 - `web/src/lib/staff.ts`
 - `web/src/test/AlertInbox.test.tsx`
+- `web/src/test/CaregiverAccess.test.tsx`
 - `web/src/test/PhysicianRoles.test.tsx`
 - `web/src/test/PhysicianView.test.tsx`
 - `web/src/test/StaffApp.test.tsx`

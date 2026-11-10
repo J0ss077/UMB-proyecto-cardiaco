@@ -354,7 +354,7 @@ describe("PatientProfile", () => {
             created_at: "2026-10-31T10:00:00Z",
         };
 
-        it("lists who has access with name, email and scope", async () => {
+        it("lists who has access with name, email, scope and authorization date", async () => {
             mocks.listPatientCaregivers.mockResolvedValue({ items: [caregiver], total: 1 });
             mount();
             await screen.findByRole("heading", { name: "Manuel Alejandro González" });
@@ -364,6 +364,7 @@ describe("PatientProfile", () => {
             expect(screen.getByText("Marta Lucía Gómez")).toBeInTheDocument();
             expect(screen.getByText("cuidador@hta.demo")).toBeInTheDocument();
             expect(screen.getByText(/alcance: lecturas/i)).toBeInTheDocument();
+            expect(screen.getByText(/autorizado el 31 de octubre de 2026/i)).toBeInTheDocument();
         });
 
         it("says that the treating physician grants and revokes the access and that the patient can ask for a revocation", async () => {
