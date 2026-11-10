@@ -2,7 +2,7 @@
 
 Generado por `scripts/build_map.py` desde las anotaciones `@requirement` del código. No se edita a mano: se regenera con `make docs`. El estado y el texto de cada requerimiento están en `docs/manual/requerimientos.md`.
 
-Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 167 (144 módulos y 23 pruebas). Archivos de infraestructura (`@requirement none`): 46. Archivos sin anotación: 38.
+Requerimientos en el catálogo: 47. Con al menos una anotación: 19. Archivos con anotación de requerimiento: 171 (147 módulos y 24 pruebas). Archivos de infraestructura (`@requirement none`): 48. Archivos sin anotación: 38.
 
 ## RF-01 Registro, autenticación y recuperación de credenciales
 
@@ -55,6 +55,7 @@ Módulos:
 - `backend/src/hta/adminconsole/__init__.py`
 - `backend/src/hta/adminconsole/router.py`
 - `backend/src/hta/adminconsole/service.py`
+- `backend/src/hta/clinical/caregivers.py`
 - `backend/src/hta/passwordchange/router.py`
 - `backend/src/hta/passwordchange/schemas.py`
 - `backend/src/hta/passwordchange/service.py`
@@ -80,6 +81,7 @@ Pruebas:
 - `backend/tests/integration/accounts/test_register.py`
 - `backend/tests/integration/accounts/test_roles.py`
 - `backend/tests/integration/adminconsole/test_adminconsole.py`
+- `backend/tests/integration/clinical/test_caregivers.py`
 - `backend/tests/integration/passwordchange/test_password_change.py`
 - `backend/tests/unit/test_password_change_schemas.py`
 
@@ -94,6 +96,7 @@ Módulos:
 - `web/src/components/PatientApp.tsx`
 - `web/src/components/patient/PatientProfile.tsx`
 - `web/src/test/App.test.tsx`
+- `web/src/test/ConsentGate.test.tsx`
 - `web/src/test/PatientProfile.test.tsx`
 
 Pruebas:
@@ -276,6 +279,7 @@ Módulos:
 - `web/src/lib/insights.ts`
 - `web/src/lib/staff.ts`
 - `web/src/test/App.test.tsx`
+- `web/src/test/HistoryDialog.test.tsx`
 - `web/src/test/InsightWidgets.test.tsx`
 - `web/src/test/PatientData.test.tsx`
 - `web/src/test/PhysicianRoles.test.tsx`

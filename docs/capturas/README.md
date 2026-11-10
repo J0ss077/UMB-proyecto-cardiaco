@@ -191,3 +191,7 @@ Pantallas de la plataforma recorridas con las cuentas de demostración. Los dato
 6. [Paciente: PDF del formato de chequeo (página 2 de 2)](documentos_generados/06_paciente_pdf_del_formato_de_chequeo_pagina_2_de_2.png)
 7. [Médico: PDF del historial del paciente (página 1 de 2)](documentos_generados/07_medico_pdf_del_historial_del_paciente_pagina_1_de_2.png)
 8. [Médico: PDF del historial del paciente (página 2 de 2)](documentos_generados/08_medico_pdf_del_historial_del_paciente_pagina_2_de_2.png)
+
+## Capturas anteriores a la corrección del chatbot
+
+Las capturas del chatbot del paciente y de la tarjeta de recomendación se tomaron antes de que la interfaz declarara que esas funciones no están disponibles. El chatbot hoy muestra un aviso de que todavía no responde, y el texto de la tarjeta de recomendación es un marcador: el modelo de apoyo a la decisión no existe todavía (RF-09 y RF-20 figuran pendientes o parciales en la matriz). Cuando se regeneren las capturas, estas se reemplazan.

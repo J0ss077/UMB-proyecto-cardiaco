@@ -138,11 +138,11 @@ cuando otro estado necesita explicar por qué no está más arriba.
 
 ## RF-19 Visualización de datos y tendencias
 
-**Estado:** Parcial
+**Estado:** Implementado
 
 **Texto:** Permitir la visualización de los datos clínicos y sus tendencias en la interfaz web.
 
-**Motivo:** La API publica el directorio de pacientes, el listado de lecturas, el resumen de la ventana domiciliaria y las alertas, y la ingesta guarda lecturas de dispositivo; la interfaz web ya tiene la pantalla de tendencias del paciente, con las líneas de referencia de la OMS y de la ACC/AHA, y la tabla de pacientes del médico. Faltan la bandeja de alertas con sus tres transiciones, la vista del cuidador con su propio alcance y el reporte exportable.
+**Motivo:** La interfaz muestra las tendencias del paciente con sus líneas de referencia, el promedio de siete días, la distribución por estado, el detalle del paciente en la pantalla del médico, la bandeja de alertas con sus tres transiciones, la vista de solo lectura del cuidador y la descarga del historial en Excel y PDF. El cuidador ve la información mínima que autorizó el paciente, que es lo que el diseño le asigna, y no series clínicas completas.
 
 ## RF-20 Chat con el modelo de IA
 

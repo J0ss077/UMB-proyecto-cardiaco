@@ -119,3 +119,7 @@ Cada carpeta guarda el `.puml` y su `.png` con el mismo nombre. Para regenerar u
 | Diagrama | Código | Imagen |
 | --- | --- | --- |
 | Diagrama de distribución | [puml](09_distribucion/puml/distribucion.puml) | [png](09_distribucion/png/distribucion.png) |
+
+## Lo que estos diagramas describen
+
+Los diagramas describen el sistema completo que el manual define, incluidos los procesos que todavía no están construidos. Los casos de uso CU-07, CU-08 y CU-10 y la tarjeta de recomendación del modelo existen como diseño y no como función: la interfaz declara pendientes el chat y la recomendación, y la matriz de requerimientos dice cuáles están implementados hoy.
