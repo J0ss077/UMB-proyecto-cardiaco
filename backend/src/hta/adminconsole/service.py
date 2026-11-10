@@ -7,6 +7,11 @@ Operación de la plataforma para el administrador: vínculos, umbrales y auditor
 Ninguna consulta de este módulo devuelve lecturas, síntomas ni el cuerpo de una
 alerta. El detalle de un evento clínico se omite a propósito. Las mutaciones
 confirman su transacción antes de responder, igual que el servicio de cuentas.
+
+El administrador asigna médicos y lee el directorio de vínculos, pero no crea,
+cambia ni revoca autorizaciones de cuidador: esa decisión es del médico
+vinculado al paciente (ADR 0012). La lectura del directorio no lleva datos
+clínicos.
 """
 
 from __future__ import annotations
@@ -31,10 +36,7 @@ _INACTIVE = "La cuenta está desactivada"
 _NO_PROFILE = "La cuenta no tiene perfil de paciente"
 _PATIENT_ROLE = "La cuenta del paciente no tiene rol de paciente"
 _PHYSICIAN_ROLE = "La cuenta del médico no tiene rol de médico"
-_CAREGIVER_ROLE = "La cuenta del cuidador no tiene rol de cuidador"
 _PHYSICIAN_EXISTS = "Ese médico ya está asignado a este paciente"
-_CAREGIVER_EXISTS = "Ese cuidador ya está autorizado para este paciente"
-_UNKNOWN_SCOPE = "Alcance desconocido"
 _UNKNOWN_RECIPIENT = "Destinatario desconocido"
 _UNKNOWN_TOPIC = "Tipo de actividad desconocido"
 
@@ -47,6 +49,7 @@ AUDIT_TOPICS = frozenset(
         "profile",
         "staff",
         "links",
+        "caregiver",
         "consent",
         "reading",
         "symptom",
@@ -56,7 +59,6 @@ AUDIT_TOPICS = frozenset(
     }
 )
 
-SCOPES = frozenset({"minimal", "readings"})
 RECIPIENTS = frozenset({"patient", "caregiver", "physician"})
 
 # El administrador consulta el rastro, pero no el contenido clínico que una
@@ -247,89 +249,6 @@ async def remove_physician(
         entity="patient_physician",
         entity_id=physician_user_id,
         details={"patient_user_id": str(patient_user_id)},
-    )
-    await conn.commit()
-
-
-async def authorize_caregiver(
-    conn: AsyncConnection,
-    actor: UUID,
-    patient_user_id: UUID,
-    caregiver_user_id: UUID,
-    authorized_scope: str,
-) -> UUID:
-    """Autoriza a un cuidador con alcance ``minimal`` o ``readings``."""
-    if authorized_scope not in SCOPES:
-        raise HTTPException(status_code=422, detail=_UNKNOWN_SCOPE)
-    await _require_active(conn, patient_user_id, "patient", _PATIENT_ROLE)
-    await _require_active(conn, caregiver_user_id, "caregiver", _CAREGIVER_ROLE)
-    profile_id = await _profile_id(conn, patient_user_id)
-    existing = await (
-        await conn.execute(
-            "select 1 from caregiver_links where patient_id = %s and caregiver_id = %s",
-            (profile_id, caregiver_user_id),
-        )
-    ).fetchone()
-    if existing is not None:
-        raise HTTPException(status_code=409, detail=_CAREGIVER_EXISTS)
-    link_id = (
-        await (
-            await conn.execute(
-                "insert into caregiver_links (patient_id, caregiver_id, authorized_scope) "
-                "values (%s, %s, %s) returning id",
-                (profile_id, caregiver_user_id, authorized_scope),
-            )
-        ).fetchone()
-    )[0]
-    await record(
-        conn,
-        actor,
-        "links.caregiver_authorized",
-        entity="caregiver_links",
-        entity_id=link_id,
-        details={"patient_user_id": str(patient_user_id), "authorized_scope": authorized_scope},
-    )
-    await conn.commit()
-    return link_id
-
-
-async def update_caregiver_scope(
-    conn: AsyncConnection,
-    actor: UUID,
-    link_id: UUID,
-    authorized_scope: str,
-) -> None:
-    """Cambia el alcance de un vínculo de cuidador que ya existe."""
-    if authorized_scope not in SCOPES:
-        raise HTTPException(status_code=422, detail=_UNKNOWN_SCOPE)
-    updated = await conn.execute(
-        "update caregiver_links set authorized_scope = %s where id = %s",
-        (authorized_scope, link_id),
-    )
-    if updated.rowcount == 0:
-        raise HTTPException(status_code=404, detail=_LINK_NOT_FOUND)
-    await record(
-        conn,
-        actor,
-        "links.caregiver_scope_changed",
-        entity="caregiver_links",
-        entity_id=link_id,
-        details={"authorized_scope": authorized_scope},
-    )
-    await conn.commit()
-
-
-async def revoke_caregiver(conn: AsyncConnection, actor: UUID, link_id: UUID) -> None:
-    """Elimina la autorización del cuidador. El historial del paciente sigue."""
-    removed = await conn.execute("delete from caregiver_links where id = %s", (link_id,))
-    if removed.rowcount == 0:
-        raise HTTPException(status_code=404, detail=_LINK_NOT_FOUND)
-    await record(
-        conn,
-        actor,
-        "links.caregiver_revoked",
-        entity="caregiver_links",
-        entity_id=link_id,
     )
     await conn.commit()
 

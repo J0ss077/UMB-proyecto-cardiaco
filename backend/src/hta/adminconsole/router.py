@@ -4,7 +4,10 @@
 
 Rutas de administración: vínculos, destinatarios de alerta y consulta del rastro.
 
-Todas exigen rol ``admin``. No publican lecturas ni síntomas.
+Todas exigen rol ``admin``. No publican lecturas ni síntomas. El administrador
+conserva la lectura del directorio de vínculos para supervisión, pero no crea,
+cambia ni revoca autorizaciones de cuidador: esa decisión es del médico
+vinculado al paciente y vive en ``/api/patients/{patient_id}/caregivers``.
 """
 
 from __future__ import annotations
@@ -34,20 +37,6 @@ class PhysicianAssignment(BaseModel):
     physician_user_id: UUID
 
 
-class CaregiverAuthorization(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    patient_user_id: UUID
-    caregiver_user_id: UUID
-    authorized_scope: str
-
-
-class ScopeUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    authorized_scope: str
-
-
 class RecipientsUpdate(BaseModel):
     """Solo los destinatarios. Un umbral en el cuerpo se rechaza."""
 
@@ -65,12 +54,6 @@ class ThresholdUpdate(BaseModel):
     high_threshold: float | None
     critical_low: float | None
     critical_high: float | None
-
-
-class CreatedLink(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    id: UUID
 
 
 class PhysicianLinkResponse(BaseModel):
@@ -177,44 +160,6 @@ async def remove_physician(
 ) -> None:
     """Quita la asignación de un médico. El historial clínico permanece."""
     await service.remove_physician(conn, actor.user_id, patient_user_id, physician_user_id)
-
-
-@router.post("/caregivers", status_code=201, response_model=CreatedLink)
-async def authorize_caregiver(
-    body: CaregiverAuthorization,
-    conn: Annotated[AsyncConnection, Depends(get_conn)],
-    actor: Annotated[CurrentUser, Depends(require_role("admin"))],
-) -> CreatedLink:
-    """Autoriza a un cuidador con alcance ``minimal`` o ``readings``."""
-    link_id = await service.authorize_caregiver(
-        conn,
-        actor.user_id,
-        body.patient_user_id,
-        body.caregiver_user_id,
-        body.authorized_scope,
-    )
-    return CreatedLink(id=link_id)
-
-
-@router.patch("/caregivers/{link_id}", status_code=204)
-async def update_caregiver_scope(
-    link_id: UUID,
-    body: ScopeUpdate,
-    conn: Annotated[AsyncConnection, Depends(get_conn)],
-    actor: Annotated[CurrentUser, Depends(require_role("admin"))],
-) -> None:
-    """Cambia el alcance de un cuidador ya autorizado."""
-    await service.update_caregiver_scope(conn, actor.user_id, link_id, body.authorized_scope)
-
-
-@router.delete("/caregivers/{link_id}", status_code=204)
-async def revoke_caregiver(
-    link_id: UUID,
-    conn: Annotated[AsyncConnection, Depends(get_conn)],
-    actor: Annotated[CurrentUser, Depends(require_role("admin"))],
-) -> None:
-    """Revoca la autorización del cuidador."""
-    await service.revoke_caregiver(conn, actor.user_id, link_id)
 
 
 @router.get("/alert-config", response_model=AlertConfigPage)

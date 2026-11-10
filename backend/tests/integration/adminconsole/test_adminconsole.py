@@ -63,7 +63,13 @@ def test_admin_assigns_and_removes_a_physician(client, admin_headers, db, consen
     assert missing.status_code == 404
 
 
-def test_admin_authorizes_a_caregiver_and_changes_scope(client, admin_headers, consented_patient_id):
+def test_admin_reads_caregiver_links_but_cannot_mutate_them(client, admin_headers, db, consented_patient_id):
+    """El administrador conserva la lectura del directorio para supervisión.
+
+    Las rutas de alta, cambio y revocación de cuidadores ya no existen bajo
+    ``/api/admin``: la decisión es del médico vinculado (ADR 0012). La lectura
+    no lleva datos clínicos.
+    """
     created = client.post(
         "/api/accounts/register",
         json={
@@ -80,34 +86,53 @@ def test_admin_authorizes_a_caregiver_and_changes_scope(client, admin_headers, c
         headers=admin_headers,
     )
 
-    authorized = client.post(
-        "/api/admin/caregivers",
-        json={
-            "patient_user_id": str(consented_patient_id),
-            "caregiver_user_id": caregiver_id,
-            "authorized_scope": "readings",
-        },
-        headers=admin_headers,
+    assert (
+        client.post(
+            "/api/admin/caregivers",
+            json={
+                "patient_user_id": str(consented_patient_id),
+                "caregiver_user_id": caregiver_id,
+                "authorized_scope": "readings",
+            },
+            headers=admin_headers,
+        ).status_code
+        == 404
     )
-    assert authorized.status_code == 201
-    link_id = authorized.json()["id"]
-
-    unknown = client.patch(
-        f"/api/admin/caregivers/{link_id}",
-        json={"authorized_scope": "full"},
-        headers=admin_headers,
+    assert (
+        client.patch(
+            "/api/admin/caregivers/00000000-0000-0000-0000-000000000000",
+            json={"authorized_scope": "minimal"},
+            headers=admin_headers,
+        ).status_code
+        == 404
     )
-    assert unknown.status_code == 422
-
-    changed = client.patch(
-        f"/api/admin/caregivers/{link_id}",
-        json={"authorized_scope": "minimal"},
-        headers=admin_headers,
+    assert (
+        client.delete(
+            "/api/admin/caregivers/00000000-0000-0000-0000-000000000000",
+            headers=admin_headers,
+        ).status_code
+        == 404
     )
-    assert changed.status_code == 204
 
-    revoked = client.delete(f"/api/admin/caregivers/{link_id}", headers=admin_headers)
-    assert revoked.status_code == 204
+    link_id = db.execute(
+        "insert into caregiver_links (patient_id, caregiver_id, authorized_scope) "
+        "select id, %s, 'readings' from patient_profiles where user_id = %s "
+        "returning id",
+        (caregiver_id, consented_patient_id),
+    ).fetchone()[0]
+    listed = client.get("/api/admin/links", headers=admin_headers)
+    assert listed.status_code == 200
+    link = next(item for item in listed.json()["caregivers"] if item["id"] == str(link_id))
+    assert set(link) == {
+        "id",
+        "patient_user_id",
+        "patient_name",
+        "caregiver_user_id",
+        "caregiver_name",
+        "authorized_scope",
+        "created_at",
+    }
+    assert link["authorized_scope"] == "readings"
 
 
 def test_admin_edits_recipients_and_not_thresholds(client, admin_headers, db):

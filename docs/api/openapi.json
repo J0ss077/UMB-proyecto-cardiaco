@@ -525,77 +525,61 @@
         "title": "AuditPage",
         "type": "object"
       },
-      "CaregiverAuthorization": {
+      "CaregiverAuthorizationRequest": {
         "additionalProperties": false,
+        "description": "Alta de un vínculo de cuidador.\n\n``caregiver_email`` se resuelve contra ``users``; la cuenta debe existir,\nestar activa y tener rol ``caregiver``. El alcance se valida en el servicio\npara responder el mismo 422 con ``Alcance desconocido`` que el resto de la\nAPI.",
         "properties": {
           "authorized_scope": {
             "title": "Authorized Scope",
             "type": "string"
           },
-          "caregiver_user_id": {
-            "format": "uuid",
-            "title": "Caregiver User Id",
-            "type": "string"
-          },
-          "patient_user_id": {
-            "format": "uuid",
-            "title": "Patient User Id",
+          "caregiver_email": {
+            "title": "Caregiver Email",
             "type": "string"
           }
         },
         "required": [
-          "patient_user_id",
-          "caregiver_user_id",
+          "caregiver_email",
           "authorized_scope"
         ],
-        "title": "CaregiverAuthorization",
+        "title": "CaregiverAuthorizationRequest",
         "type": "object"
       },
-      "CaregiverLinkResponse": {
+      "CaregiverLinkPage": {
+        "description": "Lista de cuidadores autorizados del paciente.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/hta__clinical__router__CaregiverLinkResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CaregiverLinkPage",
+        "type": "object"
+      },
+      "CaregiverScopeRequest": {
+        "additionalProperties": false,
+        "description": "Cambio de alcance de un vínculo existente.",
         "properties": {
           "authorized_scope": {
             "title": "Authorized Scope",
             "type": "string"
-          },
-          "caregiver_name": {
-            "title": "Caregiver Name",
-            "type": "string"
-          },
-          "caregiver_user_id": {
-            "format": "uuid",
-            "title": "Caregiver User Id",
-            "type": "string"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "patient_name": {
-            "title": "Patient Name",
-            "type": "string"
-          },
-          "patient_user_id": {
-            "format": "uuid",
-            "title": "Patient User Id",
-            "type": "string"
           }
         },
         "required": [
-          "id",
-          "patient_user_id",
-          "patient_name",
-          "caregiver_user_id",
-          "caregiver_name",
-          "authorized_scope",
-          "created_at"
+          "authorized_scope"
         ],
-        "title": "CaregiverLinkResponse",
+        "title": "CaregiverScopeRequest",
         "type": "object"
       },
       "CheckupRequest": {
@@ -944,20 +928,6 @@
         "title": "ConsultationRequest",
         "type": "object"
       },
-      "CreatedLink": {
-        "properties": {
-          "id": {
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "title": "CreatedLink",
-        "type": "object"
-      },
       "CreatedSymptom": {
         "description": "Identificador del síntoma recién registrado.",
         "properties": {
@@ -1069,7 +1039,7 @@
         "properties": {
           "caregivers": {
             "items": {
-              "$ref": "#/components/schemas/CaregiverLinkResponse"
+              "$ref": "#/components/schemas/hta__adminconsole__router__CaregiverLinkResponse"
             },
             "title": "Caregivers",
             "type": "array"
@@ -1886,20 +1856,6 @@
         "title": "RoleRequest",
         "type": "object"
       },
-      "ScopeUpdate": {
-        "additionalProperties": false,
-        "properties": {
-          "authorized_scope": {
-            "title": "Authorized Scope",
-            "type": "string"
-          }
-        },
-        "required": [
-          "authorized_scope"
-        ],
-        "title": "ScopeUpdate",
-        "type": "object"
-      },
       "StaffProfileOut": {
         "description": "Perfil del personal. ``user_id`` es el de la cuenta.",
         "properties": {
@@ -2329,6 +2285,95 @@
           "mean_diastolic"
         ],
         "title": "WindowSummaryResponse",
+        "type": "object"
+      },
+      "hta__adminconsole__router__CaregiverLinkResponse": {
+        "properties": {
+          "authorized_scope": {
+            "title": "Authorized Scope",
+            "type": "string"
+          },
+          "caregiver_name": {
+            "title": "Caregiver Name",
+            "type": "string"
+          },
+          "caregiver_user_id": {
+            "format": "uuid",
+            "title": "Caregiver User Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "patient_name": {
+            "title": "Patient Name",
+            "type": "string"
+          },
+          "patient_user_id": {
+            "format": "uuid",
+            "title": "Patient User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "patient_user_id",
+          "patient_name",
+          "caregiver_user_id",
+          "caregiver_name",
+          "authorized_scope",
+          "created_at"
+        ],
+        "title": "CaregiverLinkResponse",
+        "type": "object"
+      },
+      "hta__clinical__router__CaregiverLinkResponse": {
+        "description": "Cuidador autorizado, con su nombre, su correo, el alcance y la fecha.\n\nNo lleva datos clínicos. ``id`` es el del vínculo y es el que el médico usa\npara cambiar el alcance o revocarlo. ``authorized_scope`` vale ``minimal`` o\n``readings``.",
+        "properties": {
+          "authorized_scope": {
+            "title": "Authorized Scope",
+            "type": "string"
+          },
+          "caregiver_email": {
+            "title": "Caregiver Email",
+            "type": "string"
+          },
+          "caregiver_name": {
+            "title": "Caregiver Name",
+            "type": "string"
+          },
+          "caregiver_user_id": {
+            "format": "uuid",
+            "title": "Caregiver User Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "caregiver_user_id",
+          "caregiver_name",
+          "caregiver_email",
+          "authorized_scope",
+          "created_at"
+        ],
+        "title": "CaregiverLinkResponse",
         "type": "object"
       }
     },
@@ -2999,163 +3044,6 @@
           }
         ],
         "summary": "List Audit",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/admin/caregivers": {
-      "post": {
-        "description": "Autoriza a un cuidador con alcance ``minimal`` o ``readings``.",
-        "operationId": "authorize_caregiver_api_admin_caregivers_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CaregiverAuthorization"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedLink"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "description": "Sesión inválida o expirada"
-          },
-          "403": {
-            "description": "Permiso denegado, o No hay consentimiento informado vigente"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Authorize Caregiver",
-        "tags": [
-          "admin"
-        ]
-      }
-    },
-    "/api/admin/caregivers/{link_id}": {
-      "delete": {
-        "description": "Revoca la autorización del cuidador.",
-        "operationId": "revoke_caregiver_api_admin_caregivers__link_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "link_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Link Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "description": "Sesión inválida o expirada"
-          },
-          "403": {
-            "description": "Permiso denegado, o No hay consentimiento informado vigente"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Revoke Caregiver",
-        "tags": [
-          "admin"
-        ]
-      },
-      "patch": {
-        "description": "Cambia el alcance de un cuidador ya autorizado.",
-        "operationId": "update_caregiver_scope_api_admin_caregivers__link_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "link_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Link Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScopeUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "401": {
-            "description": "Sesión inválida o expirada"
-          },
-          "403": {
-            "description": "Permiso denegado, o No hay consentimiento informado vigente"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "summary": "Update Caregiver Scope",
         "tags": [
           "admin"
         ]
@@ -4365,7 +4253,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Informa el estado de cada dependencia sin lanzar excepción.\n\nResponde 200 aunque una dependencia falle: el cuerpo distingue la\ndependencia degradada y el campo ``status`` queda en ``degraded``. Si el\ncliente es un navegador (``Accept: text/html``) o pide ``?format=html``,\nrecibe una página con el detalle de cada componente; el contrato JSON no\ncambia para los demás clientes.",
+        "description": "Informa el estado de cada dependencia sin lanzar excepción.\n\nResponde 200 aunque una dependencia falle: el cuerpo distingue la\ndependencia degradada y el campo ``status`` queda en ``degraded``. Si el\ncliente es un navegador (``Accept: text/html``) o pide ``?format=html``,\nrecibe una página que solo dice si cada componente responde; el contrato\nJSON no cambia para los demás clientes.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
@@ -4517,6 +4405,248 @@
           }
         ],
         "summary": "List Patients",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/patients/{patient_id}/caregivers": {
+      "get": {
+        "description": "Lista los cuidadores que tienen acceso al paciente y con qué alcance.\n\nEl paciente ve la lista propia; el médico, la del paciente al que está\nvinculado. Nadie más: el cuidador y el administrador reciben 403. La lista\nno lleva lecturas, síntomas ni cifras; solo nombre, correo, alcance y fecha\nde la autorización.",
+        "operationId": "list_patient_caregivers_api_patients__patient_id__caregivers_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaregiverLinkPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Patient Caregivers",
+        "tags": [
+          "clinical"
+        ]
+      },
+      "post": {
+        "description": "Autoriza a un cuidador del paciente que el médico tratante lleva.\n\nEl paciente no puede autorizar a su propio cuidador: el acto es clínico y\nqueda firmado por el médico. La cuenta destino debe existir, estar activa y\ntener rol de cuidador. Un vínculo duplicado responde 409 y un alcance que no\nsea ``minimal`` o ``readings`` responde 422.",
+        "operationId": "authorize_patient_caregiver_api_patients__patient_id__caregivers_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaregiverAuthorizationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/hta__clinical__router__CaregiverLinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Authorize Patient Caregiver",
+        "tags": [
+          "clinical"
+        ]
+      }
+    },
+    "/api/patients/{patient_id}/caregivers/{link_id}": {
+      "delete": {
+        "description": "Revoca el vínculo: borra la fila y el acceso cesa de inmediato.\n\nSolo el médico vinculado al paciente puede revocarlo. El paciente ve el\nvínculo pero no lo revoca; una separación por conveniencia o por conflicto\npodría cortar la atención de quien la necesita. La revocación queda auditada\ncon el actor, el vínculo y el alcance.",
+        "operationId": "revoke_patient_caregiver_api_patients__patient_id__caregivers__link_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Revoke Patient Caregiver",
+        "tags": [
+          "clinical"
+        ]
+      },
+      "patch": {
+        "description": "Cambia el alcance que el médico había autorizado.\n\nEl vínculo tiene que pertenecer al paciente de la ruta; un identificador de\notro paciente responde 404 y no se toca. Un alcance desconocido responde 422\ny el vínculo queda como estaba.",
+        "operationId": "change_patient_caregiver_scope_api_patients__patient_id__caregivers__link_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patient_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Patient Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaregiverScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Sesión inválida o expirada"
+          },
+          "403": {
+            "description": "Permiso denegado, o No hay consentimiento informado vigente"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change Patient Caregiver Scope",
         "tags": [
           "clinical"
         ]

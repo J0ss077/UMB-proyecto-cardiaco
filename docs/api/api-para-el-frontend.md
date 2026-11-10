@@ -434,19 +434,16 @@ Errores: 404 con `La cuenta no existe`; 409 con
 
 ### Rutas de administración
 
-Las rutas de `/api/admin` son la consola de administración: asignan médicos y
-autorizan cuidadores, fijan los umbrales de alerta y sus destinatarios, y
-consultan el rastro de auditoría. Ninguna devuelve lecturas ni síntomas. Todas
-exigen sesión con rol `admin`.
+Las rutas de `/api/admin` son la consola de administración: asignan médicos,
+leen el directorio de vínculos para supervisión, fijan los umbrales de alerta y
+sus destinatarios, y consultan el rastro de auditoría. Ninguna devuelve lecturas
+ni síntomas. Todas exigen sesión con rol `admin`.
 
 | Método | Ruta                                                          | Qué hace                                                             |
 | ------ | ------------------------------------------------------------- | -------------------------------------------------------------------- |
 | GET    | `/api/admin/links`                                            | Lista las asignaciones de médicos y las autorizaciones de cuidadores |
 | POST   | `/api/admin/physicians`                                       | Asigna un médico a un paciente                                       |
 | DELETE | `/api/admin/physicians/{patient_user_id}/{physician_user_id}` | Quita la asignación de un médico                                     |
-| POST   | `/api/admin/caregivers`                                       | Autoriza a un cuidador con un alcance                                |
-| PATCH  | `/api/admin/caregivers/{link_id}`                             | Cambia el alcance de una autorización                                |
-| DELETE | `/api/admin/caregivers/{link_id}`                             | Revoca una autorización                                              |
 | GET    | `/api/admin/alert-config`                                     | Lista los umbrales y sus destinatarios                               |
 | PATCH  | `/api/admin/alert-config/{config_id}`                         | Cambia la banda de una métrica                                       |
 | PATCH  | `/api/admin/alert-config/{config_id}/recipients`              | Cambia los destinatarios de una métrica                              |
@@ -457,10 +454,16 @@ exigen sesión con rol `admin`.
 
 Cada ruta tiene su sección con la petición, la respuesta y los errores propios.
 
+El administrador no crea, cambia ni revoca autorizaciones de cuidador: esa
+decisión es del médico vinculado al paciente y vive en
+`/api/patients/{patient_id}/caregivers` (ADR 0012). Las rutas
+`POST`, `PATCH` y `DELETE` de `/api/admin/caregivers` ya no existen.
+
 ### `GET /api/admin/links`
 
 Exige sesión con rol `admin`. Devuelve las asignaciones de médicos y las
-autorizaciones de cuidadores, con nombres y sin cifras clínicas.
+autorizaciones de cuidadores para supervisión, con nombres, alcance y fechas,
+sin cifras clínicas.
 
 Respuesta 200 real de la pila de demostración:
 
@@ -532,47 +535,6 @@ Respuesta 204, sin cuerpo. Errores: 404 con `La cuenta no existe`; 409 con
 ### `DELETE /api/admin/physicians/{patient_user_id}/{physician_user_id}`
 
 Quita la asignación. Respuesta 204, sin cuerpo. 404 con `El vínculo no existe` si no estaba.
-
-### `POST /api/admin/caregivers`
-
-Autoriza a un cuidador. El cuerpo lleva `patient_user_id`, `caregiver_user_id`
-y `authorized_scope` (`minimal` o `readings`).
-
-Petición real:
-
-```json
-{
-    "patient_user_id": "38116b94-05c0-481d-a7c1-c915073e213f",
-    "caregiver_user_id": "be71a4ee-e881-45ac-ac98-537c6631d3d1",
-    "authorized_scope": "readings"
-}
-```
-
-Respuesta 201 con el identificador del vínculo:
-
-```json
-{
-    "id": "1707976b-6f95-4f96-940c-67abe32609ea"
-}
-```
-
-409 con `Ese cuidador ya está autorizado para este paciente`. 422 con
-`Alcance desconocido` si el alcance no es uno de los dos. El vínculo de la
-petición se revocó después de la llamada con `DELETE` para dejar la
-demostración como estaba.
-
-### `PATCH /api/admin/caregivers/{link_id}`
-
-```json
-{ "authorized_scope": "minimal" }
-```
-
-Respuesta 204, sin cuerpo. 404 con `El vínculo no existe`. En la llamada real el
-alcance se cambió a `minimal` y se devolvió a `readings`.
-
-### `DELETE /api/admin/caregivers/{link_id}`
-
-Revoca la autorización. Respuesta 204, sin cuerpo. 404 con `El vínculo no existe`.
 
 ### `GET /api/admin/alert-config`
 
@@ -904,6 +866,8 @@ del cuidador lo aprueba un administrador; el administrador cambia la suya al mom
   `{"status": "pending", "requested_at": ...}`; la
   contraseña vigente no cambia hasta la aprobación y una solicitud nueva reemplaza a la anterior. El
   administrador recibe 200 con `{"status": "changed", "requested_at": null}` y sus sesiones se cierran.
+  El contrato publicado declara las dos respuestas, 200 y 202, con el mismo cuerpo: el código depende
+  del rol que llama y el cliente no debe asumir uno solo.
 - `DELETE /api/account/password-change` retira la solicitud propia; responde 204.
 - `GET /api/admin/password-requests` (solo `admin`) devuelve `{"items": [{"user_id", "email",
   "full_name", "role", "requested_at"}]}`, de la más antigua a la más reciente, sin contraseñas.
@@ -1151,6 +1115,57 @@ análisis de datos clínicos y responde 403 con
 `No hay consentimiento informado vigente` si el paciente no tiene una aceptación
 vigente. El cliente no debe confundir ese 403 con una falta de permisos ni
 reintentar la petición: lleva al paciente a aceptar el consentimiento.
+
+### Autorización de cuidadores
+
+El médico vinculado al paciente es quien autoriza a un cuidador, fija su alcance
+y lo revoca. **El paciente ve quién tiene acceso a su historia y con qué
+alcance, pero no puede revocarlo**; el administrador conserva solo la lectura
+del directorio para supervisión. La decisión y su porqué están en el
+`docs/adr/0012-autorizacion-de-cuidadores-por-el-medico.md`.
+
+| Método | Ruta                                                     | Quién puede                                    |
+| ------ | -------------------------------------------------------- | ---------------------------------------------- |
+| GET    | `/api/patients/{patient_id}/caregivers`                  | El médico vinculado y el propio paciente       |
+| POST   | `/api/patients/{patient_id}/caregivers`                  | Solo el médico vinculado                       |
+| PATCH  | `/api/patients/{patient_id}/caregivers/{link_id}`        | Solo el médico vinculado                       |
+| DELETE | `/api/patients/{patient_id}/caregivers/{link_id}`        | Solo el médico vinculado                       |
+
+`patient_id` es el identificador de la cuenta del paciente, no el del perfil. Un
+médico sin vínculo, un cuidador y el administrador reciben 403 en las cuatro
+rutas. El paciente recibe 200 en `GET` y 403 en las tres mutaciones. Un vínculo
+de otro paciente responde 404 y no se toca.
+
+`GET` responde 200 con `{"items": [...], "total": n}`. Cada elemento lleva el
+nombre y el correo del cuidador, el alcance y la fecha de la autorización, sin
+datos clínicos:
+
+```json
+{
+    "id": "1707976b-6f95-4f96-940c-67abe32609ea",
+    "caregiver_user_id": "be71a4ee-e881-45ac-ac98-537c6631d3d1",
+    "caregiver_name": "Marta Lucía Gómez Torres",
+    "caregiver_email": "cuidador@hta.demo",
+    "authorized_scope": "readings",
+    "created_at": "2026-10-31T10:00:00Z"
+}
+```
+
+`POST` recibe `{"caregiver_email": "...", "authorized_scope": "readings"}` y
+responde 201 con el mismo objeto. Errores: 404 con `La cuenta no existe`; 422
+con `La cuenta del cuidador no tiene rol de cuidador`; 409 con
+`La cuenta está desactivada` o `Ese cuidador ya está autorizado para este
+paciente`; 422 con `Alcance desconocido` si no es `minimal` ni `readings`.
+
+`PATCH` recibe `{"authorized_scope": "minimal"}` y responde 204; 404 con
+`El vínculo no existe` y 422 con `Alcance desconocido`.
+
+`DELETE` borra la fila y responde 204; 404 con `El vínculo no existe`. El acceso
+del cuidador cesa en la petición siguiente.
+
+Las tres mutaciones se auditan con el actor, el vínculo y el alcance
+(`caregiver.linked`, `caregiver.scope_changed`, `caregiver.unlinked`). El
+administrador puede filtrarlas con `GET /api/admin/audit?topic=caregiver`.
 
 ### `GET /api/patients`
 

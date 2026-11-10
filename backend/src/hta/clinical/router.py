@@ -18,6 +18,11 @@ Las rutas de alertas no crean alertas ni las cierran por su cuenta: solo listan,
 leen y registran una transición firmada por una persona. El listado y la consulta
 aceptan a los tres roles clínicos; las tres transiciones exigen además el rol de
 médico, porque mover una alerta es el acto clínico que la cierra.
+
+La autorización de cuidadores es del médico vinculado al paciente. El paciente
+ve la lista de quién tiene acceso y con qué alcance, pero no puede crear,
+cambiar ni revocar el vínculo; el administrador conserva solo la lectura del
+directorio en `/api/admin/links` para supervisión.
 """
 
 from __future__ import annotations
@@ -44,7 +49,7 @@ from hta.auth.deps import (
     get_conn,
     require_role,
 )
-from hta.clinical import access, alerts, patients, readings, symptoms, validation
+from hta.clinical import access, alerts, caregivers, patients, readings, symptoms, validation
 
 # Todas las rutas de este enrutador exigen una sesión, así que el contrato
 # declara en cada una el 401 y el 403 que la compuerta puede producir.
@@ -57,6 +62,12 @@ router = APIRouter(
 # Roles que pueden consultar datos clínicos. El administrador queda fuera y
 # recibe el 403 de ``require_role`` antes de llegar al servicio.
 CLINICAL_ROLES = ("patient", "physician", "caregiver")
+
+# Quién puede ver la lista de cuidadores: el paciente sobre sí mismo y el médico
+# vinculado. El cuidador y el administrador reciben 403. Las mutaciones exigen
+# además el rol de médico, y el vínculo con el paciente lo comprueba
+# ``access.patient_profile_id``.
+CAREGIVER_READERS = ("patient", "physician")
 
 # Página por omisión y máximo de los listados, los mismos del contrato. El
 # máximo evita que una petición se lleve la tabla entera.
@@ -160,6 +171,56 @@ class PaginatedPatients(BaseModel):
 
     items: list[PatientSummaryResponse]
     total: int
+
+
+class CaregiverLinkResponse(BaseModel):
+    """Cuidador autorizado, con su nombre, su correo, el alcance y la fecha.
+
+    No lleva datos clínicos. ``id`` es el del vínculo y es el que el médico usa
+    para cambiar el alcance o revocarlo. ``authorized_scope`` vale ``minimal`` o
+    ``readings``.
+    """
+
+    model_config = ConfigDict(frozen=True, from_attributes=True)
+
+    id: UUID
+    caregiver_user_id: UUID
+    caregiver_name: str
+    caregiver_email: str
+    authorized_scope: str
+    created_at: datetime
+
+
+class CaregiverLinkPage(BaseModel):
+    """Lista de cuidadores autorizados del paciente."""
+
+    model_config = ConfigDict(frozen=True)
+
+    items: list[CaregiverLinkResponse]
+    total: int
+
+
+class CaregiverAuthorizationRequest(BaseModel):
+    """Alta de un vínculo de cuidador.
+
+    ``caregiver_email`` se resuelve contra ``users``; la cuenta debe existir,
+    estar activa y tener rol ``caregiver``. El alcance se valida en el servicio
+    para responder el mismo 422 con ``Alcance desconocido`` que el resto de la
+    API.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    caregiver_email: str
+    authorized_scope: str
+
+
+class CaregiverScopeRequest(BaseModel):
+    """Cambio de alcance de un vínculo existente."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    authorized_scope: str
 
 
 class PaginatedReadings(BaseModel):
@@ -347,6 +408,106 @@ async def list_patients(
     return PaginatedPatients(
         items=[PatientSummaryResponse.model_validate(item) for item in page],
         total=total,
+    )
+
+
+@router.get("/patients/{patient_id}/caregivers", response_model=CaregiverLinkPage)
+async def list_patient_caregivers(
+    patient_id: UUID,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role(*CAREGIVER_READERS))],
+) -> CaregiverLinkPage:
+    """Lista los cuidadores que tienen acceso al paciente y con qué alcance.
+
+    El paciente ve la lista propia; el médico, la del paciente al que está
+    vinculado. Nadie más: el cuidador y el administrador reciben 403. La lista
+    no lleva lecturas, síntomas ni cifras; solo nombre, correo, alcance y fecha
+    de la autorización.
+    """
+    profile_id = await access.patient_profile_id(conn, user, patient_id)
+    links = await caregivers.list_for(conn, profile_id)
+    return CaregiverLinkPage(
+        items=[CaregiverLinkResponse.model_validate(link) for link in links],
+        total=len(links),
+    )
+
+
+@router.post(
+    "/patients/{patient_id}/caregivers",
+    status_code=201,
+    response_model=CaregiverLinkResponse,
+)
+async def authorize_patient_caregiver(
+    patient_id: UUID,
+    body: CaregiverAuthorizationRequest,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
+) -> CaregiverLinkResponse:
+    """Autoriza a un cuidador del paciente que el médico tratante lleva.
+
+    El paciente no puede autorizar a su propio cuidador: el acto es clínico y
+    queda firmado por el médico. La cuenta destino debe existir, estar activa y
+    tener rol de cuidador. Un vínculo duplicado responde 409 y un alcance que no
+    sea ``minimal`` o ``readings`` responde 422.
+    """
+    profile_id = await access.patient_profile_id(conn, user, patient_id)
+    link = await caregivers.authorize(
+        conn,
+        user.user_id,
+        profile_id,
+        patient_id,
+        body.caregiver_email,
+        body.authorized_scope,
+    )
+    return CaregiverLinkResponse.model_validate(link)
+
+
+@router.patch("/patients/{patient_id}/caregivers/{link_id}", status_code=204)
+async def change_patient_caregiver_scope(
+    patient_id: UUID,
+    link_id: UUID,
+    body: CaregiverScopeRequest,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
+) -> None:
+    """Cambia el alcance que el médico había autorizado.
+
+    El vínculo tiene que pertenecer al paciente de la ruta; un identificador de
+    otro paciente responde 404 y no se toca. Un alcance desconocido responde 422
+    y el vínculo queda como estaba.
+    """
+    profile_id = await access.patient_profile_id(conn, user, patient_id)
+    await caregivers.change_scope(
+        conn,
+        user.user_id,
+        profile_id,
+        patient_id,
+        link_id,
+        body.authorized_scope,
+    )
+
+
+@router.delete("/patients/{patient_id}/caregivers/{link_id}", status_code=204)
+async def revoke_patient_caregiver(
+    patient_id: UUID,
+    link_id: UUID,
+    conn: Annotated[AsyncConnection, Depends(get_conn)],
+    user: Annotated[CurrentUser, Depends(require_role("physician"))],
+) -> None:
+    """Revoca el vínculo: borra la fila y el acceso cesa de inmediato.
+
+    Solo el médico vinculado al paciente puede revocarlo. El paciente ve el
+    vínculo pero no lo revoca; una separación por conveniencia o por conflicto
+    podría cortar la atención de quien la necesita. La revocación queda auditada
+    con el actor, el vínculo y el alcance.
+    """
+    profile_id = await access.patient_profile_id(conn, user, patient_id)
+    await caregivers.revoke(
+        conn,
+        user.user_id,
+        profile_id,
+        patient_id,
+        link_id,
     )
 
 

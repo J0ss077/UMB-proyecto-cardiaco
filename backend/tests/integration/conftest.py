@@ -210,6 +210,8 @@ PHYSICIAN_EMAIL = "medico-consulta@hta.demo"
 CAREGIVER_EMAIL = "cuidador-lecturas@hta.demo"
 CAREGIVER_MINIMAL_EMAIL = "cuidador-minimo@hta.demo"
 OTHER_CAREGIVER_EMAIL = "cuidador-otro@hta.demo"
+OTHER_PHYSICIAN_EMAIL = "medico-otro@hta.demo"
+CAREGIVER_TARGET_EMAIL = "cuidador-destino@hta.demo"
 
 
 def _create_patient(connection: psycopg.Connection, email: str) -> UUID:
@@ -524,6 +526,50 @@ def other_caregiver_headers(
     """
     _caregiver(db, OTHER_CAREGIVER_EMAIL, "readings", other_patient_id)
     return _login_headers(client, OTHER_CAREGIVER_EMAIL)
+
+
+@dataclass(frozen=True)
+class CaregiverTarget:
+    """Cuenta de cuidador que el médico puede autorizar, con su correo."""
+
+    id: UUID
+    email: str
+
+
+@pytest.fixture
+def other_physician_headers(
+    client: httpx.Client,
+    db: psycopg.Connection,
+    clean_db: None,
+) -> dict[str, str]:
+    """Médico activo sin vínculo con el paciente de las fixtures.
+
+    Sirve para comprobar que la autorización de cuidadores mira el vínculo
+    concreto: un médico que no lleva al paciente recibe 403 en todas las rutas.
+    """
+    _create_user(db, OTHER_PHYSICIAN_EMAIL, "physician", "Médico sin vínculo")
+    return _login_headers(client, OTHER_PHYSICIAN_EMAIL)
+
+
+@pytest.fixture
+def caregiver_target(
+    db: psycopg.Connection,
+    clean_db: None,
+) -> CaregiverTarget:
+    """Cuidador activo que todavía no está autorizado hacia ningún paciente."""
+    return CaregiverTarget(
+        id=_create_user(db, CAREGIVER_TARGET_EMAIL, "caregiver", "Cuidador Destino"),
+        email=CAREGIVER_TARGET_EMAIL,
+    )
+
+
+@pytest.fixture
+def caregiver_target_headers(
+    client: httpx.Client,
+    caregiver_target: CaregiverTarget,
+) -> dict[str, str]:
+    """Encabezado de la sesión del cuidador que el médico autoriza."""
+    return _login_headers(client, caregiver_target.email)
 
 
 @pytest.fixture
